@@ -40,27 +40,30 @@ Praktische afspraken:
 
 ## Draaiboek van de middag
 
-Het spel past in 55 minuten, met 5 minuten buffer. De tv toont het begeleidersscherm; de jongeren stemmen met hun telefoon via een korte link of QR-code.
+Het spel duurt circa 80 minuten (schatting, zie de tabel). De tv toont het begeleidersscherm; de jongeren stemmen met hun telefoon via een korte link of QR-code.
 
-| Tijd | Onderdeel | Tv | Telefoons |
+**Het bord**: op de tv staan 16 heiligen: de 8 die de jongeren kozen, plus 8 andere uit de set. Elke heilige heeft een korte beschrijving. Die beschrijvingen kunnen vooraf rondgestuurd worden; vooraf lezen mag, maar hoeft niet. Alle 16 blijven het hele spel op het bord staan, ook na een onthulling, zodat niemand halverwege nieuwe heiligen hoeft te lezen.
+
+| Tijd (schatting) | Onderdeel | Tv | Telefoons |
 | --- | --- | --- | --- |
-| 0–5 min | Opening: wat is een heilige (gewone mensen die iets bijzonders deden), uitleg van het spel | Introscherm met QR-code | Inloggen met nickname |
-| 5–40 min | 8 raadrondes van circa 4 minuten | Heilige met hints | Stemmen wie het is |
-| 40–50 min | Groepsplaat: alle 8 heiligen naast elkaar. Wat zegt dit over ons als groep? | Overzicht met nicknames | — |
-| 50–55 min | Afsluiting: groepsscore, aankondiging herhaling in juni | Score en datum | — |
+| 0–10 min | Opening: wat is een heilige (gewone mensen die iets bijzonders deden), uitleg van het spel, de 16 heiligen bekijken | Introscherm met QR-code, daarna het bord | Inloggen met nickname |
+| 10–66 min | 8 rondes van circa 7 minuten, één per jongere | Het bord, stemuitslag | Stemmen bij welke heilige deze jongere hoort |
+| 66–76 min | Groepsplaat: alle 8 heiligen naast elkaar. Wat zegt dit over ons als groep? | Overzicht met nicknames | — |
+| 76–80 min | Afsluiting: groepsscore, aankondiging herhaling | Score en datum | — |
 
-**Eén raadronde** werkt met hints die stap voor stap verschijnen:
+**Eén ronde** draait om één jongere (hier: Kind A):
 
-1. Afbeelding en naam van de heilige, plus één zin levensverhaal. Iedereen stemt.
-2. Hint 2: de persoonlijke uitleg van de app (zonder nickname). Wie wil, verandert zijn stem.
-3. Hint 3: de "want…"-zin van de jongere zelf. Laatste stemronde.
-4. Onthulling. De eigenaar mag één ding vertellen ("wat klopte er wel en wat niet?"), maar het hoeft niet.
+1. **Overleg 1.** Kind A gaat even de kamer uit. De groep overlegt zonder vragen te stellen bij welke heilige Kind A hoort. Na 1 minuut moet er gestemd worden: iedereen vinkt op de telefoon één heilige aan.
+2. **Uitslag 1.** Pas als iedereen gestemd heeft, toont de tv per heilige het aantal stemmen. Nooit wie op wat stemde.
+3. **Vragenronde.** Kind A komt terug. Elke andere jongere mag Kind A één vraag stellen, maximaal 7 vragen; geen vraag weten is ook prima. Kind A beantwoordt alleen vragen over zichzelf en zegt niet welke heilige hij of zij heeft.
+4. **Overleg 2.** Kind A gaat weer even de kamer uit, zodat de groep vrij kan praten en Kind A geen reacties kan lezen. Na 1 minuut opnieuw stemmen; iedereen mag zijn keus veranderen. De tv toont weer alleen aantallen.
+5. **Onthulling.** De heilige van Kind A wordt getoond. Kind A mag één ding vertellen ("wat klopte er wel en wat niet?"), maar het hoeft niet.
 
-Punten: 3 voor goed bij hint 1, 2 bij hint 2, 1 bij hint 3. Je eigen heilige herken je, dus daarop kun je niet stemmen. De eigenaar krijgt een bonuspunt als minstens de helft het goed had: zo voelt gekend worden als winnen.
+**Punten** zijn alleen groepspunten. Heeft na stemronde 1 meer dan de helft van de stemmen de juiste heilige, dan krijgt de groep 2 punten. Lukt dat pas na stemronde 2, dan 1 punt. Anders 0. Zo beloont de score het overleg, en ziet niemand wie het fout had.
 
-De begeleider bedient het scherm (volgende hint, onthullen, volgende ronde) vanaf zijn telefoon of laptop. Volgorde van de rondes is willekeurig, maar de eerste ronde is een heilige met een duidelijke, grappige uitleg, om erin te komen.
+De begeleider bedient het scherm (stemming sluiten, uitslag tonen, onthullen, volgende ronde) vanaf zijn telefoon of laptop. Volgorde van de rondes is willekeurig, maar de eerste ronde is een jongere met een duidelijke, makkelijk te raden heilige, om erin te komen.
 
-**Herhaling in juni**: iedereen vult de quiz opnieuw in (thuis of ter plekke), daarna hetzelfde raadspel. Op het eindscherm: groepsscore september tegenover juni, en per persoon de heilige van toen en nu.
+**Herhaling**: in juni, en misschien ook halverwege het seizoen, vult iedereen de quiz opnieuw in (thuis of ter plekke). Wie dan uitkomt bij een heilige die beter past, mag die kiezen. Daarna hetzelfde spel. Op het eindscherm: groepsscore van toen tegenover nu, en per persoon de heilige van toen en nu.
 
 ## Inhoud: heiligen, rubric en vragen
 
@@ -150,8 +153,9 @@ Eén SQLite-bestand op de server is genoeg; er worden alleen nicknames en quizan
 | `speler` | id, groep\_id, nickname, sessietoken |
 | `invulling` | id, speler\_id, ronde\_id, antwoorden (JSON), open antwoorden, vervolgvragen en -antwoorden (JSON), stap |
 | `match` | id, invulling\_id, top-3 (JSON met uitleg), gekozen heilige, klopt-want, niet-want (JSON), markering voor begeleider |
-| `spelronde` | id, ronde\_id, match\_id, volgorde, huidige hint |
-| `stem` | id, spelronde\_id, speler\_id, gestemd\_op\_speler\_id, bij\_hint |
+| `spelronde` | id, ronde\_id, match\_id, volgorde, fase (overleg 1 / uitslag 1 / vragen / overleg 2 / onthuld), groepspunten |
+| `bord` | id, ronde\_id, heilige\_id, is\_gekozen (de 8 gekozen plus 8 andere) |
+| `stem` | id, spelronde\_id, speler\_id, heilige\_id, stemronde (1 / 2) |
 
 De heiligen en de vragenbank staan niet in de database, maar als JSON-bestanden in de repo. Zo zijn ze te reviewen in git en blijft de database klein.
 
@@ -190,4 +194,6 @@ Voeg in de repo een `CLAUDE.md` toe met de ontwerpregels uit de eerste sectie. D
 - [ ] Hoe draaien apps nu op hopsakee-server (Docker Compose, netwerk, back-ups)? De repo was niet openbaar te lezen; geef Claude Code er toegang toe in fase 6.
 - [ ] Subdomein voor de app.
 - [ ] Welke Anthropic API-sleutel, en een uitgavenlimiet instellen.
+- [ ] Rol van de persoonlijke uitleg van de LLM nu de hints vervallen: tonen bij de onthulling, of alleen voor de jongere zelf?
+- [ ] Hoe worden de 8 extra heiligen op het bord gekozen: willekeurig, of juist lijkend op de gekozen 8 zodat het raden lastiger wordt?
 - [ ] Nickname-regels: mag iedereen alles kiezen, of kies jij ze vooraf?
