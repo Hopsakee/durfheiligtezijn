@@ -180,7 +180,7 @@ Zes fasen, elk afgesloten met een controlemoment voor jou. Laat Claude Code per 
    - *Controle*: rapport met verdeling; jij speelt de quiz zelf 3 keer als verschillende types.
 4. **Quiz-app**. Quizflow op mobiel, beide LLM-aanroepen met validatie en terugvaloptie, klopt-want, voortgang bewaren, begeleidersoverzicht van wie klaar is.
    - *Controle*: jij en je gezin doen de quiz lokaal.
-5. **Raadspel**. Tv-scherm, stemmen op telefoons, hints stap voor stap, punten, groepsplaat, eindscherm. Bediening door de begeleider.
+5. **Raadspel**. Tv-scherm met het bord van 16 heiligen, twee stemrondes per jongere op telefoons, groepspunten, groepsplaat, eindscherm. Bediening door de begeleider.
    - *Controle*: generale repetitie met familie en vrienden als eigen groep, op de echte server.
 6. **Uitrol en herhaling**. Docker-image, Caddy-route, Authelia-regels, back-up van de SQLite, exportfunctie, vergelijkingsscherm september/juni, groep verwijderen.
    - *Controle*: groep aanmaken voor de jongeren, link testen op een telefoon buiten je eigen netwerk.
