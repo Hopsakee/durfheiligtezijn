@@ -1,0 +1,42 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# --- Tooling caches ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- Secrets and local config ---
+.env
+.env.*
+!.env.example
+# FastHTML writes its session-signing key here on first run
+.sesskey
+
+# --- Runtime data (SQLite lives on a Docker volume, never in git) ---
+# Saints and question-bank JSON files ARE committed, so no blanket data/ rule.
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.db-journal
+
+# --- Docker ---
+docker-compose.override.yml
+
+# --- Editors and OS ---
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/

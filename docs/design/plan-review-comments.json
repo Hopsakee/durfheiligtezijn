@@ -1,0 +1,160 @@
+{
+  "version": 2,
+  "document_filename": "Plan Heiligen-welkomstspel jongerengroep.md",
+  "document_title": "Plan: Heiligen-welkomstspel jongerengroep",
+  "exported_at": "2026-10-06T18:22:05.960Z",
+  "reviewer": "onbekend",
+  "general_notes": "Gebruik de skill `ideate` om dit plan nog verder te verbeteren als dat zin heeft, maar voordat je dit doet, leg me eerst uit waar deze skill voor gebruikt kan worden. Wat het doet en hoe ik kan besluiten wanneer ik deze wel of niet  wil inzetten.",
+  "annotations": [
+    {
+      "id": 1,
+      "paragraph_id": "p-17",
+      "kind": "comment",
+      "text": "Eén raadronde werkt met hints die stap voor stap verschijnen:",
+      "replacement": "",
+      "comment": "Ik wil Een beetje anders aanpakken. Op het scherm zijn twee keer zoveel heiligen te kiezen als kinderen zijn. Dus de acht door de kinderen geselecteerde heiligen staan plus nog acht andere.Dan gaan we vervolgens per kind kijken welke heilige het beste bij vinden passen. Dus elke heilige heeft een korte beschrijving die de kinderen dan kunnen lezen. Dat wil ik ook van tevoren sturen, om ze niet van tevoren te lezen, maar dat kan wel. En dan, het kind dat ze het proberen te plaatsen kan antwoord geven op de vragen, maar mag niet zeggen welke heilige die is. Dus hij mag alleen maar antwoord geven op vragen over zichzelf.De puntenstructuur kunnen we houden dat ze bijvoorbeeld in ronde 1 met elkaar overleggen bij welke heilige het kind Kind A hoort, zonder dat ze Kind A vragen mogen stellen. De tweede ronde mag elk kind één vraag aan Kind A stellen. Dus dat worden in totaal zeven vragen. Als een kind geen vragen weet te bedenken is dat natuurlijk ook prima. En na die vragenronde gaan ze opnieuw overleggen bij welke heilige hoort Kind A. Tijdens het vraag stellen mag het kind zelf aanwezig zijn, maar als de groep gaat beslissen bij welke heilige het kind hoort, dan mag hij of zij even de kamer uit, want anders kunnen ze natuurlijk de reacties lezen. Daarom mag het besluitproces ook maar kort duren.\nIk wil daarom ook toevoegen dat overlegd mag worden en dat na 1 minuut gewoon gestemd moet worden. Dus dan mag iedereen aanvinken bij welke heilige die hoort. En als iedereen dan gekozen heeft, dan wordt het zichtbaar op het scherm. Na ronde 2 mogen mensen hun keus nog veranderen en dat is het dan.\nBij de herhaling in jun maar misschien ook nog een keer halverwege in het jaa mogen ze ook de heilige quiz zelf opnieuw invullen. En dan komen ze misschien bij een heilige uit die ze beter bij zichzelf vinde passen.",
+      "author": "onbekend",
+      "created_at": "2026-10-06T17:46:47.690Z"
+    },
+    {
+      "id": 2,
+      "paragraph_id": "p-28",
+      "kind": "comment",
+      "text": "De rubric: 12 dimensies die zowel bij een heilige als bij een tiener herkenbaar zijn.",
+      "replacement": "",
+      "comment": "Review deze rubrik nog een keer heel goed met de skills `council` en `RedTeam` als dat mogelijk een zinvolle stap is. Leg me eerst uit wat het verschil is tussen beide en welke ik wanneer moet inzetten.",
+      "author": "onbekend",
+      "created_at": "2026-10-06T17:54:18.065Z"
+    },
+    {
+      "id": 3,
+      "paragraph_id": "p-31",
+      "kind": "comment",
+      "text": "Kwaliteitscheck vóór de middag: een simulatie met 200 fictieve tienerprofielen",
+      "replacement": "",
+      "comment": "Gebruik hier Evals voor. Bijvoorbeeld de `Evals` skill of waarschijnlijk nog beter: https://github.com/ai-evals-course/evals-skills \nZorg er voor dat ik ook een Dashboard heb waarin ik goed naar de data kan kijken en kan annoteren.",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:03:04.341Z"
+    },
+    {
+      "id": 4,
+      "paragraph_id": "p-35",
+      "kind": "comment",
+      "text": "Output (JSON)",
+      "replacement": "",
+      "comment": "Waarom JSON en niet direct naar SQlite?",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:07:06.177Z"
+    },
+    {
+      "id": 5,
+      "paragraph_id": "p-39",
+      "kind": "comment",
+      "text": "Model en kosten: Claude Sonnet 5.5 voor beide aanroepen; de modelnaam staat in de configuratie.",
+      "replacement": "",
+      "comment": "Dit gaat niet goed werken, want ik kan voor deze app niet het Anthropic teams Abonnement gebruiken van mijn werk. Ik heb wel een Google Pro abonnement dit jaar, dus volgens mij kunnen we die API gebruiken.",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:07:44.623Z"
+    },
+    {
+      "id": 6,
+      "paragraph_id": "p-44",
+      "kind": "comment",
+      "text": "Stack (aanname): FastAPI met Jinja-templates en HTMX.",
+      "replacement": "",
+      "comment": "Ik heb voorkeur voor een andere stack. Ik gebruik zelf veel FastHTML of niceGUI. Ik gebruik inderdaad zeker HTMX.Verder denk ik dat we een SQLite database goed kunnen gebruiken en daar ben ik dan weer een enorme fan van Dataset en SQLite utils (https://github.com/simonw/sqlite-utils) die zijn gemaakt door Simon Willison.Eerlijk gezegd vind ik de aanpassing van Answer.AI bovenop SQLite utils ook heel goed, dat is FastLite (https://github.com/AnswerDotAI/fastlite). Maar die worden wat minder veel gebruikt, ondanks dat ze echt wonderschoon zijn. Dus misschien is het geen goed idee om dat hier te gebruiken. Laten we dat afwegen.",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:08:42.714Z"
+    },
+    {
+      "id": 7,
+      "paragraph_id": "p-44",
+      "kind": "comment",
+      "text": "Routes: / en /quiz openbaar met uitnodigingscode; /spel (stemmen) openbaar met sessietoken; /beheer en /tv achter Authelia.",
+      "replacement": "",
+      "comment": "Dit gaat toch niet werken? Dan kan iedereen die de URL heeft, die gebruiken om calls te doen tegen mijn Gemini API. Dat gaat me voor een fortuin kosten.\nBovendien ben ik ook niet zo'n fan van dat dan iedereen die kan inloggen kan ontdekken welk kind het meest op welke heilige lijkt ofzo. Dus volgens mij moet overal gewoon een wachtwoord voor. Het is niet anders, misschien kunnen we het eenvoudiger voor ze maken door inloggen met Google mogelijk te maken. Hoewel ik daar eigenlijk geen fan van ben.\nWaarschijnlijk is het makkelijkst dat ik voor elk kind een account aanmaak en ze gewoon allemaal hetzelfde wachtwoord geef. En dat ik dat wachtwoord na de avond gewoon weghaal tot de volgende keer dat we hiermee gaan spelen.",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:13:34.177Z"
+    },
+    {
+      "id": 8,
+      "paragraph_id": "p-48",
+      "kind": "comment",
+      "text": "De heiligen en de vragenbank staan niet in de database, maar als JSON-bestanden in de repo. Zo zijn ze te reviewen in git en blijft de database klein.",
+      "replacement": "",
+      "comment": "Is dit echt een beter idee dan een SQLite database? Ik bedoel, het beschrijven van de heiligen kunnen we toch ook gewoon in SQLite reviewen? Of gaat het hier om de versiecontrole? Dan is misschien JSON inderdaad prima. Nou, maar doen we die JSON, laat dan gewoon ook in als SQLite tabellen. Daar zijn wel SQLite utils voor.",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:15:25.290Z"
+    },
+    {
+      "id": 9,
+      "paragraph_id": "p-53",
+      "kind": "comment",
+      "text": "Output: kandidaten.csv met circa 150 heiligen, gerangschikt op bekendheid. - Controle: jij streept door, vult aan en bevestigt de vaste kern.",
+      "replacement": "",
+      "comment": "Ook toevoegen of vrouwen of mannen zijn, want van beiden willen we een grote selectie. Ook in de tabel opnemen uit welk land ze komen en wat geboortejaar en sterfjaar is.\nDit graag ook oplever als een HTML of op een andere manier eenvoudig te lezen het bestand waar ik snel kan aanvinken. Deze wel deze niet deze wel deze wel deze wel deze niet deze wel.",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:16:55.859Z"
+    },
+    {
+      "id": 10,
+      "paragraph_id": "p-56",
+      "kind": "comment",
+      "text": "Datum van de middag, en dus de deadline voor fase 5 en de generale repetitie.",
+      "replacement": "",
+      "comment": "11 oktober",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:18:34.883Z"
+    },
+    {
+      "id": 11,
+      "paragraph_id": "p-56",
+      "kind": "comment",
+      "text": "Framework: FastAPI met HTMX (aanname in dit plan) of NiceGUI?",
+      "replacement": "",
+      "comment": "NiceGUI of FastHTML. Nog afwegen door met mij de voor en nadelen te bespreken.",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:18:48.278Z"
+    },
+    {
+      "id": 12,
+      "paragraph_id": "p-56",
+      "kind": "comment",
+      "text": "Hoe draaien apps nu op hopsakee-server (Docker Compose, netwerk, back-ups)? De repo was niet openbaar te lezen; geef Claude Code er toegang toe in fase 6.",
+      "replacement": "",
+      "comment": "Docker Compose",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:19:15.741Z"
+    },
+    {
+      "id": 13,
+      "paragraph_id": "p-56",
+      "kind": "comment",
+      "text": "Subdomein voor de app.",
+      "replacement": "",
+      "comment": "durfheiligtezijn",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:19:28.776Z"
+    },
+    {
+      "id": 14,
+      "paragraph_id": "p-56",
+      "kind": "comment",
+      "text": "Welke Anthropic API-sleutel, en een uitgavenlimiet instellen.",
+      "replacement": "",
+      "comment": "Niet Anthropic, maar Gemini. De API-sleutel ga ik hier niet delen. Die moet als secret toegevoegd worden. Uitgavenlimiet 5 euro.",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:21:19.622Z"
+    },
+    {
+      "id": 15,
+      "paragraph_id": "p-56",
+      "kind": "comment",
+      "text": "Nickname-regels: mag iedereen alles kiezen, of kies jij ze vooraf?",
+      "replacement": "",
+      "comment": "Iedereen mag zelf kiezen.",
+      "author": "onbekend",
+      "created_at": "2026-10-06T18:21:57.869Z"
+    }
+  ]
+}
