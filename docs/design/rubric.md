@@ -1,12 +1,12 @@
-# Voorstel: herziene rubric
+# Rubric
 
-Status: voorstel van Hoggle, 2026-10-06, ter bespreking. Vervangt na akkoord de rubric in `plan-heiligen-welkomstspel.md`.
+Status: vastgesteld door Jelle op 2026-10-06. Vervangt de rubric met 12 dimensies uit de eerste versie van het plan.
 
-## Kern van het voorstel
+## Kern
 
 **Van 12 losse dimensies naar twee lagen: 6 karakterassen met twee kanten, plus een handvol interesses.** Elke as heeft twee polen die allebei goed zijn ("liever samen" of "liever alleen"), zodat er geen flatteus antwoord bestaat. Dat past precies bij de of-of-vragen die we al gekozen hebben: één of-of-vraag meet één as.
 
-## Waarom de huidige rubric niet werkt
+## Waarom de eerste rubric niet werkte
 
 Vier problemen, de eerste drie uit de RedTeam (`redteam-2026-10-06.md`, bevinding 5), de vierde daaruit afgeleid:
 
@@ -15,7 +15,7 @@ Vier problemen, de eerste drie uit de RedTeam (`redteam-2026-10-06.md`, bevindin
 3. **Overlap.** "Opkomen voor wat eerlijk is", "Moed om anders te zijn" en "Doorzetten" meten grotendeels hetzelfde. Een tiener die daar hoog scoort, telt drie keer mee.
 4. **Dimensies waarop elke heilige hoog scoort, onderscheiden niets.** Vrijwel elke heilige zette door en zorgde voor anderen. Zo'n dimensie voegt ruis toe en geen informatie.
 
-Daarnaast: een heilige met een kort Wikipedia-artikel krijgt nu een 0 op alles wat er niet in staat. Dat is "niet bekend", niet "niet aanwezig".
+Daarnaast: een heilige met een kort Wikipedia-artikel kreeg daar een 0 op alles wat er niet in staat. Dat is "niet bekend", niet "niet aanwezig".
 
 ## Laag 1: zes karakterassen
 
@@ -72,7 +72,7 @@ Twee vragen per as geven een score van −2, 0 of +2. De vervolgvragen verfijnen
 
 ## Matching
 
-Ik stel voor de cosinusgelijkenis te vervangen door een gewone afstand per as, omdat die beter werkt met `onbekend` en met assen die door nul lopen:
+We gebruiken geen cosinusgelijkenis maar een gewone afstand per as, omdat die beter werkt met `onbekend` en met assen die door nul lopen:
 
 - **Assen:** gemiddelde over de assen waarop de heilige bekend is van `1 − |jongere − heilige| / 4`. Uitkomst tussen 0 en 1.
 - **Interesses:** aantal gedeelde interesses gedeeld door het aantal interesses van de heilige (maximaal 3).
@@ -83,15 +83,15 @@ Het geslachtsfilter blijft vóór de matching.
 
 **Bonus voor de onthulling:** omdat elke as een naam heeft, kan de uitleg concreet zijn: "jij en Clara houden allebei van een vaste plek en van rust; wat Clara bijzonder maakt is…". Dat sluit aan op het veld `waarom_voorbeeld`.
 
+## Besluiten
+
+- **Zes assen.** Ook "Diepgang ↔ lichtheid" blijft: humor is juist wat tieners in een heilige verrast.
+- **Geen middenknop.** Een gedwongen keuze geeft meer informatie; twee vragen per as vangen het midden al op (score 0).
+- **De lijst met negen interesses blijft zoals hij is.**
+
 ## Gevolgen voor de rest van het plan
 
 - **Heiligenrecord:** `assen` (zes velden, −2 tot +2 of `null`), per as een korte onderbouwing uit de bron, en `interesses` (1 tot 3 uit de vaste lijst). Vervangt de 12 rubricscores.
 - **Vragenbank:** circa 24 of-of-vragen (vier per as), waaruit de app er twee per as kiest, plus de interessevraag.
 - **Simulatie:** dezelfde eisen (geen heilige boven 4%, minstens 60% ooit in een top-3), plus per interesse minstens 5 heiligen in de set, en per as heiligen aan beide kanten.
 - **Validatie met echte mensen:** de generale repetitie met familie en vrienden. Iedereen beoordeelt zijn top-3 met "klopt" of "klopt niet". Dat is de eerste echte toets; de simulatie toetst alleen de spreiding.
-
-## Keuzes die bij jou liggen
-
-1. **Zes assen of minder?** Zes is mijn voorstel. Met vijf kan "Diepgang ↔ lichtheid" eruit, maar humor is juist wat tieners in een heilige verrast (Filippus Neri).
-2. **Een middenknop ("allebei")?** Mijn voorstel is nee: een gedwongen keuze geeft meer informatie, en twee vragen per as vangen het midden al op (score 0).
-3. **Klopt de lijst met interesses?** Jij kent de groep. Ontbreekt er iets waar deze tieners echt mee bezig zijn?
