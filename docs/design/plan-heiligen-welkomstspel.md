@@ -87,7 +87,7 @@ We werken met een gecureerde set van 80 tot 100 heiligen, niet met alle heiligen
 - een veld `waarom_voorbeeld`: waaraan deze heilige zijn of haar leven gaf, en één worsteling, in tienertaal. Dit vertelt waarom de heilige een voorbeeld is; de matching blijft gaan over karaktertrekken, niet over heiligheid;
 - een veld `waarschuwing` voor inhoud die extra aandacht vraagt.
 
-**De rubric** staat in `rubric.md`: zes karakterassen met twee goede kanten (samen ↔ alleen, denken ↔ doen, achter de schermen ↔ voorop, vaste plek ↔ op pad, diepgang ↔ lichtheid, vrede ↔ strijd) en negen interesses. Daar staan ook de redenen, de voorbeeldvragen en de matchingformule.
+**De rubric** staat in `rubric.md`: zes karakterassen met twee goede kanten (samen ↔ alleen, denken ↔ doen, achter de schermen ↔ voorop, vaste plek ↔ op pad, diepgang ↔ lichtheid, vrede ↔ strijd) en tien interesses. Daar staan ook de redenen, de voorbeeldvragen en de matchingformule.
 
 **Vragenbank**: circa 24 of-of-vragen, vier per as, waaruit de app er twee per as kiest, plus de interessevraag. Beide antwoorden van een vraag klinken even goed, zodat er geen flatteus antwoord is.
 
@@ -123,7 +123,7 @@ Eén Python-app in een Docker-container op je bestaande Hetzner-server, achter C
 
 De pijplijn draait eenmalig lokaal en levert JSON en afbeeldingen aan de repo; de server haalt tijdens het spel niets van Wikipedia op.
 
-- **Stack**: FastHTML of NiceGUI met HTMX (nog te kiezen, zie Open punten). Voor 8 tot 20 telefoons is pollen elke 2 seconden ruim voldoende; websockets zijn niet nodig.
+- **Stack**: FastHTML met HTMX, en fastlite voor SQLite. Voor 8 tot 20 telefoons is pollen elke 2 seconden ruim voldoende; websockets zijn niet nodig.
 - **Routes**: `/` en `/quiz` openbaar met uitnodigingscode; `/spel` (stemmen) openbaar met sessietoken; `/beheer` en `/tv` achter Authelia.
 - **Afbeeldingen**: lokaal opgeslagen en verkleind, met naam van de maker en licentie onder elke afbeelding.
 - **Configuratie**: API-sleutel en modelnaam via omgevingsvariabelen; SQLite op een volume dat mee gaat in de back-up.
@@ -181,12 +181,12 @@ Voeg in de repo een `CLAUDE.md` toe met de ontwerpregels uit de eerste sectie. D
 - **Subdomein**: `durfheiligtezijn`.
 - **LLM**: Gemini, API-sleutel als secret, uitgavenlimiet 5 euro (zie Rol van de LLM).
 - **Nicknames**: iedereen kiest zelf.
-- **Rubric**: zes karakterassen en negen interesses, zie `rubric.md`.
+- **Rubric**: zes karakterassen en tien interesses, zie `rubric.md`.
+- **Stack**: FastHTML met fastlite. De app bestaat vooral uit pagina's en formulieren op telefoons die op slot gaan of even geen bereik hebben, en gewone paginaverzoeken overleven dat. Voor het live bord op de tv vraagt de pagina elke 2 seconden om een update. De bestaande HTML van de heiligenprofielen kan bijna ongewijzigd mee. NiceGUI viel af omdat elke pagina een vaste verbinding met de server houdt, wat op slapende telefoons tot verloren invoer kan leiden.
 - **Spel**: bord van 16 heiligen, het kind blijft in de kamer, groepspunten bij meerderheid, geprinte versie als terugval (zie Draaiboek en `redteam-2026-10-06.md`).
 
 ## Open punten
 
-- [ ] Framework: FastHTML of NiceGUI, met HTMX. Voor- en nadelen nog samen afwegen. Daarbij ook fastlite of sqlite-utils.
 - [ ] Toegang: iedereen achter een wachtwoord in plaats van een open groepslink, zodat niemand met de URL de Gemini-API kan aanroepen of de matches kan zien. Voorstel van Jelle: per jongere een Authelia-account met hetzelfde wachtwoord, dat na de middag weer weg gaat. Uitwerken.
-- [ ] JSON of SQLite voor de heiligen en de vragenbank: JSON in git voor de review, en dan ook inladen als SQLite-tabellen (sqlite-utils)? Afwegen.
+- [ ] JSON of SQLite voor de heiligen en de vragenbank: JSON in git voor de review, en dan ook inladen als SQLite-tabellen (fastlite)? Afwegen.
 - [ ] Hoe worden de 8 extra heiligen op het bord gekozen: willekeurig, of juist lijkend op de gekozen 8 zodat het raden lastiger wordt?

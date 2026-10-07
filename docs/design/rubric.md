@@ -49,6 +49,7 @@ Concrete dingen die een tiener graag doet, en waarin een heilige herkenbaar is. 
 | Sport en buiten bewegen | Pier Giorgio Frassati (bergbeklimmer) |
 | Reizen en andere culturen | Willibrord, Liudger |
 | Wetenschap en ontdekken | Hildegard van Bingen |
+| Opkomen voor wat eerlijk is | Óscar Romero, Thomas More |
 
 "Zorgen voor anderen" en "Doorzetten" verdwijnen als dimensie. Zorg komt terug als de concrete interesse "Mensen helpen", en doorzetten hoort bij het veld `waarom_voorbeeld`: het is wat elke heilige deed, niet wat de ene van de andere onderscheidt.
 
@@ -87,7 +88,7 @@ Het geslachtsfilter blijft vóór de matching.
 
 - **Zes assen.** Ook "Diepgang ↔ lichtheid" blijft: humor is juist wat tieners in een heilige verrast.
 - **Geen middenknop.** Een gedwongen keuze geeft meer informatie; twee vragen per as vangen het midden al op (score 0).
-- **De lijst met negen interesses blijft zoals hij is.**
+- **Tien interesses.** De lijst van negen kreeg op 2026-10-07 een tiende: "Opkomen voor wat eerlijk is". Die kwam naar voren bij het maken van de heiligenprofielen (fase 2), waar hij bij 16 van de 77 heiligen past.
 
 ## Gevolgen voor de rest van het plan
 
