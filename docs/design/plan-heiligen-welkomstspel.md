@@ -20,7 +20,7 @@ De herhaling aan het einde van het seizoen (rond juni) gebruikt dezelfde app en 
 
 ## De quiz thuis
 
-De jongere opent een link uit de groepsapp, kiest een nickname en doorloopt in 5 tot 7 minuten deze stappen:
+De jongere opent een link uit de groepsapp, logt in met het eigen account (zie Privacy en toegang), kiest een nickname en doorloopt in 5 tot 7 minuten deze stappen:
 
 1. **Welkom en spelregels** (1 scherm): je gebruikt een nickname, je vertelt alleen wat je ook aan de groep zou vertellen, en op de middag gaan we raden wie welke heilige heeft.
 2. **Voorkeur heilige**: "Mag je heilige een man, een vrouw, of maakt het niet uit?"
@@ -117,27 +117,27 @@ De LLM selecteert niet vrij uit zijn eigen kennis, maar werkt alleen met de gecu
 
 ## Architectuur en hosting
 
-Eén Python-app in een Docker-container op je bestaande Hetzner-server, achter Caddy. Quiz en stemmen zijn openbaar via een groepslink; het begeleidersscherm en beheer zitten achter Authelia.
+Eén Python-app in een Docker-container op je bestaande Hetzner-server, achter Caddy. De hele app zit achter Authelia, zoals jonkies-tody: niemand zonder account kan de Gemini-API aanroepen of een match zien.
 
 &#91;embedded content: architectuur · server, pijplijn en externe diensten\]
 
 De pijplijn draait eenmalig lokaal en levert JSON en afbeeldingen aan de repo; de server haalt tijdens het spel niets van Wikipedia op.
 
 - **Stack**: FastHTML met HTMX, en fastlite voor SQLite. Voor 8 tot 20 telefoons is pollen elke 2 seconden ruim voldoende; websockets zijn niet nodig.
-- **Routes**: `/` en `/quiz` openbaar met uitnodigingscode; `/spel` (stemmen) openbaar met sessietoken; `/beheer` en `/tv` achter Authelia.
+- **Routes**: `/`, `/quiz` en `/spel` (stemmen) voor `group:durfheilig`; `/beheer` en `/tv` alleen voor `group:admins`. De app weet wie er is via de header `Remote-User` die Caddy na de Authelia-controle meestuurt; er is geen eigen inlog, uitnodigingscode of sessietoken.
 - **Afbeeldingen**: lokaal opgeslagen en verkleind, met naam van de maker en licentie onder elke afbeelding.
 - **Configuratie**: API-sleutel en modelnaam via omgevingsvariabelen; SQLite op een volume dat mee gaat in de back-up.
 - **Mobiel eerst**: grote knoppen, één vraag per scherm, werkt zonder app-installatie.
 
 ## Datamodel en privacy
 
-Eén SQLite-bestand op de server is genoeg; er worden alleen nicknames en quizantwoorden opgeslagen, en alles wordt na de herhaling in juni verwijderd.
+Eén SQLite-bestand op de server is genoeg; de app bewaart per jongere alleen de Authelia-gebruikersnaam, de nickname en de quizantwoorden, en alles wordt na de herhaling in juni verwijderd.
 
 | Tabel | Belangrijkste velden |
 | --- | --- |
-| `groep` | id, naam, uitnodigingscode, aangemaakt |
+| `groep` | id, naam, aangemaakt |
 | `ronde` | id, groep\_id, soort (start / eind), status (open / gesloten / spel bezig) |
-| `speler` | id, groep\_id, nickname, sessietoken |
+| `speler` | id, groep\_id, gebruikersnaam (uit `Remote-User`), nickname |
 | `invulling` | id, speler\_id, ronde\_id, antwoorden (JSON), open antwoorden, vervolgvragen en -antwoorden (JSON), stap |
 | `match` | id, invulling\_id, top-3 (JSON met uitleg), gekozen heilige, klopt-want, niet-want (JSON), markering voor begeleider |
 | `spelronde` | id, ronde\_id, match\_id, volgorde, fase (overleg 1 / uitslag 1 / vragen / overleg 2 / onthuld), groepspunten |
@@ -146,14 +146,15 @@ Eén SQLite-bestand op de server is genoeg; er worden alleen nicknames en quizan
 
 De heiligen en de vragenbank staan niet in de database, maar als JSON-bestanden in de repo. Zo zijn ze te reviewen in git en blijft de database klein.
 
-**Privacy en veiligheid**
+**Privacy en toegang**
 
-- Alleen een nickname, geen e-mail, geen achternaam, geen leeftijd. Geen account nodig.
-- Toegang voor jongeren via een groepslink met uitnodigingscode; daarna een sessietoken in een cookie, zodat ze kunnen terugkeren.
-- Naar de LLM gaan alleen antwoorden, nooit de nickname of de groepsnaam.
-- Begeleidersscherm en beheer achter Authelia.
+- **Elke jongere krijgt een eigen Authelia-account** met echte naam, echt e-mailadres en een eigen wachtwoord, in de groep `durfheilig`. Jelle kent die gegevens al; zo kan hij een jongere helpen die zijn wachtwoord kwijt is, en kan de jongere via "wachtwoord vergeten" zelf een nieuw aanvragen. Een eigen wachtwoord per jongere, omdat bij een gedeeld wachtwoord iedereen bij elkaars heilige kan, en die moet geheim blijven tot het spel.
+- **De accounts staan in `users_database.yml` op het volume van de server**, niet in een repo. Ze blijven tot de herhaling in juni en gaan dan samen met de groep weg.
+- **Echte namen en e-mailadressen komen nooit bij de LLM en nooit in deze (openbare) repo.** De app leest alleen `Remote-User`, niet `Remote-Name` of `Remote-Email`. Naar Gemini gaan alleen de antwoorden: geen gebruikersnaam, geen nickname, geen groepsnaam.
+- **Inloggen gebeurt thuis**, bij de quiz, met "Onthoud mij" aangevinkt. Dan hoeft op de middag niemand een wachtwoord te typen. Dat telt, want Authelia blokkeert na 3 foute pogingen binnen 2 minuten ook het IP-adres voor 5 minuten, en op de middag zit iedereen op hetzelfde wifi. Of "Onthoud mij" ook de standaardtime-out van 5 minuten inactiviteit opheft, testen we bij de generale repetitie.
+- **De app-container heeft geen eigen poort naar buiten**; alleen Caddy kan hem bereiken, zodat niemand de inlog kan overslaan en `Remote-User` kan vervalsen.
 - Exportfunctie (JSON) voor de vergelijking en een knop "groep verwijderen". Na de herhaling in juni verwijder je de groep.
-- Korte mededeling aan de ouders in de groepsapp: wat de app doet, dat er een AI-dienst gebruikt wordt, dat alleen een nickname wordt bewaard en wanneer alles weg is.
+- Korte mededeling aan de ouders in de groepsapp: wat de app doet, dat er een AI-dienst gebruikt wordt die alleen de antwoorden ziet en nooit een naam, dat de inlog naam en e-mailadres gebruikt, en wanneer alles weg is.
 
 ## Fasering voor Claude Code
 
@@ -170,7 +171,7 @@ Zes fasen, elk afgesloten met een controlemoment voor jou. Laat Claude Code per 
 5. **Raadspel**. Tv-scherm met het bord van 16 heiligen, twee stemrondes per jongere op telefoons, groepspunten, groepsplaat, eindscherm. Bediening door de begeleider.
    - *Controle*: generale repetitie met familie en vrienden als eigen groep, op de echte server.
 6. **Uitrol en herhaling**. Docker-image, Caddy-route, Authelia-regels, back-up van de SQLite, exportfunctie, vergelijkingsscherm september/juni, groep verwijderen.
-   - *Controle*: groep aanmaken voor de jongeren, link testen op een telefoon buiten je eigen netwerk.
+   - *Controle*: accounts voor de jongeren aanmaken, inloggen met "Onthoud mij" testen op een telefoon buiten je eigen netwerk, en controleren dat een account uit `durfheilig` niet bij `/beheer` of bij je andere apps komt.
 
 Voeg in de repo een `CLAUDE.md` toe met de ontwerpregels uit de eerste sectie. Dan blijven ze in elke fase leidend.
 
@@ -181,12 +182,12 @@ Voeg in de repo een `CLAUDE.md` toe met de ontwerpregels uit de eerste sectie. D
 - **Subdomein**: `durfheiligtezijn`.
 - **LLM**: Gemini, API-sleutel als secret, uitgavenlimiet 5 euro (zie Rol van de LLM).
 - **Nicknames**: iedereen kiest zelf.
+- **Toegang**: de hele app achter Authelia, één account per jongere met echte naam, e-mailadres en eigen wachtwoord; naar de LLM gaan alleen antwoorden (zie Privacy en toegang).
 - **Rubric**: zes karakterassen en tien interesses, zie `rubric.md`.
 - **Stack**: FastHTML met fastlite. De app bestaat vooral uit pagina's en formulieren op telefoons die op slot gaan of even geen bereik hebben, en gewone paginaverzoeken overleven dat. Voor het live bord op de tv vraagt de pagina elke 2 seconden om een update. De bestaande HTML van de heiligenprofielen kan bijna ongewijzigd mee. NiceGUI viel af omdat elke pagina een vaste verbinding met de server houdt, wat op slapende telefoons tot verloren invoer kan leiden.
 - **Spel**: bord van 16 heiligen, het kind blijft in de kamer, groepspunten bij meerderheid, geprinte versie als terugval (zie Draaiboek en `redteam-2026-10-06.md`).
 
 ## Open punten
 
-- [ ] Toegang: iedereen achter een wachtwoord in plaats van een open groepslink, zodat niemand met de URL de Gemini-API kan aanroepen of de matches kan zien. Voorstel van Jelle: per jongere een Authelia-account met hetzelfde wachtwoord, dat na de middag weer weg gaat. Uitwerken.
 - [ ] JSON of SQLite voor de heiligen en de vragenbank: JSON in git voor de review, en dan ook inladen als SQLite-tabellen (fastlite)? Afwegen.
 - [ ] Hoe worden de 8 extra heiligen op het bord gekozen: willekeurig, of juist lijkend op de gekozen 8 zodat het raden lastiger wordt?
