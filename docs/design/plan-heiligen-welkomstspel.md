@@ -80,6 +80,7 @@ We werken met een gecureerde set van 80 tot 100 heiligen, niet met alle heiligen
 **Per heilige** maakt de pijplijn een JSON-record met:
 
 - naam, levensjaren, land, feestdag, afbeelding (bestand, licentie, maker, bronlink);
+- elke heilige heeft een afbeelding, bij voorkeur een portret of afbeelding van de heilige zelf. Is die er niet, dan een schilderij of afbeelding uit de tijd en de streek waar de heilige leefde, met een onderschrift dat zegt dat het geen portret is (veld `afbeelding.soort`: `heilige` of `tijd_en_streek`);
 - een levensverhaal van 3 tot 4 zinnen in tienertaal, zelf geschreven (geen gekopieerde Wikipedia-tekst), zonder gruwelijke details;
 - 3 "haakjes": concrete, verrassende feiten waar een tiener zich in kan herkennen (Carlo Acutis bouwde websites; Filippus Neri haalde graag grappen uit);
 - per karakteras een score van −2 tot +2, of `null` als de bron er niets over zegt, met per score een korte onderbouwing uit de bron;
