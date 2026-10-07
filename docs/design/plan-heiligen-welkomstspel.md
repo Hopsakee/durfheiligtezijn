@@ -40,7 +40,7 @@ Praktische afspraken:
 
 ## Draaiboek van de middag
 
-Het spel duurt circa 65 minuten (schatting, zie de tabel). Er ligt een geprinte versie klaar (bord, beschrijvingen, stembriefjes), zodat het spel ook zonder app door kan gaan. De tv toont het begeleidersscherm; de jongeren stemmen met hun telefoon via een korte link of QR-code.
+Het spel duurt circa 25 + 5 × N minuten, met N het aantal deelnemers: 65 minuten bij 8, 75 bij 10, 100 bij 15 (schatting, zie de tabel). Er ligt een geprinte versie klaar (bord, beschrijvingen, stembriefjes), zodat het spel ook zonder app door kan gaan. De tv toont het begeleidersscherm; de jongeren stemmen met hun telefoon via een korte link of QR-code.
 
 **Het bord**: op de tv staan 2 × N heiligen: de N die de deelnemers kozen, plus N andere die willekeurig uit de rest van de set getrokken worden. Bij 8 jongeren en 2 begeleiders zijn dat er 20. De begeleider trekt ze één keer bij het starten van het spel, daarna liggen ze vast. Elke heilige heeft een korte beschrijving. Die beschrijvingen kunnen vooraf rondgestuurd worden; vooraf lezen mag, maar hoeft niet. Ze blijven allemaal het hele spel op het bord staan, ook na een onthulling, zodat niemand halverwege nieuwe heiligen hoeft te lezen.
 
@@ -55,7 +55,7 @@ Het spel duurt circa 65 minuten (schatting, zie de tabel). Er ligt een geprinte 
 
 1. **Overleg 1.** Kind A blijft gewoon in de kamer; ziet de groep Kind A glimlachen, dan hoort dat bij het spel. De groep overlegt zonder vragen te stellen bij welke heilige Kind A hoort. Na 1 minuut moet er gestemd worden: iedereen vinkt op de telefoon één heilige aan.
 2. **Uitslag 1.** Pas als iedereen gestemd heeft, toont de tv per heilige het aantal stemmen. Nooit wie op wat stemde.
-3. **Vragenronde.** Kind A komt terug. Elke andere jongere mag Kind A één vraag stellen, maximaal 7 vragen; geen vraag weten is ook prima. Kind A beantwoordt alleen vragen over zichzelf en zegt niet welke heilige hij of zij heeft.
+3. **Vragenronde.** Kind A komt terug. Elke andere deelnemer mag Kind A één vraag stellen; geen vraag weten is ook prima. Kind A beantwoordt alleen vragen over zichzelf en zegt niet welke heilige hij of zij heeft.
 4. **Overleg 2.** Na 1 minuut opnieuw stemmen; iedereen mag zijn keus veranderen. De tv toont weer alleen aantallen.
 5. **Onthulling.** De heilige van Kind A wordt getoond. Kind A mag één ding vertellen ("wat klopte er wel en wat niet?"), maar het hoeft niet.
 

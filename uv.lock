@@ -1,0 +1,72 @@
+version = 1
+revision = 3
+requires-python = ">=3.11"
+resolution-markers = [
+    "sys_platform == 'linux'",
+    "sys_platform == 'darwin'",
+]
+supported-markers = [
+    "sys_platform == 'linux'",
+    "sys_platform == 'darwin'",
+]
+
+[[package]]
+name = "durfheilig"
+version = "0.1.0"
+source = { editable = "." }
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest" }]
+
+[[package]]
+name = "iniconfig"
+version = "2.3.0"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/iniconfig-2.3.0-py3-none-any.whl" },
+]
+
+[[package]]
+name = "packaging"
+version = "26.3"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/packaging-26.3-py3-none-any.whl" },
+]
+
+[[package]]
+name = "pluggy"
+version = "1.6.0"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/pluggy-1.6.0-py3-none-any.whl" },
+]
+
+[[package]]
+name = "pygments"
+version = "2.21.0"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/pygments-2.21.0-py3-none-any.whl" },
+]
+
+[[package]]
+name = "pytest"
+version = "9.1.1"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "iniconfig" },
+    { name = "packaging" },
+    { name = "pluggy" },
+    { name = "pygments" },
+]
+wheels = [
+    { path = "/opt/wheels/pytest-9.1.1-py3-none-any.whl" },
+]

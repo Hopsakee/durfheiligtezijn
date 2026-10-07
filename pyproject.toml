@@ -1,0 +1,24 @@
+[project]
+name = "durfheilig"
+version = "0.1.0"
+description = "Welkomstspel: koppel elke deelnemer aan een heilige en raad samen wie bij wie hoort."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/durfheilig"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv]
+# Linux (server, box) and macOS (Jelle's Mac) only; keeps Windows-only wheels out of the lock.
+environments = ["sys_platform == 'linux'", "sys_platform == 'darwin'"]
