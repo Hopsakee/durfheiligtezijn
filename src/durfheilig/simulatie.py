@@ -55,7 +55,7 @@ def simuleer_groep(voorkeur: str, n: int, heiligen: list[Heilige], vragen: Vrage
     for _ in range(n):
         antwoorden = {v.id: rng.choice(("min", "plus")) for v in kies_vragen(vragen, rng)}
         interesses = rng.sample(vragen.interesses, rng.choice((2, 3)))
-        top = rangschik(profiel(antwoorden, vragen), interesses, heiligen, voorkeur, n=3)
+        top = rangschik(profiel(antwoorden, vragen), interesses, heiligen, voorkeur, n=3, interesse_lijst=vragen.interesses)
         eerste[top[0][0].qid] += 1
         top3.update(h.qid for h, _ in top)
     toegestaan = [h for h in heiligen if h.geslacht in VOORKEUR_GESLACHT[voorkeur]]
@@ -66,16 +66,19 @@ def _vink(ok: bool) -> str:
     return "✅ ja" if ok else "❌ nee"
 
 
-def rapport(seed: int, n: int, heiligen: list[Heilige], vragen: Vragenbank) -> tuple[str, bool]:
-    rng = random.Random(seed)
-    groepen = [simuleer_groep(v, n, heiligen, vragen, rng) for v in VOORKEUREN]
-    naam = {h.qid: h.naam for h in heiligen}
+def per_interesse(heiligen: list[Heilige]) -> Counter:
+    return Counter(i for h in heiligen for i in h.interesses)
 
-    per_interesse = Counter(i for h in heiligen for i in h.interesses)
-    zijden = {a: (sum(1 for h in heiligen if (h.assen[a] or 0) < 0), sum(1 for h in heiligen if (h.assen[a] or 0) > 0)) for a in ASSEN}
 
+def zijden(heiligen: list[Heilige]) -> dict[str, tuple[int, int]]:
+    return {a: (sum(1 for h in heiligen if (h.assen[a] or 0) < 0), sum(1 for h in heiligen if (h.assen[a] or 0) > 0)) for a in ASSEN}
+
+
+def controleer(groepen: list[GroepUitslag], vragen: Vragenbank, seed: int) -> list[tuple[str, str, bool]]:
+    """The plan's requirements, each checked per gender preference against that group's own saints."""
     checks: list[tuple[str, str, bool]] = []
     for g in groepen:
+        naam = {h.qid: h.naam for h in g.toegestaan}
         top_qid, top_n = g.eerste.most_common(1)[0]
         checks.append((f"{g.voorkeur}: geen heilige boven {MAX_AANDEEL_EERSTE:.0%} van de eerste keuzes",
                        f"hoogste: {naam[top_qid]}, {top_n} van {g.n} ({g.max_aandeel:.1%}); gelijk verdeeld {1 / len(g.toegestaan):.1%}, puur toeval haalt {g.ruis(seed):.1%}",
@@ -83,14 +86,23 @@ def rapport(seed: int, n: int, heiligen: list[Heilige], vragen: Vragenbank) -> t
         checks.append((f"{g.voorkeur}: minstens {MIN_DEKKING_TOP3:.0%} van de heiligen ooit in een top-3",
                        f"{len(g.top3)} van {len(g.toegestaan)} ({g.dekking:.0%})",
                        g.dekking >= MIN_DEKKING_TOP3))
-    zwak = [i for i in vragen.interesses if per_interesse[i] < MIN_PER_INTERESSE]
-    checks.append((f"minstens {MIN_PER_INTERESSE} heiligen per interesse",
-                   "allemaal" if not zwak else "te weinig: " + ", ".join(f"{i} ({per_interesse[i]})" for i in zwak),
-                   not zwak))
-    eenzijdig = [a for a, (mn, pl) in zijden.items() if not (mn and pl)]
-    checks.append(("per as heiligen aan beide kanten",
-                   "allemaal" if not eenzijdig else "eenzijdig: " + ", ".join(eenzijdig),
-                   not eenzijdig))
+        telling = per_interesse(g.toegestaan)
+        zwak = [i for i in vragen.interesses if telling[i] < MIN_PER_INTERESSE]
+        checks.append((f"{g.voorkeur}: minstens {MIN_PER_INTERESSE} heiligen per interesse",
+                       "allemaal" if not zwak else "te weinig: " + ", ".join(f"{i} ({telling[i]})" for i in zwak),
+                       not zwak))
+        eenzijdig = [a for a, (mn, pl) in zijden(g.toegestaan).items() if not (mn and pl)]
+        checks.append((f"{g.voorkeur}: per as heiligen aan beide kanten",
+                       "allemaal" if not eenzijdig else "eenzijdig: " + ", ".join(eenzijdig),
+                       not eenzijdig))
+    return checks
+
+
+def rapport(seed: int, n: int, heiligen: list[Heilige], vragen: Vragenbank) -> tuple[str, bool]:
+    rng = random.Random(seed)
+    groepen = [simuleer_groep(v, n, heiligen, vragen, rng) for v in VOORKEUREN]
+    naam = {h.qid: h.naam for h in heiligen}
+    checks = controleer(groepen, vragen, seed)
     alles_ok = all(ok for *_, ok in checks)
 
     r = [
@@ -123,10 +135,14 @@ def rapport(seed: int, n: int, heiligen: list[Heilige], vragen: Vragenbank) -> t
     for h in sorted(heiligen, key=lambda h: (-sum(g.top3[h.qid] for g in groepen), h.naam)):
         cellen = [f"{g.eerste[h.qid]} / {g.top3[h.qid]}" if h in g.toegestaan else "–" for g in groepen]
         r.append(f"| {h.naam} | {h.geslacht} | {len(h.bekende_assen)} | " + " | ".join(cellen) + " |")
-    r += ["", "## De set", "", "| Interesse | Heiligen |", "| --- | --- |",
-          *[f"| {i} | {per_interesse[i]} |" for i in vragen.interesses],
-          "", "| As | Min-kant | Plus-kant | Onbekend |", "| --- | --- | --- | --- |",
-          *[f"| {a} | {mn} | {pl} | {sum(1 for h in heiligen if h.assen[a] is None)} |" for a, (mn, pl) in zijden.items()],
+    tellingen = [per_interesse(g.toegestaan) for g in groepen]
+    kanten = [zijden(g.toegestaan) for g in groepen]
+    r += ["", "## De set, per geslachtsvoorkeur", "",
+          "| Interesse | " + " | ".join(g.voorkeur for g in groepen) + " |", "| --- | " + " | ".join("---" for _ in groepen) + " |",
+          *[f"| {i} | " + " | ".join(str(c[i]) for c in tellingen) + " |" for i in vragen.interesses],
+          "", "Per as: aantal heiligen aan de min-kant / plus-kant.", "",
+          "| As | " + " | ".join(g.voorkeur for g in groepen) + " |", "| --- | " + " | ".join("---" for _ in groepen) + " |",
+          *[f"| {a} | " + " | ".join(f"{k[a][0]} / {k[a][1]}" for k in kanten) + " |" for a in ASSEN],
           ""]
     return "\n".join(r), alles_ok
 

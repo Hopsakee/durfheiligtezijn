@@ -11,7 +11,7 @@ import random
 import sys
 
 from .data import laad_heiligen, laad_vragen
-from .scoring import VOORKEUR_GESLACHT, kies_vragen, profiel, rangschik
+from .scoring import VOORKEUR_GESLACHT, kies_vragen, profiel, rangschik, relatieve_score
 
 
 def vraag(prompt: str, geldig: set[str]) -> str:
@@ -65,12 +65,14 @@ def main(argv: list[str] | None = None) -> int:
     interesses = [iv["opties"][k - 1]["interesse"] for k in keuzes]
 
     p = profiel(antwoorden, vragen)
-    top = rangschik(p, interesses, heiligen, voorkeur, n=12)
+    top = rangschik(p, interesses, heiligen, voorkeur, n=12, interesse_lijst=vragen.interesses)
     print("\nJouw profiel: " + ", ".join(f"{a} {s:+d}" for a, s in p.items()))
+    rel = {h.qid: relatieve_score(p, interesses, h, vragen.interesses) for h, _ in top}
+    print("\nTussen haakjes: hoe goed je past (0 tot 1), en hoeveel beter dan een gemiddeld kind bij deze heilige past.")
     print("\nTop-3:")
     for i, (h, s) in enumerate(top[:3], 1):
-        print(f"  {i}. {h.naam} ({s:.2f})\n     {h.record.get('wat_voor_mens', '')}")
-    print("\nPlek 4 tot 12: " + ", ".join(f"{h.naam} ({s:.2f})" for h, s in top[3:]))
+        print(f"  {i}. {h.naam} ({s:.2f}, {rel[h.qid]:+.1f})\n     {h.record.get('wat_voor_mens', '')}")
+    print("\nPlek 4 tot 12: " + ", ".join(f"{h.naam} ({s:.2f}, {rel[h.qid]:+.1f})" for h, s in top[3:]))
     return 0
 
 

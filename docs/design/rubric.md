@@ -82,6 +82,8 @@ We gebruiken geen cosinusgelijkenis maar een gewone afstand per as, omdat die be
 
 Het geslachtsfilter blijft vóór de matching.
 
+**Rangschikken op relatieve score (besloten 2026-10-07, na de simulatie).** De totaalscore hierboven blijft de maat voor hoe goed iemand past, maar de ranglijst vergelijkt per heilige met een gemiddeld kind: hoeveel standaarddeviaties ligt de score van dit kind boven wat deze heilige gemiddeld scoort over alle mogelijke antwoordpatronen. De reden staat in de simulatie: met de ruwe totaalscore won een handvol heiligen voor bijna iedereen. Heiligen met één interesse krijgen de volle interessescore zodra een kind die interesse kiest, en heiligen met middelmatige asscores liggen dicht bij elk profiel. Bij 2000 profielen per groep was de grootste eerste keuze 12,9% (man) en 12,8% (vrouw); met de relatieve score is dat 6,7% en 8,6%.
+
 **Bonus voor de onthulling:** omdat elke as een naam heeft, kan de uitleg concreet zijn: "jij en Clara houden allebei van een vaste plek en van rust; wat Clara bijzonder maakt is…". Dat sluit aan op het veld `waarom_voorbeeld`.
 
 ## Besluiten

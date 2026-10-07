@@ -3,7 +3,9 @@ import json
 
 import pytest
 
-from durfheilig.data import ASSEN, DATA_DIR, DataFout, laad_heiligen, laad_vragen
+import shutil
+
+from durfheilig.data import ASSEN, DATA_DIR, DataFout, data_dir, laad_heiligen, laad_vragen
 
 # Example saints from docs/design/rubric.md: (axis, saint on the minus side, saint on the plus side).
 RUBRIC_VOORBEELDEN = [
@@ -77,7 +79,6 @@ def ruw():
 
 @pytest.mark.parametrize("bederf,melding", [
     (lambda r: r["assen"]["plek_pad"].__setitem__("score", 3), "plek_pad"),
-    (lambda r: [r["assen"][a].__setitem__("score", None) for a in ("samen_alleen", "denken_doen", "plek_pad")], "assen bekend"),
     (lambda r: r.__setitem__("interesses", []), "interesses"),
     (lambda r: r.__setitem__("interesses", [{"interesse": "Koken"}]), "vaste lijst"),
     (lambda r: r.__setitem__("geslacht", "onbekend"), "geslacht"),
@@ -88,3 +89,29 @@ def test_fout_record_faalt_luid_met_qid(tmp_path, ruw, bederf, melding):
     bederf(doc["records"][0])
     with pytest.raises(DataFout, match=rf"{doc['records'][0]['qid']}.*{melding}"):
         laad_heiligen(_schrijf(tmp_path, doc))
+
+
+def test_heilige_met_te_weinig_assen_wordt_overgeslagen_met_waarschuwing(tmp_path, ruw):
+    doc = copy.deepcopy(ruw)
+    r = doc["records"][0]
+    for a in ("samen_alleen", "denken_doen", "plek_pad"):
+        r["assen"][a]["score"] = None
+    with pytest.warns(UserWarning, match=rf"{r['qid']}.*3 van 6 assen"):
+        heiligen = laad_heiligen(_schrijf(tmp_path, doc))
+    assert len(heiligen) == 76
+    assert r["qid"] not in {h.qid for h in heiligen}
+
+
+def test_datamap_via_omgevingsvariabele(tmp_path, monkeypatch):
+    for f in ("heiligen.json", "vragen.json"):
+        shutil.copy(DATA_DIR / f, tmp_path / f)
+    monkeypatch.setenv("DURFHEILIG_DATA", str(tmp_path))
+    assert data_dir() == tmp_path
+    assert len(laad_heiligen()) == 77
+    assert len(laad_vragen().vragen) == 24
+
+
+def test_iconen_zijn_uniek(vragen):
+    iconen = [v.min["icoon"] for v in vragen.vragen] + [v.plus["icoon"] for v in vragen.vragen]
+    iconen += [o["icoon"] for o in vragen.interessevraag["opties"]]
+    assert len(iconen) == len(set(iconen))
