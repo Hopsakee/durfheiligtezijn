@@ -144,7 +144,7 @@ Eén SQLite-bestand op de server is genoeg; de app bewaart per jongere alleen de
 | `bord` | id, ronde\_id, heilige\_id, is\_gekozen (de 8 gekozen plus 8 andere) |
 | `stem` | id, spelronde\_id, speler\_id, heilige\_id, stemronde (1 / 2) |
 
-De heiligen en de vragenbank staan niet in de database, maar als JSON-bestanden in de repo. Zo zijn ze te reviewen in git en blijft de database klein.
+De heiligen en de vragenbank staan niet in de database, maar als JSON-bestanden in de repo (`data/heiligen.json`, `data/vragen.json`). Zo zijn ze te reviewen in git en blijft de database klein. De app leest ze bij het opstarten in het geheugen. Tabellen verwijzen naar een heilige via de `qid`, en bij het opstarten controleert de app dat elke `qid` uit de database in de JSON staat; zo niet, dan stopt hij met een duidelijke fout. Wat een jongere te zien kreeg (top-3 met uitleg) staat in `match` zelf, zodat een latere tekstcorrectie dat niet verandert.
 
 **Privacy en toegang**
 
@@ -185,9 +185,9 @@ Voeg in de repo een `CLAUDE.md` toe met de ontwerpregels uit de eerste sectie. D
 - **Toegang**: de hele app achter Authelia, één account per jongere met echte naam, e-mailadres en eigen wachtwoord; naar de LLM gaan alleen antwoorden (zie Privacy en toegang).
 - **Rubric**: zes karakterassen en tien interesses, zie `rubric.md`.
 - **Stack**: FastHTML met fastlite. De app bestaat vooral uit pagina's en formulieren op telefoons die op slot gaan of even geen bereik hebben, en gewone paginaverzoeken overleven dat. Voor het live bord op de tv vraagt de pagina elke 2 seconden om een update. De bestaande HTML van de heiligenprofielen kan bijna ongewijzigd mee. NiceGUI viel af omdat elke pagina een vaste verbinding met de server houdt, wat op slapende telefoons tot verloren invoer kan leiden.
+- **Data**: heiligen en vragen alleen als JSON in git, in het geheugen ingelezen; SQLite alleen voor wat er tijdens het spel gebeurt (zie Datamodel). Teksten verbeteren gaat via git en een nieuwe deploy. Een aparte app om verhalen en scores te bewerken is voor later.
 - **Spel**: bord van 16 heiligen, het kind blijft in de kamer, groepspunten bij meerderheid, geprinte versie als terugval (zie Draaiboek en `redteam-2026-10-06.md`).
 
 ## Open punten
 
-- [ ] JSON of SQLite voor de heiligen en de vragenbank: JSON in git voor de review, en dan ook inladen als SQLite-tabellen (fastlite)? Afwegen.
 - [ ] Hoe worden de 8 extra heiligen op het bord gekozen: willekeurig, of juist lijkend op de gekozen 8 zodat het raden lastiger wordt?
