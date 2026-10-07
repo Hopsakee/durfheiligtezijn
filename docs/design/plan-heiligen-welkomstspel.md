@@ -4,7 +4,7 @@ Oct 5, 2026 · @Jelle
 
 ## Doel en uitgangspunten
 
-Het doel is dat 8 jongeren van 13 (5 jongens, 3 meisjes) na deze middag denken: dit was leuk, ik hoor erbij, ik kom terug. Alles in dit plan wordt aan die ene vraag getoetst; de techniek is ondergeschikt.
+Het doel is dat 8 jongeren van 13 (5 jongens, 3 meisjes) na deze middag denken: dit was leuk, ik hoor erbij, ik kom terug. Alles in dit plan wordt aan die ene vraag getoetst; de techniek is ondergeschikt. Het spel werkt voor 4 tot circa 15 deelnemers, en begeleiders kunnen gewoon meedoen: ze doen de quiz en worden net zo geraden.
 
 Daaruit volgen vijf ontwerpregels:
 
@@ -28,7 +28,7 @@ De jongere opent een link uit de groepsapp, logt in met het eigen account (zie P
 4. **2 open vragen, optioneel en kort**: "Waar ben je stiekem goed in?" en "Waar kun je je echt over opwinden?". Eén zin is genoeg.
 5. **3 vervolgvragen van de LLM**, gericht op de assen waarop de huidige top van kandidaten het meest verschilt. Ook die zijn of-of-vragen, met een optioneel tekstveld.
 6. **Keuze uit drie**: drie heiligen, elk met afbeelding, één alinea levensverhaal en een persoonlijke uitleg ("jij en Clara delen…").
-7. **Klopt-want**: de jongere kiest er één en vult aan: "Deze past bij mij, want…". Bij de andere twee kan optioneel "Deze niet, want…". Past er geen? Dan één extra ronde vervolgvragen en drie nieuwe kandidaten, maximaal één keer.
+7. **Klopt-want**: de jongere kiest er één en vult aan: "Deze past bij mij, want…". Bij de andere twee kan optioneel "Deze niet, want…". Past er geen? Dan één extra ronde vervolgvragen en drie nieuwe kandidaten, maximaal één keer. Een heilige die al door een andere deelnemer gekozen is, komt niet meer in iemands top-3, zodat elke heilige maar één keer op het bord staat. De jongere ziet daar niets van.
 8. **Bedankt-scherm**: "Houd je heilige geheim tot de middag!" Zonder geheimhouding valt het raadspel om.
 
 Praktische afspraken:
@@ -40,22 +40,22 @@ Praktische afspraken:
 
 ## Draaiboek van de middag
 
-Het spel duurt circa 65 minuten (schatting, zie de tabel). Er ligt een geprinte versie klaar (bord, beschrijvingen, stembriefjes), zodat het spel ook zonder app door kan gaan. De tv toont het begeleidersscherm; de jongeren stemmen met hun telefoon via een korte link of QR-code.
+Het spel duurt circa 25 + 5 × N minuten, met N het aantal deelnemers: 65 minuten bij 8, 75 bij 10, 100 bij 15 (schatting, zie de tabel). Er ligt een geprinte versie klaar (bord, beschrijvingen, stembriefjes), zodat het spel ook zonder app door kan gaan. De tv toont het begeleidersscherm; de jongeren stemmen met hun telefoon via een korte link of QR-code.
 
-**Het bord**: op de tv staan 16 heiligen: de 8 die de jongeren kozen, plus 8 andere uit de set. Elke heilige heeft een korte beschrijving. Die beschrijvingen kunnen vooraf rondgestuurd worden; vooraf lezen mag, maar hoeft niet. Alle 16 blijven het hele spel op het bord staan, ook na een onthulling, zodat niemand halverwege nieuwe heiligen hoeft te lezen.
+**Het bord**: op de tv staan 2 × N heiligen: de N die de deelnemers kozen, plus N andere die willekeurig uit de rest van de set getrokken worden. Bij 8 jongeren en 2 begeleiders zijn dat er 20. De begeleider trekt ze één keer bij het starten van het spel, daarna liggen ze vast. Elke heilige heeft een korte beschrijving. Die beschrijvingen kunnen vooraf rondgestuurd worden; vooraf lezen mag, maar hoeft niet. Ze blijven allemaal het hele spel op het bord staan, ook na een onthulling, zodat niemand halverwege nieuwe heiligen hoeft te lezen.
 
 | Tijd (schatting) | Onderdeel | Tv | Telefoons |
 | --- | --- | --- | --- |
-| 0–10 min | Opening: wat is een heilige (gewone mensen die iets bijzonders deden), uitleg van het spel, de 16 heiligen bekijken | Introscherm met QR-code, daarna het bord | Inloggen met nickname |
-| 10–50 min | 8 rondes van circa 5 minuten, één per jongere | Het bord, stemuitslag | Stemmen bij welke heilige deze jongere hoort |
-| 50–60 min | Groepsplaat: alle 8 heiligen naast elkaar. Wat zegt dit over ons als groep? | Overzicht met nicknames | — |
-| 60–65 min | Afsluiting: groepsscore, aankondiging herhaling | Score en datum | — |
+| 0–10 min | Opening: wat is een heilige (gewone mensen die iets bijzonders deden), uitleg van het spel, de heiligen op het bord bekijken | Introscherm met QR-code, daarna het bord | Al ingelogd (thuis, met "Onthoud mij") |
+| 10 – 10+5N min | N rondes van circa 5 minuten, één per deelnemer | Het bord, stemuitslag | Stemmen bij welke heilige deze deelnemer hoort |
+| +10 min | Groepsplaat: alle N gekozen heiligen naast elkaar. Wat zegt dit over ons als groep? | Overzicht met nicknames | — |
+| +5 min | Afsluiting: groepsscore, aankondiging herhaling | Score en datum | — |
 
 **Eén ronde** draait om één jongere (hier: Kind A):
 
 1. **Overleg 1.** Kind A blijft gewoon in de kamer; ziet de groep Kind A glimlachen, dan hoort dat bij het spel. De groep overlegt zonder vragen te stellen bij welke heilige Kind A hoort. Na 1 minuut moet er gestemd worden: iedereen vinkt op de telefoon één heilige aan.
 2. **Uitslag 1.** Pas als iedereen gestemd heeft, toont de tv per heilige het aantal stemmen. Nooit wie op wat stemde.
-3. **Vragenronde.** Kind A komt terug. Elke andere jongere mag Kind A één vraag stellen, maximaal 7 vragen; geen vraag weten is ook prima. Kind A beantwoordt alleen vragen over zichzelf en zegt niet welke heilige hij of zij heeft.
+3. **Vragenronde.** Kind A komt terug. Elke andere deelnemer mag Kind A één vraag stellen; geen vraag weten is ook prima. Kind A beantwoordt alleen vragen over zichzelf en zegt niet welke heilige hij of zij heeft.
 4. **Overleg 2.** Na 1 minuut opnieuw stemmen; iedereen mag zijn keus veranderen. De tv toont weer alleen aantallen.
 5. **Onthulling.** De heilige van Kind A wordt getoond. Kind A mag één ding vertellen ("wat klopte er wel en wat niet?"), maar het hoeft niet.
 
@@ -141,14 +141,14 @@ Eén SQLite-bestand op de server is genoeg; de app bewaart per jongere alleen de
 | `invulling` | id, speler\_id, ronde\_id, antwoorden (JSON), open antwoorden, vervolgvragen en -antwoorden (JSON), stap |
 | `match` | id, invulling\_id, top-3 (JSON met uitleg), gekozen heilige, klopt-want, niet-want (JSON), markering voor begeleider |
 | `spelronde` | id, ronde\_id, match\_id, volgorde, fase (overleg 1 / uitslag 1 / vragen / overleg 2 / onthuld), groepspunten |
-| `bord` | id, ronde\_id, heilige\_id, is\_gekozen (de 8 gekozen plus 8 andere) |
+| `bord` | id, ronde\_id, heilige\_id, is\_gekozen (de N gekozen plus N willekeurige) |
 | `stem` | id, spelronde\_id, speler\_id, heilige\_id, stemronde (1 / 2) |
 
 De heiligen en de vragenbank staan niet in de database, maar als JSON-bestanden in de repo (`data/heiligen.json`, `data/vragen.json`). Zo zijn ze te reviewen in git en blijft de database klein. De app leest ze bij het opstarten in het geheugen. Tabellen verwijzen naar een heilige via de `qid`, en bij het opstarten controleert de app dat elke `qid` uit de database in de JSON staat; zo niet, dan stopt hij met een duidelijke fout. Wat een jongere te zien kreeg (top-3 met uitleg) staat in `match` zelf, zodat een latere tekstcorrectie dat niet verandert.
 
 **Privacy en toegang**
 
-- **Elke jongere krijgt een eigen Authelia-account** met echte naam, echt e-mailadres en een eigen wachtwoord, in de groep `durfheilig`. Jelle kent die gegevens al; zo kan hij een jongere helpen die zijn wachtwoord kwijt is, en kan de jongere via "wachtwoord vergeten" zelf een nieuw aanvragen. Een eigen wachtwoord per jongere, omdat bij een gedeeld wachtwoord iedereen bij elkaars heilige kan, en die moet geheim blijven tot het spel.
+- **Elke deelnemer krijgt een eigen Authelia-account** (begeleiders die meedoen ook, in dezelfde groep) met echte naam, echt e-mailadres en een eigen wachtwoord, in de groep `durfheilig`. Jelle kent die gegevens al; zo kan hij een jongere helpen die zijn wachtwoord kwijt is, en kan de jongere via "wachtwoord vergeten" zelf een nieuw aanvragen. Een eigen wachtwoord per jongere, omdat bij een gedeeld wachtwoord iedereen bij elkaars heilige kan, en die moet geheim blijven tot het spel.
 - **De accounts staan in `users_database.yml` op het volume van de server**, niet in een repo. Ze blijven tot de herhaling in juni en gaan dan samen met de groep weg.
 - **Echte namen en e-mailadressen komen nooit bij de LLM en nooit in deze (openbare) repo.** De app leest alleen `Remote-User`, niet `Remote-Name` of `Remote-Email`. Naar Gemini gaan alleen de antwoorden: geen gebruikersnaam, geen nickname, geen groepsnaam.
 - **Inloggen gebeurt thuis**, bij de quiz, met "Onthoud mij" aangevinkt. Dan hoeft op de middag niemand een wachtwoord te typen. Dat telt, want Authelia blokkeert na 3 foute pogingen binnen 2 minuten ook het IP-adres voor 5 minuten, en op de middag zit iedereen op hetzelfde wifi. Of "Onthoud mij" ook de standaardtime-out van 5 minuten inactiviteit opheft, testen we bij de generale repetitie.
@@ -168,7 +168,7 @@ Zes fasen, elk afgesloten met een controlemoment voor jou. Laat Claude Code per 
    - *Controle*: rapport met verdeling; jij speelt de quiz zelf 3 keer als verschillende types.
 4. **Quiz-app**. Quizflow op mobiel, beide LLM-aanroepen met validatie en terugvaloptie, klopt-want, voortgang bewaren, begeleidersoverzicht van wie klaar is.
    - *Controle*: jij en je gezin doen de quiz lokaal.
-5. **Raadspel**. Tv-scherm met het bord van 16 heiligen, twee stemrondes per jongere op telefoons, groepspunten, groepsplaat, eindscherm. Bediening door de begeleider.
+5. **Raadspel**. Tv-scherm met het bord van 2 × N heiligen, twee stemrondes per jongere op telefoons, groepspunten, groepsplaat, eindscherm. Bediening door de begeleider.
    - *Controle*: generale repetitie met familie en vrienden als eigen groep, op de echte server.
 6. **Uitrol en herhaling**. Docker-image, Caddy-route, Authelia-regels, back-up van de SQLite, exportfunctie, vergelijkingsscherm september/juni, groep verwijderen.
    - *Controle*: accounts voor de jongeren aanmaken, inloggen met "Onthoud mij" testen op een telefoon buiten je eigen netwerk, en controleren dat een account uit `durfheilig` niet bij `/beheer` of bij je andere apps komt.
@@ -186,8 +186,8 @@ Voeg in de repo een `CLAUDE.md` toe met de ontwerpregels uit de eerste sectie. D
 - **Rubric**: zes karakterassen en tien interesses, zie `rubric.md`.
 - **Stack**: FastHTML met fastlite. De app bestaat vooral uit pagina's en formulieren op telefoons die op slot gaan of even geen bereik hebben, en gewone paginaverzoeken overleven dat. Voor het live bord op de tv vraagt de pagina elke 2 seconden om een update. De bestaande HTML van de heiligenprofielen kan bijna ongewijzigd mee. NiceGUI viel af omdat elke pagina een vaste verbinding met de server houdt, wat op slapende telefoons tot verloren invoer kan leiden.
 - **Data**: heiligen en vragen alleen als JSON in git, in het geheugen ingelezen; SQLite alleen voor wat er tijdens het spel gebeurt (zie Datamodel). Teksten verbeteren gaat via git en een nieuwe deploy. Een aparte app om verhalen en scores te bewerken is voor later.
-- **Spel**: bord van 16 heiligen, het kind blijft in de kamer, groepspunten bij meerderheid, geprinte versie als terugval (zie Draaiboek en `redteam-2026-10-06.md`).
+- **Spel**: 4 tot circa 15 deelnemers, begeleiders mogen meedoen; bord van 2 × N heiligen (de gekozen plus evenveel willekeurige), elke heilige maar één keer gekozen, het kind blijft in de kamer, groepspunten bij meerderheid, geprinte versie als terugval (zie Draaiboek en `redteam-2026-10-06.md`).
 
 ## Open punten
 
-- [ ] Hoe worden de 8 extra heiligen op het bord gekozen: willekeurig, of juist lijkend op de gekozen 8 zodat het raden lastiger wordt?
+Geen; alles hierboven is besloten.
