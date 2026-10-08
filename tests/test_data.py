@@ -28,8 +28,8 @@ def vragen():
     return laad_vragen()
 
 
-def test_alle_77_heiligen_laden(heiligen):
-    assert len(heiligen) == 77
+def test_alle_heiligen_laden(heiligen, ruw):
+    assert len(heiligen) == len(ruw["records"])
 
 
 def test_vier_vragen_per_as(vragen):
@@ -98,7 +98,7 @@ def test_heilige_met_te_weinig_assen_wordt_overgeslagen_met_waarschuwing(tmp_pat
         r["assen"][a]["score"] = None
     with pytest.warns(UserWarning, match=rf"{r['qid']}.*3 van 6 assen"):
         heiligen = laad_heiligen(_schrijf(tmp_path, doc))
-    assert len(heiligen) == 76
+    assert len(heiligen) == len(ruw["records"]) - 1
     assert r["qid"] not in {h.qid for h in heiligen}
 
 
@@ -107,7 +107,7 @@ def test_datamap_via_omgevingsvariabele(tmp_path, monkeypatch):
         shutil.copy(DATA_DIR / f, tmp_path / f)
     monkeypatch.setenv("DURFHEILIG_DATA", str(tmp_path))
     assert data_dir() == tmp_path
-    assert len(laad_heiligen()) == 77
+    assert len(laad_heiligen()) == len(json.loads((DATA_DIR / "heiligen.json").read_text(encoding="utf-8"))["records"])
     assert len(laad_vragen().vragen) == 24
 
 

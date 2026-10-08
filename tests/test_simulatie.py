@@ -40,7 +40,8 @@ def test_controle_keurt_een_gelijk_verdeelde_groep_goed():
 
 def test_interessecontrole_telt_per_geslacht():
     h, v = laad_heiligen(), laad_vragen()
-    vrouwen = [x for x in h if x.geslacht == "vrouwelijk"]
+    # Take away every woman with the technology interest so the check has something to find.
+    vrouwen = [x for x in h if x.geslacht == "vrouwelijk" and "Techniek, bouwen en computers" not in x.interesses]
     gelijk = Counter({x.qid: 1 for x in vrouwen})
     eis, uitkomst, ok = controleer([_groep(vrouwen, gelijk, gelijk)], v, 1)[2]
     assert ok is False and "Techniek, bouwen en computers (0)" in uitkomst
