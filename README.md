@@ -28,8 +28,7 @@ identiteit van Authelia.
 Zonder sleutel gebruikt de app de vaste terugval (geen persoonlijke uitleg). Gemini proberen:
 
 ```bash
-export GEMINI_API_KEY=...    # je eigen sleutel, nooit in een bestand in de repo
-export GEMINI_MODEL=...
+cp .env.example .env         # vul GEMINI_API_KEY en GEMINI_MODEL in; .env staat in .gitignore
 uv run python -m durfheilig.dev
 ```
 

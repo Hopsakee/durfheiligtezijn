@@ -54,3 +54,22 @@ def test_de_echte_app_importeert_dev_nooit():
     code = "import sys, durfheilig.app; assert 'durfheilig.dev' not in sys.modules"
     subprocess.run([sys.executable, "-c", code], check=True)
     assert "durfheilig.dev" not in (Path(__file__).resolve().parents[1] / "Dockerfile").read_text()
+
+
+def test_env_bestand_wordt_gelezen_zonder_bestaande_waarden_te_overschrijven(tmp_path):
+    from durfheilig.dev import laad_env
+
+    f = tmp_path / ".env"
+    f.write_text('# opmerking\nGEMINI_API_KEY="geheim"\nGEMINI_MODEL = model-x\nLEEG=\nBESTAAT=nieuw\nzonder gelijkteken\n')
+    env = {"BESTAAT": "oud"}
+    assert sorted(laad_env(f, env)) == ["GEMINI_API_KEY", "GEMINI_MODEL"]
+    assert env == {"BESTAAT": "oud", "GEMINI_API_KEY": "geheim", "GEMINI_MODEL": "model-x"}
+    assert laad_env(tmp_path / "bestaat-niet", {}) == []
+
+
+def test_voorbeeld_env_bevat_geen_echte_waarden_en_wordt_niet_genegeerd_door_git():
+    root = Path(__file__).resolve().parents[1]
+    regels = [r for r in (root / ".env.example").read_text().splitlines() if "=" in r and not r.startswith("#")]
+    assert regels == ["GEMINI_API_KEY=", "GEMINI_MODEL="]
+    ignore = (root / ".gitignore").read_text().splitlines()
+    assert ".env" in ignore and "!.env.example" in ignore
