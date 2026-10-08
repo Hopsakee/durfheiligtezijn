@@ -14,30 +14,25 @@
     {"id": "sa2", "as": "samen_alleen", "vraag": "Op kamp ben jij…", "min": {"tekst": "met één of twee goede vrienden", "icoon": "🏕️"}, "plus": {"tekst": "midden in de groep", "icoon": "🔥"}},
     {"id": "sa3", "as": "samen_alleen", "vraag": "Je verjaardag vier je het liefst…", "min": {"tekst": "met een paar mensen die je echt goed kent", "icoon": "🎂"}, "plus": {"tekst": "met een groot feest", "icoon": "🎉"}},
     {"id": "sa4", "as": "samen_alleen", "vraag": "Een groepsopdracht op school. Jij…", "min": {"tekst": "doet je eigen deel het liefst rustig zelf", "icoon": "📝"}, "plus": {"tekst": "werkt het liefst samen aan één tafel", "icoon": "👥"}},
-
     {"id": "dd1", "as": "denken_doen", "vraag": "Een nieuwe kast in elkaar zetten:", "min": {"tekst": "eerst de handleiding", "icoon": "📖"}, "plus": {"tekst": "meteen beginnen", "icoon": "🔧"}},
     {"id": "dd2", "as": "denken_doen", "vraag": "Een nieuw spel. Jij…", "min": {"tekst": "leest eerst hoe het werkt", "icoon": "🧩"}, "plus": {"tekst": "probeert het gewoon uit", "icoon": "🎮"}},
     {"id": "dd3", "as": "denken_doen", "vraag": "Er is iets kapot. Jij…", "min": {"tekst": "zoekt eerst uit hoe het zit", "icoon": "🔍"}, "plus": {"tekst": "gaat er meteen mee aan de slag", "icoon": "🛠️"}},
-    {"id": "dd4", "as": "denken_doen", "vraag": "Op een vrije middag ben je het liefst bezig met…", "min": {"tekst": "iets uitzoeken of leren", "icoon": "💡"}, "plus": {"tekst": "iets maken of bouwen", "icoon": "🔨"}},
-
-    {"id": "av1", "as": "achter_voorop", "vraag": "Bij een toneelstuk sta je liever…", "min": {"tekst": "achter de schermen: licht en decor", "icoon": "💡"}, "plus": {"tekst": "op het podium", "icoon": "🎤"}},
+    {"id": "dd4", "as": "denken_doen", "vraag": "Op school vind je het leukst als…", "min": {"tekst": "je iets snapt wat je eerst niet snapte", "icoon": "💡"}, "plus": {"tekst": "je zelf iets mag uitproberen", "icoon": "🙌"}},
+    {"id": "av1", "as": "achter_voorop", "vraag": "Bij een toneelstuk sta je liever…", "min": {"tekst": "achter de schermen: licht en decor", "icoon": "🎛️"}, "plus": {"tekst": "op het podium", "icoon": "🎤"}},
     {"id": "av2", "as": "achter_voorop", "vraag": "Er moet een feest georganiseerd worden. Jij…", "min": {"tekst": "regelt de dingen die niemand ziet", "icoon": "📋"}, "plus": {"tekst": "neemt de leiding", "icoon": "📣"}},
-    {"id": "av3", "as": "achter_voorop", "vraag": "In een team ben jij…", "min": {"tekst": "degene op wie iedereen kan rekenen", "icoon": "🤝"}, "plus": {"tekst": "degene die zegt wat we gaan doen", "icoon": "🧭"}},
-    {"id": "av4", "as": "achter_voorop", "vraag": "Een presentatie voor de klas:", "min": {"tekst": "jij maakt de dia's", "icoon": "💻"}, "plus": {"tekst": "jij vertelt het verhaal", "icoon": "🎙️"}},
-
+    {"id": "av3", "as": "achter_voorop", "vraag": "Bij een schoolproject ben jij liever…", "min": {"tekst": "degene die alles netjes afmaakt", "icoon": "✅"}, "plus": {"tekst": "degene die het plan maakt en de taken verdeelt", "icoon": "🗂️"}},
+    {"id": "av4", "as": "achter_voorop", "vraag": "Een presentatie voor de klas:", "min": {"tekst": "jij maakt de dia's", "icoon": "🖼️"}, "plus": {"tekst": "jij vertelt het verhaal", "icoon": "🎙️"}},
     {"id": "pp1", "as": "plek_pad", "vraag": "Vakantie:", "min": {"tekst": "terug naar je favoriete plek", "icoon": "🏡"}, "plus": {"tekst": "elke keer ergens nieuw", "icoon": "🗺️"}},
     {"id": "pp2", "as": "plek_pad", "vraag": "Op de menukaart kies je…", "min": {"tekst": "je vaste favoriet", "icoon": "🍝"}, "plus": {"tekst": "iets wat je nog nooit gegeten hebt", "icoon": "🌮"}},
     {"id": "pp3", "as": "plek_pad", "vraag": "Later wil je wonen…", "min": {"tekst": "dicht bij de mensen en plekken die je kent", "icoon": "🌳"}, "plus": {"tekst": "ver weg, of overal een beetje", "icoon": "✈️"}},
     {"id": "pp4", "as": "plek_pad", "vraag": "Een vrije zaterdag:", "min": {"tekst": "je vaste dingen, die je het leukst vindt", "icoon": "☕"}, "plus": {"tekst": "iets doen wat je nog nooit gedaan hebt", "icoon": "🚀"}},
-
     {"id": "dl1", "as": "diepgang_licht", "vraag": "In een groep ben jij vaker…", "min": {"tekst": "degene die doorvraagt", "icoon": "❓"}, "plus": {"tekst": "degene die de grap maakt", "icoon": "😄"}},
     {"id": "dl2", "as": "diepgang_licht", "vraag": "Een film kies je liever…", "min": {"tekst": "die je aan het denken zet", "icoon": "🎬"}, "plus": {"tekst": "waar je hard om moet lachen", "icoon": "🍿"}},
     {"id": "dl3", "as": "diepgang_licht", "vraag": "Een lange autorit. Je praat het liefst over…", "min": {"tekst": "grote vragen: waarom alles is zoals het is", "icoon": "🌌"}, "plus": {"tekst": "gekke dingen die je hebt meegemaakt", "icoon": "🤪"}},
-    {"id": "dl4", "as": "diepgang_licht", "vraag": "Een vriend is verdrietig. Jij…", "min": {"tekst": "luistert en vraagt wat er is", "icoon": "👂"}, "plus": {"tekst": "probeert hem of haar aan het lachen te krijgen", "icoon": "🙂"}},
-
-    {"id": "vs1", "as": "vrede_strijd", "vraag": "Ruzie in de groep. Jij…", "min": {"tekst": "probeert het weer goed te maken", "icoon": "🕊️"}, "plus": {"tekst": "zegt eerlijk wat je ervan vindt", "icoon": "🗣️"}},
-    {"id": "vs2", "as": "vrede_strijd", "vraag": "Iemand wordt uitgelachen. Jij…", "min": {"tekst": "gaat daarna naast hem of haar zitten", "icoon": "🤝"}, "plus": {"tekst": "zegt er meteen iets van", "icoon": "✋"}},
-    {"id": "vs3", "as": "vrede_strijd", "vraag": "Je vindt een regel op school oneerlijk. Jij…", "min": {"tekst": "praat er rustig over met de leraar", "icoon": "💬"}, "plus": {"tekst": "zet er met anderen een actie tegen op", "icoon": "📢"}},
+    {"id": "dl4", "as": "diepgang_licht", "vraag": "Op je telefoon kijk je liever…", "min": {"tekst": "een video over hoe iets echt zit", "icoon": "📺"}, "plus": {"tekst": "grappige filmpjes", "icoon": "😂"}},
+    {"id": "vs1", "as": "vrede_strijd", "vraag": "Ruzie in de groep. Jij…", "min": {"tekst": "probeert het weer goed te maken", "icoon": "🕊️"}, "plus": {"tekst": "zegt eerlijk wat je ervan vindt", "icoon": "📢"}},
+    {"id": "vs2", "as": "vrede_strijd", "vraag": "Je denkt er anders over dan de rest van de groep. Jij…", "min": {"tekst": "zoekt waar jullie het wel over eens zijn", "icoon": "🌉"}, "plus": {"tekst": "blijft bij je eigen mening", "icoon": "🗣️"}},
+    {"id": "vs3", "as": "vrede_strijd", "vraag": "In een spel speelt iemand vals. Jij…", "min": {"tekst": "laat het gaan, het moet wel leuk blijven", "icoon": "🎲"}, "plus": {"tekst": "zegt er iets van: eerlijk is eerlijk", "icoon": "🚩"}},
     {"id": "vs4", "as": "vrede_strijd", "vraag": "In een discussie wil jij vooral…", "min": {"tekst": "dat iedereen zich gehoord voelt", "icoon": "🫶"}, "plus": {"tekst": "dat de waarheid op tafel komt", "icoon": "⚖️"}}
   ],
   "interessevraag": {
@@ -45,16 +40,46 @@
     "min_keuzes": 2,
     "max_keuzes": 3,
     "opties": [
-      {"interesse": "Mensen helpen", "icoon": "🤲"},
-      {"interesse": "Kinderen en jongeren", "icoon": "🧒"},
-      {"interesse": "Natuur en dieren", "icoon": "🐾"},
-      {"interesse": "Muziek en kunst", "icoon": "🎨"},
-      {"interesse": "Techniek, bouwen en computers", "icoon": "💻"},
-      {"interesse": "Lezen en schrijven", "icoon": "📚"},
-      {"interesse": "Sport en buiten bewegen", "icoon": "⚽"},
-      {"interesse": "Reizen en andere culturen", "icoon": "🌍"},
-      {"interesse": "Wetenschap en ontdekken", "icoon": "🔬"},
-      {"interesse": "Opkomen voor wat eerlijk is", "icoon": "✊"}
+      {
+        "interesse": "Mensen helpen",
+        "icoon": "🤲"
+      },
+      {
+        "interesse": "Kinderen en jongeren",
+        "icoon": "🧒"
+      },
+      {
+        "interesse": "Natuur en dieren",
+        "icoon": "🐾"
+      },
+      {
+        "interesse": "Muziek en kunst",
+        "icoon": "🎨"
+      },
+      {
+        "interesse": "Techniek, bouwen en computers",
+        "icoon": "💻"
+      },
+      {
+        "interesse": "Lezen en schrijven",
+        "icoon": "📚"
+      },
+      {
+        "interesse": "Sport en buiten bewegen",
+        "icoon": "⚽"
+      },
+      {
+        "interesse": "Reizen en andere culturen",
+        "icoon": "🌍"
+      },
+      {
+        "interesse": "Wetenschap en ontdekken",
+        "icoon": "🔬"
+      },
+      {
+        "interesse": "Opkomen voor wat eerlijk is",
+        "icoon": "✊"
+      }
     ]
   }
 }

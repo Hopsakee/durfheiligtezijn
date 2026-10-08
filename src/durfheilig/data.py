@@ -6,10 +6,22 @@ scoring as zero.
 """
 
 import json
+import os
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parents[2] / "data"
+_REPO_DATA = Path(__file__).resolve().parents[2] / "data"
+
+
+def data_dir() -> Path:
+    """`DURFHEILIG_DATA` if set (the Docker image sets it), else the repo's `data/`, else `./data`."""
+    if os.environ.get("DURFHEILIG_DATA"):
+        return Path(os.environ["DURFHEILIG_DATA"])
+    return _REPO_DATA if _REPO_DATA.is_dir() else Path.cwd() / "data"
+
+
+DATA_DIR = _REPO_DATA
 
 # Order matters only for display. The sign convention comes from docs/design/rubric.md:
 # for samen_alleen the minus pole is "alleen"; for the other axes minus is the first word.
@@ -20,6 +32,10 @@ MIN_BEKENDE_ASSEN = 4
 
 class DataFout(ValueError):
     """A saint or question that breaks the rubric's rules."""
+
+
+class TeWeinigAssen(DataFout):
+    """A saint known on fewer than MIN_BEKENDE_ASSEN axes: excluded until the record is completed."""
 
 
 @dataclass(frozen=True)
@@ -75,7 +91,8 @@ def _heilige(r: dict, interesse_lijst: set[str]) -> Heilige:
         assen[a] = s
     bekend = sum(s is not None for s in assen.values())
     if bekend < MIN_BEKENDE_ASSEN:
-        raise fout(f"maar {bekend} van 6 assen bekend, minimaal {MIN_BEKENDE_ASSEN}")
+        raise TeWeinigAssen(f"{qid} ({r.get('naam', '?')}): "
+                            f"maar {bekend} van 6 assen bekend, minimaal {MIN_BEKENDE_ASSEN}")
     interesses = tuple(i["interesse"] if isinstance(i, dict) else i for i in r.get("interesses") or [])
     if not 1 <= len(interesses) <= 3:
         raise fout(f"{len(interesses)} interesses, verwacht 1 tot 3")
@@ -86,9 +103,17 @@ def _heilige(r: dict, interesse_lijst: set[str]) -> Heilige:
 
 
 def laad_heiligen(pad: Path | None = None) -> list[Heilige]:
-    doc = json.loads((pad or DATA_DIR / "heiligen.json").read_text(encoding="utf-8"))
+    """Every other rule violation fails loudly. A record with too few known axes is left out
+    with a warning, per rubric.md ("gaat terug voor aanvulling"), so one edited record cannot
+    stop the quiz from starting."""
+    doc = json.loads((pad or data_dir() / "heiligen.json").read_text(encoding="utf-8"))
     lijst = set(doc["interesses_lijst"])
-    heiligen = [_heilige(r, lijst) for r in doc["records"]]
+    heiligen = []
+    for r in doc["records"]:
+        try:
+            heiligen.append(_heilige(r, lijst))
+        except TeWeinigAssen as e:
+            warnings.warn(f"heilige overgeslagen: {e}", stacklevel=2)
     dubbel = {h.qid for h in heiligen if sum(x.qid == h.qid for x in heiligen) > 1}
     if dubbel:
         raise DataFout(f"dubbele qid's: {sorted(dubbel)}")
@@ -96,7 +121,7 @@ def laad_heiligen(pad: Path | None = None) -> list[Heilige]:
 
 
 def laad_vragen(pad: Path | None = None) -> Vragenbank:
-    doc = json.loads((pad or DATA_DIR / "vragen.json").read_text(encoding="utf-8"))
+    doc = json.loads((pad or data_dir() / "vragen.json").read_text(encoding="utf-8"))
     vragen = []
     for v in doc["vragen"]:
         if v["as"] not in ASSEN:

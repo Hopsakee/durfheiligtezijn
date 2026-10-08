@@ -1,6 +1,6 @@
 ---
 phase: climbing
-progress: 12/16
+progress: 17/18
 principal_stated_goal: "I merged. Please go ahead building phase 3."
 ---
 
@@ -38,10 +38,12 @@ Phase 3 of the plan: a question bank of 24 either-or questions (four per axis) p
 - [x] ISC-10: The simulation report checks and states pass/fail for each plan requirement: no saint above 4% of first choices; ≥60% of the set in some top-3; per gender preference the same two checks against that group's eligible saints; ≥5 saints per interest; saints on both sides of every axis.
 - [x] ISC-11: A terminal quiz (`python -m durfheilig.speel`) lets Jelle answer gender preference, 12 questions (2 per axis, randomly drawn from 4) and 2–3 interests, and prints the top-3 with names, match scores and `wat_voor_mens`, plus the top-12.
 - [x] ISC-12: `pytest` passes, and runs offline from the box's wheel store.
-- [ ] ISC-13: The simulation report checks interest coverage and both-sides-per-axis per gender preference, not only over the whole set (review finding: among the 31 women, "Techniek, bouwen en computers" has 0 saints and "Sport en buiten bewegen" 1).
-- [ ] ISC-14: `profiel()` rejects an unknown question id and more than two answers per axis with a clear error, so a kid's axis score stays within −2..+2.
-- [ ] ISC-15: Tests fail when a spread threshold comparison is inverted, and when the gender filter or exclusion runs after slicing to n.
-- [ ] ISC-16: The data files are found when the package is installed non-editable (Docker image in phase 6).
+- [x] ISC-13: The simulation report checks interest coverage and both-sides-per-axis per gender preference, not only over the whole set (review finding: among the 31 women, "Techniek, bouwen en computers" has 0 saints and "Sport en buiten bewegen" 1).
+- [x] ISC-14: `profiel()` rejects an unknown question id and more than two answers per axis with a clear error, so a kid's axis score stays within −2..+2.
+- [x] ISC-15: Tests fail when a spread threshold comparison is inverted, and when the gender filter or exclusion runs after slicing to n.
+- [x] ISC-16: The data directory is configurable through `DURFHEILIG_DATA`, so a non-editable install (the phase 6 Docker image) can point at it; tested by loading all data from a copied directory.
+- [x] ISC-17: Ranking uses each saint's relative score (z-score of the match score against that saint's own mean and spread over every answer pattern and every 2- or 3-interest pick); over that reference distribution every saint's relative score has mean 0 and standard deviation 1.
+- [ ] ISC-18: Every gender preference has at least 5 saints per interest (needs new sourced records; prompt in `docs/pipeline/prompt-aanvulling-heiligen.md`).
 
 ## Anti-claims
 
@@ -69,19 +71,26 @@ Phase 3 of the plan: a question bank of 24 either-or questions (four per axis) p
 - "First choice" in the simulation is the deterministic rank 1, standing in for the kid's pick among the LLM's top-3.
 - Each gender preference gets its own 200 profiles, so "comparable per gender preference" is checked by applying the same two spread thresholds to each group.
 - The report shows a noise floor next to the 4% check: the highest share a uniformly random matcher reaches at the same n. At n=200 that floor is already above 4% for "man" (4.5%) and "vrouw" (6.0%), so the check as written cannot pass for those groups by noise alone.
-- Finding, not yet acted on: the rubric formula concentrates first choices on a few saints (Paus Leo I 11.5%, Bernadette 15.0% at n=200; about 13% at n=2000). Two causes measured: saints with a single interest get the full interest score whenever a kid picks it, and saints with middling axis scores sit closest to the average profile. Centring each saint's score on its own mean and spread over all possible profiles (a z-score) roughly halves it (6.7% / 8.6% / 4.0% at n=2000). Changing the formula is a rubric change and waits for Jelle.
+- Finding, acted on 2026-10-07 after Jelle's "Yes, do both": the rubric formula concentrates first choices on a few saints (Paus Leo I 11.5%, Bernadette 15.0% at n=200; about 13% at n=2000). Two causes measured: saints with a single interest get the full interest score whenever a kid picks it, and saints with middling axis scores sit closest to the average profile. Centring each saint's score on its own mean and spread over all possible profiles (a z-score) roughly halves it (6.7% / 8.6% / 4.0% at n=2000). Jelle approved; `rubric.md` § Matching records it. The match score stays the rubric's 0.7/0.3 total; only the ranking is relative.
 
 ## Verification
 
 - ISC-1–8, ISC-12: `uv run pytest` 33 passed (tests/test_data.py, tests/test_scoring.py, tests/test_simulatie.py).
 - ISC-9: two runs of `python -m durfheilig.simulatie`, `cmp` identical.
-- ISC-10: `docs/simulatie/rapport.md` checks table, 8 rows with pass/fail.
+- ISC-10: `docs/simulatie/rapport.md` checks table, 12 rows (4 checks × 3 gender preferences) with pass/fail.
 - ISC-11: scripted stdin through `python -m durfheilig.speel --seed 1` printed profile, top-3 with `wat_voor_mens`, places 4–12.
+- ISC-13–17: `uv run pytest` 47 passed. Mutants each fail at least one test: inverted 4% check, inverted 60% check, filter after slice, interest coverage counted over all groups, both-sides check disabled, answer validation removed. Second independent review recomputed the z-score reference by brute force for all 77 saints (max error 1.1e-16).
 - A1: `git status data/` shows only the new `vragen.json`. A2: grep for network imports in `src/` empty.
+
+## Not yet specified
+
+- How the 3 LLM follow-up questions (phase 4) change the ranking. `profiel()` accepts at most two answers per axis, so follow-up answers cannot simply be added to it; `rubric.md` says they "verfijnen" the score and the plan says the LLM reports which candidates rise. Decide in phase 4 whether the LLM re-ranks the top-12 or follow-up answers become a separate refinement term.
 
 ## Remaining Work
 
-- [ ] [none] Review findings on the question bank (vs2, dl4, av3 tilt toward one side; vs3 and dd4 load on a second axis; two duplicate icons): rewrite after Jelle has played the quiz.
+- [ ] [none] Phase 6: `DATA_DIR` in tests and `REPO` (default report path) still resolve from the source tree; fine for development, not for tests inside a non-editable image.
 
-- [ ] [none] Jelle decides on the concentration finding (per-saint centring, and a noise-aware threshold or n=2000) before phase 4 uses the ranking.
+- [x] [none] Review findings on the question bank: dd4, av3, dl4, vs2 and vs3 rewritten (dd4, vs2 and vs3 twice, after the second review); all 58 icons unique (tested).
+
+- [ ] [none] The 4% first-choice check stays above its noise floor at n=200 (4.5% man, 6.0% vrouw). After centring, n=2000 gives 6.7% / 8.6% / 4.0% against floors of 3.2% / 4.2% / 1.9%. Whether to keep 4% literally or make it relative to group size is Jelle's call.
 - [ ] [none] A3: Jelle plays the quiz three times as different types and judges the questions and top-3.
