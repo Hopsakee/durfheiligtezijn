@@ -168,3 +168,20 @@ def overzicht(db) -> list[dict]:
         "select s.id, s.gebruikersnaam, s.nickname, i.stap, m.gekozen, m.markering, m.via_llm "
         "from speler s join invulling i on i.speler_id = s.id left join match m on m.invulling_id = i.id "
         "order by s.nickname is null, s.nickname, s.gebruikersnaam")]
+
+
+def exporteer(db) -> dict:
+    """Alles wat de app over de groep bewaart, voor de begeleiders en de vergelijking in juni."""
+    return {
+        "spelers": db.q("select * from speler order by id"),
+        "invullingen": [_uit(r) for r in db.q("select * from invulling order by id")],
+        "matches": [_uit(r) for r in db.q("select * from match order by id")],
+    }
+
+
+def verwijder_alles(db) -> None:
+    for tabel in ("match", "invulling", "speler"):
+        db.execute(f"delete from {tabel}")
+    # delete alone leaves the answers in free pages and in the write-ahead log: rewrite the file, then empty the log.
+    db.execute("vacuum")
+    db.execute("pragma wal_checkpoint(truncate)")
