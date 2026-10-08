@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "Welkomstspel: koppel elke deelnemer aan een heilige en raad samen wie bij wie hoort."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "fastlite>=0.2.4",
+    "httpx>=0.28.1",
+    "python-fasthtml>=0.14.12",
+]
 
 [dependency-groups]
 dev = ["pytest"]
@@ -20,5 +24,7 @@ packages = ["src/durfheilig"]
 testpaths = ["tests"]
 
 [tool.uv]
-# Linux (server, box) and macOS (Jelle's Mac) only; keeps Windows-only wheels out of the lock.
-environments = ["sys_platform == 'linux'", "sys_platform == 'darwin'"]
+# Linux only: the box's offline wheel store has no macOS build of apsw (needed by fastlite),
+# so the lock cannot be made for darwin there. On the Mac, add "sys_platform == 'darwin'" back
+# and run `uv lock` once (it keeps the pinned versions).
+environments = ["sys_platform == 'linux'"]

@@ -1,19 +1,82 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "sys_platform == 'linux'",
-    "sys_platform == 'darwin'",
 ]
 supported-markers = [
     "sys_platform == 'linux'",
-    "sys_platform == 'darwin'",
+]
+
+[[package]]
+name = "anyio"
+version = "4.15.1"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "idna" },
+    { name = "typing-extensions", marker = "python_full_version < '3.15'" },
+]
+wheels = [
+    { path = "/opt/wheels/anyio-4.15.1-py3-none-any.whl" },
+]
+
+[[package]]
+name = "apsw"
+version = "3.53.4.0"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/apsw-3.53.4.0-cp312-cp312-manylinux_2_28_x86_64.whl" },
+]
+
+[[package]]
+name = "apswutils"
+version = "0.1.2"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "apsw" },
+    { name = "fastcore" },
+]
+wheels = [
+    { path = "/opt/wheels/apswutils-0.1.2-py3-none-any.whl" },
+]
+
+[[package]]
+name = "beautifulsoup4"
+version = "4.15.0"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "soupsieve" },
+    { name = "typing-extensions" },
+]
+wheels = [
+    { path = "/opt/wheels/beautifulsoup4-4.15.0-py3-none-any.whl" },
+]
+
+[[package]]
+name = "certifi"
+version = "2026.7.22"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/certifi-2026.7.22-py3-none-any.whl" },
+]
+
+[[package]]
+name = "click"
+version = "8.5.0"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/click-8.5.0-py3-none-any.whl" },
 ]
 
 [[package]]
 name = "durfheilig"
 version = "0.1.0"
 source = { editable = "." }
+dependencies = [
+    { name = "fastlite" },
+    { name = "httpx" },
+    { name = "python-fasthtml" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -21,9 +84,111 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [
+    { name = "fastlite", specifier = ">=0.2.4" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "python-fasthtml", specifier = ">=0.14.12" },
+]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest" }]
+
+[[package]]
+name = "fastcore"
+version = "2.2.19"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/fastcore-2.2.19-py3-none-any.whl" },
+]
+
+[[package]]
+name = "fastlite"
+version = "0.2.4"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "apswutils" },
+    { name = "fastcore" },
+]
+wheels = [
+    { path = "/opt/wheels/fastlite-0.2.4-py3-none-any.whl" },
+]
+
+[[package]]
+name = "h11"
+version = "0.16.0"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/h11-0.16.0-py3-none-any.whl" },
+]
+
+[[package]]
+name = "httpcore"
+version = "1.0.9"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "certifi" },
+    { name = "h11" },
+]
+wheels = [
+    { path = "/opt/wheels/httpcore-1.0.9-py3-none-any.whl" },
+]
+
+[[package]]
+name = "httpcore2"
+version = "2.12.0"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "h11" },
+    { name = "truststore" },
+]
+wheels = [
+    { path = "/opt/wheels/httpcore2-2.12.0-py3-none-any.whl" },
+]
+
+[[package]]
+name = "httptools"
+version = "0.8.0"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/httptools-0.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl" },
+]
+
+[[package]]
+name = "httpx"
+version = "0.28.1"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "anyio" },
+    { name = "certifi" },
+    { name = "httpcore" },
+    { name = "idna" },
+]
+wheels = [
+    { path = "/opt/wheels/httpx-0.28.1-py3-none-any.whl" },
+]
+
+[[package]]
+name = "httpx2"
+version = "2.12.0"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "anyio" },
+    { name = "httpcore2" },
+    { name = "idna" },
+    { name = "truststore" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+]
+wheels = [
+    { path = "/opt/wheels/httpx2-2.12.0-py3-none-any.whl" },
+]
+
+[[package]]
+name = "idna"
+version = "3.20"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/idna-3.20-py3-none-any.whl" },
+]
 
 [[package]]
 name = "iniconfig"
@@ -31,6 +196,22 @@ version = "2.3.0"
 source = { registry = "/opt/wheels" }
 wheels = [
     { path = "/opt/wheels/iniconfig-2.3.0-py3-none-any.whl" },
+]
+
+[[package]]
+name = "itsdangerous"
+version = "2.2.0"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/itsdangerous-2.2.0-py3-none-any.whl" },
+]
+
+[[package]]
+name = "oauthlib"
+version = "3.3.1"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/oauthlib-3.3.1-py3-none-any.whl" },
 ]
 
 [[package]]
@@ -69,4 +250,151 @@ dependencies = [
 ]
 wheels = [
     { path = "/opt/wheels/pytest-9.1.1-py3-none-any.whl" },
+]
+
+[[package]]
+name = "python-dateutil"
+version = "2.9.0.post0"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "six" },
+]
+wheels = [
+    { path = "/opt/wheels/python_dateutil-2.9.0.post0-py2.py3-none-any.whl" },
+]
+
+[[package]]
+name = "python-dotenv"
+version = "1.2.3"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/python_dotenv-1.2.3-py3-none-any.whl" },
+]
+
+[[package]]
+name = "python-fasthtml"
+version = "0.14.12"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "fastcore" },
+    { name = "httpx2" },
+    { name = "itsdangerous" },
+    { name = "oauthlib" },
+    { name = "python-dateutil" },
+    { name = "python-multipart" },
+    { name = "starlette" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+wheels = [
+    { path = "/opt/wheels/python_fasthtml-0.14.12-py3-none-any.whl" },
+]
+
+[[package]]
+name = "python-multipart"
+version = "0.0.32"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/python_multipart-0.0.32-py3-none-any.whl" },
+]
+
+[[package]]
+name = "pyyaml"
+version = "6.0.3"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl" },
+]
+
+[[package]]
+name = "six"
+version = "1.17.0"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/six-1.17.0-py2.py3-none-any.whl" },
+]
+
+[[package]]
+name = "soupsieve"
+version = "2.9.2"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/soupsieve-2.9.2-py3-none-any.whl" },
+]
+
+[[package]]
+name = "starlette"
+version = "1.7.0"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "anyio" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+]
+wheels = [
+    { path = "/opt/wheels/starlette-1.7.0-py3-none-any.whl" },
+]
+
+[[package]]
+name = "truststore"
+version = "0.10.4"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/truststore-0.10.4-py3-none-any.whl" },
+]
+
+[[package]]
+name = "typing-extensions"
+version = "4.16.0"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/typing_extensions-4.16.0-py3-none-any.whl" },
+]
+
+[[package]]
+name = "uvicorn"
+version = "0.54.0"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "click" },
+    { name = "h11" },
+]
+wheels = [
+    { path = "/opt/wheels/uvicorn-0.54.0-py3-none-any.whl" },
+]
+
+[package.optional-dependencies]
+standard = [
+    { name = "httptools" },
+    { name = "python-dotenv" },
+    { name = "pyyaml" },
+    { name = "uvloop", marker = "platform_python_implementation != 'PyPy'" },
+    { name = "watchfiles" },
+    { name = "websockets" },
+]
+
+[[package]]
+name = "uvloop"
+version = "0.22.1"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/uvloop-0.22.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl" },
+]
+
+[[package]]
+name = "watchfiles"
+version = "1.2.0"
+source = { registry = "/opt/wheels" }
+dependencies = [
+    { name = "anyio" },
+]
+wheels = [
+    { path = "/opt/wheels/watchfiles-1.2.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl" },
+]
+
+[[package]]
+name = "websockets"
+version = "17.1"
+source = { registry = "/opt/wheels" }
+wheels = [
+    { path = "/opt/wheels/websockets-17.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl" },
 ]
