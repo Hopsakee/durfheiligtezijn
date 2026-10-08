@@ -1,6 +1,6 @@
 ---
 phase: climbing
-progress: 24/25
+progress: 26/28
 principal_stated_goal: "I merged #6, please start phase 4."
 ---
 
@@ -52,6 +52,9 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - [x] ISC-23: A saint confirmed by one player never appears in another player's top-3, enforced where the match is stored, not only in the ranking.
 - [x] ISC-24: The "Mijn heilige" page shows a player's own three saints with explanation and chosen saint, and nobody else's.
 - [x] ISC-25: A leader overview shows who has finished and which explanations are flagged, to leaders only.
+- [x] ISC-26: Leaders (group `durfheilig-leiding` or `admins`) can download everything the app stores as JSON and wipe the whole group behind a typed confirmation; after a wipe the kids' answers are in neither the database file nor its write-ahead log; a request started from another site or with a wrong word wipes nothing; kids get 403 on both routes.
+- [x] ISC-27: The Dockerfile installs production dependencies from `uv.lock`, runs as uid 10001, publishes no port, reads the Gemini key from an env file only, answers its health check, and refuses to build when the lock points at the box's offline `/opt/wheels`.
+- [ ] ISC-28: A kid logged in through Authelia reaches the quiz at `https://durfheiligtezijn.hopsakee.top`, gets 403 on `/beheer`, and a leader gets in. Deployed files are staged in the server repo PR; needs Jelle's host steps (below).
 
 ## Anti-claims
 
@@ -87,6 +90,8 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - `/beheer` checks `Remote-Groups` for `admins` as defence in depth next to the Authelia rule; no other identity header is read.
 - Images come from `data/afbeeldingen/<bestand>` when present, otherwise from Wikimedia Commons by filename. The box cannot fetch them, so local copies are a host-side step.
 
+- Local testing uses `python -m durfheilig.dev`: an ASGI layer that turns a chosen cookie into `Remote-User`/`Remote-Groups`, bound to 127.0.0.1. The production entry and the Docker image never start or import it (tested).
+
 ## Verification
 
 - ISC-1–8, ISC-12: `uv run pytest` 33 passed (tests/test_data.py, tests/test_scoring.py, tests/test_simulatie.py).
@@ -113,3 +118,7 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - [ ] [none] Leaders splitting the reading of explanations (and not voting in the round of a player whose explanation they read) is not built; `/beheer` only lists progress and flags.
 - [ ] [none] The lock covers Linux only (no macOS `apsw` build in the box's wheel store); on the Mac add `sys_platform == 'darwin'` back under `[tool.uv] environments` and run `uv lock` once.
 - [ ] [none] The 12 saints added from the supplement are claude.ai output, read by me only for structure, validation and sensitive themes; Jelle's review of their texts (Gianna Beretta Molla's story is about abortion and a mother's death, Germaine Cousin's about abuse) is still open. The 77 older records have no `afbeelding.soort`; the new ones carry `heilige`.
+- [ ] [none] `uv.lock` in the repo was made in the offline box and points at `/opt/wheels`. Jelle regenerates it on the Mac (`uv lock`, against PyPI); until it is merged the server build refuses.
+- [ ] [none] Host steps for the first deploy: DNS record at OVH, `GEMINI_API_KEY` and `GEMINI_MODEL` in the laptop `.env`, groups and accounts in `users_database.yml`, then a full `server-deploy.sh` (Authelia needs a restart for the new rules).
+- [ ] [none] No backup job covers `/db/spel.db`; leaders download `/beheer/export` before wiping. Every container on the `hup` network can reach the app and forge `Remote-User` (same as bg3 and jonkies-tody); a per-app network would close it.
+- [ ] [none] The September/June comparison screen is not built.
