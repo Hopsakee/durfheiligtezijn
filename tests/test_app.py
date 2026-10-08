@@ -356,3 +356,14 @@ def test_na_verwijderen_staan_de_antwoorden_niet_meer_in_het_bestand(tmp_path):
     c.post("/beheer/verwijder", data={"bevestig": "VERWIJDER"}, headers={"remote-groups": "admins"})
     alles = b"".join(f.read_bytes() for f in tmp_path.iterdir())      # database and write-ahead log
     assert b"GeheimeBijnaam" not in alles and b"tekenen" not in alles
+
+
+def test_begeleider_ziet_een_link_naar_het_overzicht_en_een_kind_niet():
+    _, app = maak(None)
+    assert "/beheer" not in kind(app, "k").get("/").text
+    assert 'href="/beheer"' in kind(app, "l").get("/", headers={"remote-groups": "durfheilig-leiding"}).text
+
+
+def test_afbeeldingen_worden_helemaal_getoond_niet_bijgesneden():
+    from durfheilig.app import CSS
+    assert "object-fit:contain" in CSS and "object-fit:cover" not in CSS

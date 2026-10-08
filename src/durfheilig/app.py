@@ -34,7 +34,7 @@ border:2px solid var(--rand);border-radius:14px;background:var(--kaart);color:va
 button.hoofd{background:var(--accent);border-color:var(--accent);color:#fff;text-align:center}
 .icoon{font-size:1.6rem;margin-right:.6rem}input[type=text],textarea{width:100%;padding:.8rem;font:inherit;border:2px solid var(--rand);border-radius:12px}
 .kaart{background:var(--kaart);border:2px solid var(--rand);border-radius:14px;padding:1rem;margin:1rem 0}
-.kaart img{width:100%;max-height:16rem;object-fit:cover;border-radius:10px}.klein{font-size:.8rem;color:#666}
+.kaart img{display:block;width:100%;max-height:24rem;object-fit:contain;background:#f1eadb;border-radius:10px}.klein{font-size:.8rem;color:#666}
 .voortgang{color:#666;font-size:.9rem}label.optie{display:block;padding:.8rem;margin:.4rem 0;border:2px solid var(--rand);border-radius:12px;background:var(--kaart)}
 table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{padding:.4rem;border-bottom:1px solid var(--rand);text-align:left}
 """
@@ -76,6 +76,10 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
     def leiding(req) -> bool:
         groepen = set((req.headers.get("remote-groups") or "").replace(" ", "").split(","))
         return bool(groepen & LEIDING_GROEPEN)
+
+    def leiding_link(req):
+        """Begeleiders spelen zelf ook mee; het overzicht is voor hen een klik weg."""
+        return Div(A("Overzicht voor begeleiders", href="/beheer", cls="knop"), cls="klein") if leiding(req) else ""
 
     def wie(req) -> tuple[dict, dict]:
         sp = spel.speler_voor(db, req.scope["gebruiker"])
@@ -208,7 +212,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
     @route("/")
     def get(req):
         sp, inv = wie(req)
-        return SCHERMEN[inv["stap"]](sp, inv)
+        return SCHERMEN[inv["stap"]](sp, inv), leiding_link(req)
 
     @route("/welkom", methods=["post"])
     def post_welkom(req, nickname: str = ""):
@@ -314,7 +318,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         m = spel.match_van(db, sp["id"])
         if not m:
             return naar()
-        return pagina("Mijn heilige", *kaarten(m, eigen=m["gekozen"]), A("Terug", href="/", cls="knop"))
+        return pagina("Mijn heilige", *kaarten(m, eigen=m["gekozen"]), A("Terug", href="/", cls="knop")), leiding_link(req)
 
     @route("/beheer")
     def beheer(req):
