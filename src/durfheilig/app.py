@@ -10,10 +10,11 @@ import hashlib
 import json
 import os
 import random
+from urllib.parse import urlparse
 from pathlib import Path
 
-from fasthtml.common import (A, Button, Div, FastHTML, FileResponse, Form, H1, H2, Img, Input, Label, P, RedirectResponse,
-                             Response, Small, Span, Style, Table, Td, Th, Titled, Tr, Textarea)
+from fasthtml.common import (A, Button, Details, Div, FastHTML, FileResponse, Form, H1, H2, Img, Input, Label, P, RedirectResponse,
+                             Response, Small, Span, Script, Style, Summary, Table, Td, Th, Titled, Tr, Textarea)
 
 from . import db as spel
 from .data import DATA_DIR, Heilige, Vragenbank, laad_heiligen, laad_vragen
@@ -35,6 +36,10 @@ button.hoofd{background:var(--accent);border-color:var(--accent);color:#fff;text
 .icoon{font-size:1.6rem;margin-right:.6rem}input[type=text],textarea{width:100%;padding:.8rem;font:inherit;border:2px solid var(--rand);border-radius:12px}
 .kaart{background:var(--kaart);border:2px solid var(--rand);border-radius:14px;padding:1rem;margin:1rem 0}
 .kaart img{display:block;width:100%;max-height:24rem;object-fit:contain;background:#f1eadb;border-radius:10px}.klein{font-size:.8rem;color:#666}
+.kaart.gekozen{border:6px solid var(--accent);background:#fff4ee}.badge{display:inline-block;background:var(--accent);color:#fff;border-radius:999px;padding:.2rem .8rem;font-weight:700;font-size:.9rem}
+details{margin:.5rem 0;padding:.6rem .8rem;border:1px solid var(--rand);border-radius:10px;background:var(--kaart)}summary{cursor:pointer;font-weight:600}
+#laden{position:fixed;inset:0;background:rgba(255,250,240,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;z-index:10}#laden[hidden]{display:none}
+.draai{width:3.2rem;height:3.2rem;border:.4rem solid var(--rand);border-top-color:var(--accent);border-radius:50%;animation:draai 1s linear infinite}@keyframes draai{to{transform:rotate(360deg)}}
 .voortgang{color:#666;font-size:.9rem}label.optie{display:block;padding:.8rem;margin:.4rem 0;border:2px solid var(--rand);border-radius:12px;background:var(--kaart)}
 table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{padding:.4rem;border-bottom:1px solid var(--rand);text-align:left}
 """
@@ -48,13 +53,82 @@ def afbeelding_url(h: Heilige) -> str:
     return f"https://commons.wikimedia.org/wiki/Special:FilePath/{bestand.replace(' ', '_')}?width=640"
 
 
+# Some steps wait for Gemini for several seconds. The cover shows that the app is working and blocks a second tap.
+LAADSCRIPT = """
+document.addEventListener('submit', function (e) {
+  var bron = e.submitter && e.submitter.getAttribute('data-laad') || e.target.getAttribute('data-laad');
+  if (!bron) return;
+  var o = document.getElementById('laden');
+  o.querySelector('p').textContent = bron;
+  o.hidden = false;
+  setTimeout(function () { o.hidden = true; }, 60000);   // a cancelled navigation must never leave the kid stuck
+}, true);
+window.addEventListener('pageshow', function () { document.getElementById('laden').hidden = true; });
+"""
+
+
 def pagina(titel: str, *inhoud, voortgang: str | None = None):
-    return Titled(titel, *( [P(voortgang, cls="voortgang")] if voortgang else []), *inhoud)
+    laden = Div(Div(cls="draai"), P("Even geduld…", style="font-size:1.2rem;font-weight:600"), id="laden", hidden=True, role="status",
+                onclick="this.hidden=true")
+    return Titled(titel, *( [P(voortgang, cls="voortgang")] if voortgang else []), *inhoud, laden, Script(LAADSCRIPT))
 
 
-def knop_formulier(actie: str, *velden, tekst: str = "Verder", **hidden):
+def knop_formulier(actie: str, *velden, tekst: str = "Verder", laad: str | None = None, **hidden):
+    extra = {"data-laad": laad} if laad else {}
     return Form(*velden, *[Input(type="hidden", name=k, value=v) for k, v in hidden.items()],
-                Button(tekst, cls="hoofd", type="submit"), method="post", action=actie)
+                Button(tekst, cls="hoofd", type="submit"), method="post", action=actie, **extra)
+
+
+# De uitgebreide teksten (`meer`, `wat_er_nog_van_over_is`, `waarom_heilig`) zijn voor de leiding geschreven,
+# direct en zonder verbloemen. Bij deze heiligen noemt de eigen waarschuwing voor de leiding iets dat een kind
+# niet ongevraagd alleen moet lezen (marteling, zelfbeschadiging, lijken en relieken, abortus). Zij krijgen alleen de korte
+# versie; Jelle bepaalt na het lezen welke eruit mogen. Gevonden met een zoekactie op de data, niet uitputtend.
+KORT_VOOR_KINDEREN = {
+    "Q236030",   # Josephine Bakhita
+    "Q244383",   # Rosa van Lima
+    "Q234689",   # Monica
+    "Q464895",   # Alphonsa
+    "Q159862",   # Elisabeth van Thüringen
+    "Q455252",   # Catharina van Bologna
+    "Q163900",   # Franciscus Xaverius
+    "Q55398",    # Bernadette
+    "Q153024",   # Rita
+    "Q236216",   # Angela Merici
+    "Q2487594",  # Germaine Cousin
+    "Q177903",   # Stefanus I
+    "Q179718",   # Catharina van Alexandrië
+    "Q238963",   # Gianna Beretta Molla
+    "Q16975",    # Paulus VI
+    "Q193754",   # Pater Pio
+}
+TOEGESTANE_LINKHOSTS = {"nl.wikipedia.org", "en.wikipedia.org", "commons.wikimedia.org"}
+
+
+def info(h: Heilige) -> list:
+    """Alles wat een jongere over deze heilige erbij mag lezen. Bewust zonder de notities voor de leiding."""
+    r = h.record
+    kort = h.qid in KORT_VOOR_KINDEREN
+    uit = []
+    if r.get("waarom_voorbeeld"):
+        uit += [H2("Waarom een voorbeeld?"), P(r["waarom_voorbeeld"])]
+    if r.get("waarom_heilig") and not kort:
+        uit += [H2("Waarom heilig?"), P(r["waarom_heilig"])]
+    if r.get("haakjes"):
+        uit.append(H2("Verhalen over deze heilige"))
+        for x in r["haakjes"]:
+            soort = {"feit": "feit", "legende": "legende"}.get(x.get("soort"), x.get("soort") or "")
+            label = [x["kort"], *([Span(f" ({soort})", cls="klein")] if soort else [])]
+            uit.append(P(*label) if kort or not x.get("meer") else Details(Summary(*label), P(x["meer"])))
+    if r.get("wat_er_nog_van_over_is") and not kort:
+        uit += [H2("Wat er nog van over is"), P(r["wat_er_nog_van_over_is"])]
+    if r.get("begrippen"):
+        uit.append(H2("Woorden uitgelegd"))
+        uit += [Details(Summary(b["term"]), P(b["uitleg"])) for b in r["begrippen"]]
+    links = [x for x in r.get("lees_zelf", []) if urlparse(x.get("url", "")).scheme == "https" and "\\" not in x["url"]
+             and urlparse(x["url"]).hostname in TOEGESTANE_LINKHOSTS]
+    if links:
+        uit += [H2("Zelf verder lezen"), *[P(A(x["titel"], href=x["url"], target="_blank", rel="noopener noreferrer")) for x in links]]
+    return uit
 
 
 def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, rng: random.Random | None = None) -> FastHTML:
@@ -161,30 +235,36 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
             P("Een zin is genoeg. Je mag ook overslaan."),
             knop_formulier("/open",
                 Label("Waar ben je stiekem goed in?", Textarea(name="a1", maxlength=MAX_OPEN, rows=2)),
-                Label("Waar kun je je echt over opwinden?", Textarea(name="a2", maxlength=MAX_OPEN, rows=2))))
+                Label("Waar kun je je echt over opwinden?", Textarea(name="a2", maxlength=MAX_OPEN, rows=2)),
+                laad="We bedenken drie vragen speciaal voor jou…"))
 
     def scherm_vervolg(sp, inv):
         return pagina("Nog drie vragen", P("Zo vinden we jouw heilige nog beter."),
             Form(*[Div(H2(v["vraag"]),
                        *[Label(Input(type="radio", name=v["id"], value=k, required=True), f" {v[k]}", cls="optie") for k in ("min", "plus")])
                    for v in inv["vervolg"]],
-                 Button("Verder", cls="hoofd", type="submit"), method="post", action="/vervolg"))
+                 Button("Verder", cls="hoofd", type="submit"), method="post", action="/vervolg",
+                 **{"data-laad": "We zoeken de heiligen die bij jou passen…"}))
 
     def kaarten(m, keuze=False, eigen=None):
         out = []
-        for h in m["top3"]:
+        # Your own choice goes first and stands out; the other two follow in their original order.
+        for h in sorted(m["top3"], key=lambda h: h["qid"] != eigen):
             gekozen = eigen == h["qid"]
             out.append(Div(
+                *([Span("✔ Jouw heilige", cls="badge")] if gekozen else []),
                 Img(src=h["afbeelding"], alt=h["naam"]), Small(f"Foto: {h['credit']}", cls="klein"),
                 H2(h["naam"]), P(h["levensverhaal"]), P(h["uitleg"]),
+                A(f"Meer over {h['naam']}", href=f"/heilige/{h['qid']}", cls="knop"),
                 *([Label(Input(type="radio", name="gekozen", value=h["qid"], required=True), " Deze past bij mij", cls="optie"),
                    Label("Deze niet, want… (mag leeg)", Input(type="text", name=f"niet_{h['qid']}", maxlength=MAX_OPEN))] if keuze else []),
-                *([P("✔ Jouw keuze", cls="klein")] if gekozen else []), cls="kaart"))
+                cls="kaart gekozen" if gekozen else "kaart"))
         return out
 
     def scherm_keuze(sp, inv):
         m = spel.match_van(db, sp["id"])
-        extra = [] if inv["extra_ronde"] else [Button("Er past er geen bij mij", type="submit", formaction="/geen-past", formnovalidate=True)]
+        extra = [] if inv["extra_ronde"] else [Button("Er past er geen bij mij", type="submit", formaction="/geen-past", formnovalidate=True,
+                                          **{"data-laad": "We zoeken nieuwe vragen en heiligen voor je…"})]
         return pagina("Drie heiligen voor jou", P("Kies de heilige die het best bij je past."),
             Form(*kaarten(m, keuze=True), Label("Deze past bij mij, want…", Textarea(name="want", maxlength=MAX_OPEN, rows=2)),
                  Button("Dit is mijn heilige", cls="hoofd", type="submit"), *extra, method="post", action="/keuze"))
@@ -320,14 +400,26 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
             return naar()
         return pagina("Mijn heilige", *kaarten(m, eigen=m["gekozen"]), A("Terug", href="/", cls="knop")), leiding_link(req)
 
+    @route("/heilige/{qid}")
+    def heilige(req, qid: str):
+        sp, inv = wie(req)
+        m = spel.match_van(db, sp["id"])
+        mag = ({h["qid"] for h in m["top3"]} | set(m["afgewezen"])) if m else set()
+        if qid not in per_qid or (qid not in mag and not leiding(req)):
+            return Response("Niet gevonden.", status_code=404)
+        terug = "/mijn" if m and m["gekozen"] else "/"
+        return pagina(per_qid[qid].naam, *info(per_qid[qid]), A("Terug", href=terug, cls="knop")), leiding_link(req)
+
     @route("/beheer")
     def beheer(req):
         if not leiding(req):
             return Response("Alleen voor begeleiders.", status_code=403)
         rijen = spel.overzicht(db)
         return pagina("Overzicht", P(f"{sum(r['stap'] == 'klaar' for r in rijen)} van {len(rijen)} klaar."),
-            Table(Tr(Th("Bijnaam"), Th("Account"), Th("Stap"), Th("Markering")),
-                  *[Tr(Td(r["nickname"] or "–"), Td(r["gebruikersnaam"]), Td(r["stap"]), Td(r["markering"] or "")) for r in rijen]),
+            Table(Tr(Th("Bijnaam"), Th("Account"), Th("Stap"), Th("Uitleg door"), Th("Markering")),
+                  *[Tr(Td(r["nickname"] or "–"), Td(r["gebruikersnaam"]), Td(r["stap"]),
+                       Td("–" if r["via_llm"] is None else "Gemini" if r["via_llm"] else "vaste tekst"), Td(r["markering"] or ""))
+                    for r in rijen]),
             A("Alles downloaden (JSON)", href="/beheer/export", cls="knop"),
             Form(Label("Typ VERWIJDER om alle spelers en antwoorden te wissen", Input(type="text", name="bevestig")),
                  Button("Groep verwijderen", type="submit"), method="post", action="/beheer/verwijder"))

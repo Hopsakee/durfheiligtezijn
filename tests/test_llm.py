@@ -207,3 +207,22 @@ def test_nee_want_zinnen_gaan_naar_de_tweede_aanroep(situatie):
     finale(llm, p, i, [], top, [], {}, {top[0].qid: "te streng", top[1].qid: ""})
     data = json.loads(llm.aanroepen[0][1])
     assert data["nee_want"] == ["te streng"] and data["afgewezen"] == [top[0].qid, top[1].qid]
+
+
+def test_http_fout_noemt_de_statuscode_maar_nooit_de_sleutel():
+    llm = gemini("GEHEIMESLEUTEL", "m", client=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(404))))
+    with pytest.raises(LlmFout) as e:
+        llm("s", "d")
+    assert "HTTP 404" in str(e.value) and "GEHEIMESLEUTEL" not in str(e.value)
+
+
+def test_wat_gemini_teruggeeft_komt_nooit_in_de_log(situatie, caplog):
+    import logging
+    p, i, _, top = situatie
+    echo = "ik ben Jorik de Jong uit Windesheim"
+    slecht_vervolg = json.dumps({"vragen": [{"vraag": "x", "min": "a", "plus": "b", "stijgt_bij_min": [echo], "stijgt_bij_plus": []}] * 3})
+    slechte_finale = json.dumps({"keuzes": [{"qid": echo, "uitleg": "x"}] * 3})
+    with caplog.at_level(logging.INFO, logger="durfheilig.llm"):
+        vervolgvragen(Fake(slecht_vervolg, slecht_vervolg), p, i, [echo], top, laad_vragen(), set())
+        finale(Fake(slechte_finale, slechte_finale), p, i, [echo], top, [], {})
+    assert "mislukt" in caplog.text and "Jorik" not in caplog.text and echo not in caplog.text
