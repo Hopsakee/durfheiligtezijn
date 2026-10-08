@@ -79,47 +79,24 @@ def knop_formulier(actie: str, *velden, tekst: str = "Verder", laad: str | None 
                 Button(tekst, cls="hoofd", type="submit"), method="post", action=actie, **extra)
 
 
-# De uitgebreide teksten (`meer`, `wat_er_nog_van_over_is`, `waarom_heilig`) zijn voor de leiding geschreven,
-# direct en zonder verbloemen. Bij deze heiligen noemt de eigen waarschuwing voor de leiding iets dat een kind
-# niet ongevraagd alleen moet lezen (marteling, zelfbeschadiging, lijken en relieken, abortus). Zij krijgen alleen de korte
-# versie; Jelle bepaalt na het lezen welke eruit mogen. Gevonden met een zoekactie op de data, niet uitputtend.
-KORT_VOOR_KINDEREN = {
-    "Q236030",   # Josephine Bakhita
-    "Q244383",   # Rosa van Lima
-    "Q234689",   # Monica
-    "Q464895",   # Alphonsa
-    "Q159862",   # Elisabeth van Thüringen
-    "Q455252",   # Catharina van Bologna
-    "Q163900",   # Franciscus Xaverius
-    "Q55398",    # Bernadette
-    "Q153024",   # Rita
-    "Q236216",   # Angela Merici
-    "Q2487594",  # Germaine Cousin
-    "Q177903",   # Stefanus I
-    "Q179718",   # Catharina van Alexandrië
-    "Q238963",   # Gianna Beretta Molla
-    "Q16975",    # Paulus VI
-    "Q193754",   # Pater Pio
-}
 TOEGESTANE_LINKHOSTS = {"nl.wikipedia.org", "en.wikipedia.org", "commons.wikimedia.org"}
 
 
 def info(h: Heilige) -> list:
     """Alles wat een jongere over deze heilige erbij mag lezen. Bewust zonder de notities voor de leiding."""
     r = h.record
-    kort = h.qid in KORT_VOOR_KINDEREN
     uit = []
     if r.get("waarom_voorbeeld"):
         uit += [H2("Waarom een voorbeeld?"), P(r["waarom_voorbeeld"])]
-    if r.get("waarom_heilig") and not kort:
+    if r.get("waarom_heilig"):
         uit += [H2("Waarom heilig?"), P(r["waarom_heilig"])]
     if r.get("haakjes"):
         uit.append(H2("Verhalen over deze heilige"))
         for x in r["haakjes"]:
             soort = {"feit": "feit", "legende": "legende"}.get(x.get("soort"), x.get("soort") or "")
             label = [x["kort"], *([Span(f" ({soort})", cls="klein")] if soort else [])]
-            uit.append(P(*label) if kort or not x.get("meer") else Details(Summary(*label), P(x["meer"])))
-    if r.get("wat_er_nog_van_over_is") and not kort:
+            uit.append(Details(Summary(*label), P(x["meer"])) if x.get("meer") else P(*label))
+    if r.get("wat_er_nog_van_over_is"):
         uit += [H2("Wat er nog van over is"), P(r["wat_er_nog_van_over_is"])]
     if r.get("begrippen"):
         uit.append(H2("Woorden uitgelegd"))
