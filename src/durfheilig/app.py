@@ -7,6 +7,7 @@ gaat of even geen bereik heeft niets verliest.
 """
 
 import hashlib
+import json
 import os
 import random
 from pathlib import Path
@@ -21,6 +22,7 @@ from .scoring import VOORKEUR_GESLACHT, kies_vragen, profiel, rangschik
 
 MAX_OPEN = 200
 MAX_NICKNAME = 20
+LEIDING_GROEPEN = {"admins", "durfheilig-leiding"}
 STAPPEN = ("welkom", "voorkeur", "vragen", "interesses", "open", "vervolg", "keuze", "klaar")
 
 CSS = """
@@ -70,6 +72,10 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
     app = FastHTML(before=Beforeware(auth, skip=[r"/health", r"/img/.*"]), hdrs=(Style(CSS),), secret_key=os.urandom(16).hex(),
                    pico=False)
     route = app.route
+
+    def leiding(req) -> bool:
+        groepen = set((req.headers.get("remote-groups") or "").replace(" ", "").split(","))
+        return bool(groepen & LEIDING_GROEPEN)
 
     def wie(req) -> tuple[dict, dict]:
         sp = spel.speler_voor(db, req.scope["gebruiker"])
@@ -312,12 +318,34 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
 
     @route("/beheer")
     def beheer(req):
-        if "admins" not in (req.headers.get("remote-groups") or "").replace(" ", "").split(","):
+        if not leiding(req):
             return Response("Alleen voor begeleiders.", status_code=403)
         rijen = spel.overzicht(db)
         return pagina("Overzicht", P(f"{sum(r['stap'] == 'klaar' for r in rijen)} van {len(rijen)} klaar."),
             Table(Tr(Th("Bijnaam"), Th("Account"), Th("Stap"), Th("Markering")),
-                  *[Tr(Td(r["nickname"] or "–"), Td(r["gebruikersnaam"]), Td(r["stap"]), Td(r["markering"] or "")) for r in rijen]))
+                  *[Tr(Td(r["nickname"] or "–"), Td(r["gebruikersnaam"]), Td(r["stap"]), Td(r["markering"] or "")) for r in rijen]),
+            A("Alles downloaden (JSON)", href="/beheer/export", cls="knop"),
+            Form(Label("Typ VERWIJDER om alle spelers en antwoorden te wissen", Input(type="text", name="bevestig")),
+                 Button("Groep verwijderen", type="submit"), method="post", action="/beheer/verwijder"))
+
+    @route("/beheer/export")
+    def beheer_export(req):
+        if not leiding(req):
+            return Response("Alleen voor begeleiders.", status_code=403)
+        return Response(json.dumps(spel.exporteer(db), ensure_ascii=False, indent=1), media_type="application/json",
+                        headers={"content-disposition": 'attachment; filename="durfheilig-export.json"'})
+
+    @route("/beheer/verwijder", methods=["post"])
+    def beheer_verwijder(req, bevestig: str = ""):
+        if not leiding(req):
+            return Response("Alleen voor begeleiders.", status_code=403)
+        # Own CSRF defence: a browser marks requests started by another site.
+        if req.headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none"):
+            return Response("Niet toegestaan.", status_code=403)
+        if bevestig.strip() != "VERWIJDER":
+            return pagina("Niets gewist", P("Typ VERWIJDER, precies zo, om alles te wissen."), A("Terug", href="/beheer", cls="knop"))
+        spel.verwijder_alles(db)
+        return naar("/beheer")
 
     return app
 
@@ -329,7 +357,7 @@ def main() -> int:
     llm = llm_uit_omgeving()
     print("LLM:", "Gemini" if llm else "geen sleutel, terugval op vaste teksten")
     app = maak_app(spel.open_db(spel.db_pad()), heiligen, vragen, llm)
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8000")))
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("APP_PORT") or os.environ.get("PORT") or 8000))
     return 0
 
 

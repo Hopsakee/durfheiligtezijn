@@ -24,7 +24,8 @@ packages = ["src/durfheilig"]
 testpaths = ["tests"]
 
 [tool.uv]
-# Linux only: the box's offline wheel store has no macOS build of apsw (needed by fastlite),
-# so the lock cannot be made for darwin there. On the Mac, add "sys_platform == 'darwin'" back
-# and run `uv lock` once (it keeps the pinned versions).
-environments = ["sys_platform == 'linux'"]
+# Linux (server, box) and macOS (Jelle's Mac). uv.lock must be made against PyPI, on the Mac:
+# the offline box can only lock Linux and writes /opt/wheels paths into the lock, which the
+# Docker build on the server cannot use (the Dockerfile refuses such a lock). In the box, run
+# `uv run --frozen ...` so uv does not try to re-lock.
+environments = ["sys_platform == 'linux'", "sys_platform == 'darwin'"]

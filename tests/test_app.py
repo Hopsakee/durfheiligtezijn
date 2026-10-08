@@ -274,7 +274,7 @@ def test_nee_want_uit_de_keuzepagina_bereikt_de_tweede_ronde():
     assert m["afgewezen"] == {qids[0]: "te streng", qids[1]: "saai", qids[2]: ""}
 
 
-@pytest.mark.parametrize("groepen,toegestaan", [("notadmins", False), ("admins", True), ("durfheilig, admins", True), ("administrators", False)])
+@pytest.mark.parametrize("groepen,toegestaan", [("notadmins", False), ("admins", True), ("durfheilig, admins", True), ("administrators", False), ("durfheilig", False), ("durfheilig-leiding", True), ("leiding", False)])
 def test_beheer_vergelijkt_groepen_exact(groepen, toegestaan):
     _, app = maak()
     assert (kind(app).get("/beheer", headers={"remote-groups": groepen}).status_code == 200) is toegestaan
@@ -317,3 +317,42 @@ def test_twee_keer_eerste_bezoek_maakt_een_speler():
     db = spel.open_db()
     assert spel.speler_voor(db, "a")["id"] == spel.speler_voor(db, "a")["id"]
     assert len(db.q("select * from invulling")) == 1
+
+
+def test_export_en_verwijderen_alleen_voor_leiding_en_alleen_met_bevestiging():
+    db, app = maak(None)
+    c = kind(app, "a")
+    speel(c, "Aap")
+    assert c.get("/beheer/export").status_code == 403
+    assert c.post("/beheer/verwijder", data={"bevestig": "VERWIJDER"}).status_code == 403
+    assert len(db.q("select * from speler")) == 1
+    leiding = {"remote-groups": "durfheilig-leiding"}
+    data = c.get("/beheer/export", headers=leiding).json()
+    assert [s["gebruikersnaam"] for s in data["spelers"]] == ["a"] and data["matches"][0]["gekozen"]
+    c.post("/beheer/verwijder", data={"bevestig": "nee"}, headers=leiding)
+    assert len(db.q("select * from speler")) == 1
+    c.post("/beheer/verwijder", data={"bevestig": "VERWIJDER"}, headers=leiding)
+    assert not db.q("select * from speler") and not db.q("select * from invulling") and not db.q("select * from match")
+    assert spel.gekozen_heiligen(db) == set()
+    assert "Welkom" in kind(app, "a").get("/").text      # same account can start afresh
+
+
+def test_verwijderen_weigert_een_verzoek_van_een_andere_site_en_meldt_een_verkeerd_woord():
+    db, app = maak(None)
+    c = kind(app, "a")
+    speel(c, "Aap")
+    leiding = {"remote-groups": "durfheilig-leiding"}
+    assert c.post("/beheer/verwijder", data={"bevestig": "VERWIJDER"}, headers={**leiding, "sec-fetch-site": "cross-site"}).status_code == 403
+    assert "Niets gewist" in c.post("/beheer/verwijder", data={"bevestig": "nee"}, headers=leiding).text
+    assert len(db.q("select * from speler")) == 1
+
+
+def test_na_verwijderen_staan_de_antwoorden_niet_meer_in_het_bestand(tmp_path):
+    pad = tmp_path / "spel.db"
+    db = spel.open_db(pad)
+    app = maak_app(db, H, V, None, random.Random(1))
+    c = kind(app, "a")
+    speel(c, "GeheimeBijnaam")
+    c.post("/beheer/verwijder", data={"bevestig": "VERWIJDER"}, headers={"remote-groups": "admins"})
+    alles = b"".join(f.read_bytes() for f in tmp_path.iterdir())      # database and write-ahead log
+    assert b"GeheimeBijnaam" not in alles and b"tekenen" not in alles
