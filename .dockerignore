@@ -9,3 +9,4 @@ ISA.md
 data/spel.db*
 *.db
 .env*
+src/durfheilig/dev.py
