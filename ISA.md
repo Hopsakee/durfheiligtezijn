@@ -1,7 +1,7 @@
 ---
 phase: climbing
-progress: 17/18
-principal_stated_goal: "I merged. Please go ahead building phase 3."
+progress: 24/25
+principal_stated_goal: "I merged #6, please start phase 4."
 ---
 
 # Durf heilig te zijn
@@ -16,13 +16,14 @@ Jelle answers twelve either-or questions as three different kinds of teenager, a
 
 ## Out of Scope
 
-- The quiz web app, the LLM follow-up questions and explanations (phase 4).
-- The game screens and voting (phase 5), deployment (phase 6).
+- The game screens and voting (phase 5), deployment (phase 6); `/tv` comes with phase 5.
 - Changing saint records; the simulation reports on them, Jelle edits them through git.
 
 ## Goal
 
-Phase 3 of the plan: a question bank of 24 either-or questions (four per axis) plus the interest question, the deterministic scoring and matching exactly as `rubric.md` specifies, and a reproducible simulation of 200 fictional teen profiles checked against the plan's requirements, plus a way for Jelle to play the quiz himself.
+Phase 4 of the plan (the quiz app, LLM layer and game state, on top of the phase 3 scoring):
+
+Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus the interest question, the deterministic scoring and matching exactly as `rubric.md` specifies, and a reproducible simulation of 200 fictional teen profiles checked against the plan's requirements, plus a way for Jelle to play the quiz himself.
 
 ## Claims
 
@@ -44,11 +45,18 @@ Phase 3 of the plan: a question bank of 24 either-or questions (four per axis) p
 - [x] ISC-16: The data directory is configurable through `DURFHEILIG_DATA`, so a non-editable install (the phase 6 Docker image) can point at it; tested by loading all data from a copied directory.
 - [x] ISC-17: Ranking uses each saint's relative score (z-score of the match score against that saint's own mean and spread over every answer pattern and every 2- or 3-interest pick); over that reference distribution every saint's relative score has mean 0 and standard deviation 1.
 - [ ] ISC-18: Every gender preference has at least 5 saints per interest (needs new sourced records; prompt in `docs/pipeline/prompt-aanvulling-heiligen.md`).
+- [x] ISC-19: Both LLM calls validate their JSON against the candidate list (3 follow-up questions; exactly 3 distinct chosen saints, none rejected, none outside the candidates), retry once, then fall back to deterministic output (follow-up questions from the question bank, top-3 from the ranking with a standard explanation), so a failing API never stops the game. Tested with a fake client for valid, malformed, wrong-saint, duplicate, short and network-error answers.
+- [x] ISC-20: The prompt data holds only profile, interests, the kid's own text and the candidates' records, never a username, nickname or name; the kid's text sits in its own JSON field the prompt calls data, not instructions; the Gemini key travels in a header, never in the URL or an error message.
+- [x] ISC-21: Every route returns 401 without `Remote-User`; `/beheer` also requires group `admins` (compared exactly, not as a substring); the app reads no other identity header.
+- [x] ISC-22: A kid can close the app at any step and resume at that step with earlier answers intact.
+- [x] ISC-23: A saint confirmed by one player never appears in another player's top-3, enforced where the match is stored, not only in the ranking.
+- [x] ISC-24: The "Mijn heilige" page shows a player's own three saints with explanation and chosen saint, and nobody else's.
+- [x] ISC-25: A leader overview shows who has finished and which explanations are flagged, to leaders only.
 
 ## Anti-claims
 
 - [x] A1: No saint record in `data/heiligen.json` is modified by any phase 3 code.
-- [x] A2: No network access and no LLM call anywhere in phase 3 code.
+- [x] A2: No network access and no LLM call anywhere in phase 3 code (as of the phase 3 merge; `llm.py` is phase 4).
 - [ ] A3: No question answer is flattering on one side only; both answers name something a teenager would be happy to say about themselves (reviewed by Jelle when he plays).
 
 ## Test Strategy
@@ -73,6 +81,12 @@ Phase 3 of the plan: a question bank of 24 either-or questions (four per axis) p
 - The report shows a noise floor next to the 4% check: the highest share a uniformly random matcher reaches at the same n. At n=200 that floor is already above 4% for "man" (4.5%) and "vrouw" (6.0%), so the check as written cannot pass for those groups by noise alone.
 - Finding, acted on 2026-10-07 after Jelle's "Yes, do both": the rubric formula concentrates first choices on a few saints (Paus Leo I 11.5%, Bernadette 15.0% at n=200; about 13% at n=2000). Two causes measured: saints with a single interest get the full interest score whenever a kid picks it, and saints with middling axis scores sit closest to the average profile. Centring each saint's score on its own mean and spread over all possible profiles (a z-score) roughly halves it (6.7% / 8.6% / 4.0% at n=2000). Jelle approved; `rubric.md` § Matching records it. The match score stays the rubric's 0.7/0.3 total; only the ranking is relative.
 
+- Follow-up answers do not enter `profiel()` (its cap of 2 answers per axis stays). The LLM's questions name which candidates rise per answer (`stijgt_bij_min/plus`); the final LLM call sees the answers, and the fallback orders the top-12 by number of rises, then by relative score. Bank-based fallback questions use the 2 undrawn questions per axis, on the three axes where the top-12 differ most.
+- Only `speler`, `invulling` and `match` exist so far; `groep`, `ronde`, `spelronde`, `bord` and `stem` come with phase 5 (the September/June comparison needs `ronde`, phase 6).
+- Uniqueness of the chosen saint is a database constraint; a lost race quietly yields a fresh top-3 rather than an error.
+- `/beheer` checks `Remote-Groups` for `admins` as defence in depth next to the Authelia rule; no other identity header is read.
+- Images come from `data/afbeeldingen/<bestand>` when present, otherwise from Wikimedia Commons by filename. The box cannot fetch them, so local copies are a host-side step.
+
 ## Verification
 
 - ISC-1–8, ISC-12: `uv run pytest` 33 passed (tests/test_data.py, tests/test_scoring.py, tests/test_simulatie.py).
@@ -84,7 +98,7 @@ Phase 3 of the plan: a question bank of 24 either-or questions (four per axis) p
 
 ## Not yet specified
 
-- How the 3 LLM follow-up questions (phase 4) change the ranking. `profiel()` accepts at most two answers per axis, so follow-up answers cannot simply be added to it; `rubric.md` says they "verfijnen" the score and the plan says the LLM reports which candidates rise. Decide in phase 4 whether the LLM re-ranks the top-12 or follow-up answers become a separate refinement term.
+- (resolved in phase 4, see Decisions) How the 3 LLM follow-up questions change the ranking.
 
 ## Remaining Work
 
@@ -94,3 +108,7 @@ Phase 3 of the plan: a question bank of 24 either-or questions (four per axis) p
 
 - [ ] [none] The 4% first-choice check stays above its noise floor at n=200 (4.5% man, 6.0% vrouw). After centring, n=2000 gives 6.7% / 8.6% / 4.0% against floors of 3.2% / 4.2% / 1.9%. Whether to keep 4% literally or make it relative to group size is Jelle's call.
 - [ ] [none] A3: Jelle plays the quiz three times as different types and judges the questions and top-3.
+- [ ] [none] Gemini prompts are untested against the real model (no key in the box); the key and model name go in as secrets, then Jelle and family run the quiz locally.
+- [ ] [none] Images are not local yet (see Decisions); the plan wants resized local copies with maker and licence.
+- [ ] [none] Leaders splitting the reading of explanations (and not voting in the round of a player whose explanation they read) is not built; `/beheer` only lists progress and flags.
+- [ ] [none] The lock covers Linux only (no macOS `apsw` build in the box's wheel store); on the Mac add `sys_platform == 'darwin'` back under `[tool.uv] environments` and run `uv lock` once.
