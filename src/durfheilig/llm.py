@@ -10,6 +10,7 @@ kandidaten), dan antwoordt de deterministische terugval, zodat het spel nooit va
 """
 
 import json
+import logging
 import os
 import statistics
 from collections import Counter
@@ -27,6 +28,9 @@ AANTAL_VERVOLGVRAGEN = 3
 MAX_TEKST = 140
 MAX_UITLEG = 700
 POGINGEN = 2
+
+
+log = logging.getLogger("durfheilig.llm")
 
 
 class LlmFout(Exception):
@@ -52,7 +56,8 @@ def gemini(api_key: str, model: str, *, timeout: float = 12.0, client: httpx.Cli
             r.raise_for_status()
             return r.json()["candidates"][0]["content"]["parts"][0]["text"]
         except Exception as e:   # any failure, incl. an odd 200 body: the caller falls back
-            raise LlmFout(f"Gemini-aanroep mislukt: {type(e).__name__}") from e
+            status = f" (HTTP {e.response.status_code})" if isinstance(e, httpx.HTTPStatusError) else ""
+            raise LlmFout(f"Gemini-aanroep mislukt: {type(e).__name__}{status}") from e
 
     return roep
 
@@ -171,7 +176,7 @@ def _qids(x, toegestaan: set[str], wat: str) -> tuple[str, ...]:
         raise LlmFout(f"{wat} is geen lijst")
     onbekend = [q for q in x if q not in toegestaan]
     if onbekend:
-        raise LlmFout(f"{wat} noemt een heilige buiten de kandidaten: {onbekend[0]}")
+        raise LlmFout(f"{wat} noemt een heilige buiten de kandidaten")
     return tuple(dict.fromkeys(x))
 
 
@@ -219,11 +224,14 @@ def _probeer(llm: Llm | None, systeem: str, gegevens: str, valideer):
     """Tot POGINGEN keer; None als het niet lukt."""
     if llm is None:
         return None
-    for _ in range(POGINGEN):
+    for poging in range(1, POGINGEN + 1):
         try:
-            return valideer(llm(systeem, gegevens))
-        except LlmFout:
-            continue
+            uit = valideer(llm(systeem, gegevens))
+            log.info("Gemini-antwoord gebruikt (poging %d)", poging)
+            return uit
+        except LlmFout as e:   # the message names the failure, never the kid's text or the key
+            log.warning("Gemini-poging %d van %d mislukt: %s", poging, POGINGEN, e)
+    log.warning("Gemini gaf geen bruikbaar antwoord: de vaste terugval wordt gebruikt")
     return None
 
 
@@ -274,7 +282,7 @@ def valideer_finale(tekst: str, kandidaten: Sequence[Heilige], afgewezen: set[st
     keuzes = []
     for r in rijen:
         if r.get("qid") not in toegestaan:
-            raise LlmFout(f"keuze buiten de kandidaten: {r.get('qid')!r}")
+            raise LlmFout("keuze buiten de kandidaten")
         keuzes.append(Keuze(r["qid"], _tekst(r.get("uitleg"), MAX_UITLEG, "uitleg")))
     if len({k.qid for k in keuzes}) != 3:
         raise LlmFout("dezelfde heilige twee keer gekozen")

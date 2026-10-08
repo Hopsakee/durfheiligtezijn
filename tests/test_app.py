@@ -66,7 +66,7 @@ def test_een_hele_quiz_zonder_llm_geeft_drie_heiligen_en_een_keuze():
     r, gekozen, qids = speel(c, "Vos")
     assert "Houd je heilige geheim" in r.text
     assert spel.gekozen_heiligen(db) == {gekozen}
-    assert "✔ Jouw keuze" in c.get("/mijn").text
+    assert "✔ Jouw heilige" in c.get("/mijn").text
 
 
 def test_voortgang_blijft_bewaard_en_hervat_op_dezelfde_stap():
@@ -367,3 +367,112 @@ def test_begeleider_ziet_een_link_naar_het_overzicht_en_een_kind_niet():
 def test_afbeeldingen_worden_helemaal_getoond_niet_bijgesneden():
     from durfheilig.app import CSS
     assert "object-fit:contain" in CSS and "object-fit:cover" not in CSS
+
+
+def test_gekozen_heilige_staat_bovenaan_en_heeft_de_dikke_rand():
+    from durfheilig.app import CSS
+    db, app = maak(None)
+    c = kind(app)
+    _, gekozen, qids = speel(c, "Vos", kiezen=2)          # the third card
+    pagina = c.get("/mijn").text
+    eerste = re.findall(r'href="/heilige/([^"]+)"', pagina)
+    assert eerste[0] == gekozen and set(eerste) == set(qids)
+    assert pagina.count("kaart gekozen") == 1 and pagina.index("kaart gekozen") < pagina.index(f"/heilige/{qids[0]}")
+    assert "border:6px solid" in CSS
+
+
+def test_meer_over_een_heilige_alleen_voor_de_eigen_drie_en_zonder_leidingsnotities():
+    db, app = maak(None)
+    c = kind(app)
+    r, gekozen, qids = speel(c, "Vos")
+    h = next(x for x in H if x.qid == gekozen)
+    pagina = c.get(f"/heilige/{gekozen}")
+    assert pagina.status_code == 200 and h.naam in pagina.text
+    assert "Waarom een voorbeeld?" in pagina.text and "<details" in pagina.text
+    for veld in ("waarschuwing_voor_leiding", "gespreksvraag", "open_vragen", "verdieping"):
+        waarde = h.record.get(veld)
+        stukken = [waarde] if isinstance(waarde, str) else list(waarde.values()) if isinstance(waarde, dict) else list(waarde or [])
+        assert all(str(x)[:40] not in pagina.text for x in stukken), veld
+    vreemd = next(x.qid for x in H if x.qid not in qids)
+    assert c.get(f"/heilige/{vreemd}").status_code == 404
+    assert c.get("/heilige/Q0").status_code == 404
+    assert c.get(f"/heilige/{vreemd}", headers={"remote-groups": "durfheilig-leiding"}).status_code == 200
+
+
+def test_meer_info_toont_alleen_wikipedia_links_met_veilige_attributen():
+    from durfheilig.app import info
+    h = next(x for x in H if x.record.get("lees_zelf"))
+    bron = h.record["lees_zelf"] + [{"titel": "Evil", "url": "https://evil.example/x"}, {"titel": "Http", "url": "http://nl.wikipedia.org/x"}]
+    nep = type(h)(h.qid, h.naam, h.geslacht, h.assen, h.interesses, {**h.record, "lees_zelf": bron})
+    html = str(info(nep))
+    assert "evil.example" not in html and "http://nl.wikipedia" not in html
+    assert 'rel="noopener noreferrer"' in html
+
+
+def test_trage_stappen_tonen_een_laadscherm_en_snelle_niet():
+    _, app = maak(None)
+    c = kind(app)
+    assert 'id="laden"' in c.get("/").text and 'data-laad="' not in c.get("/").text
+    c.post("/welkom", data={"nickname": "Uil"}); c.post("/voorkeur", data={"voorkeur": "man"})
+    for _ in range(12):
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/").text).group(1)
+        c.post("/vraag", data={"vid": vid, "kant": "min"})
+    c.post("/interesses", data={"interesse": V.interesses[:2]})
+    assert 'data-laad="' in c.get("/").text                                    # the open-questions step calls Gemini
+    r = c.post("/open", data={})
+    assert 'data-laad="' in r.text
+    ids = list(dict.fromkeys(re.findall(r'name="(v\d)"', r.text)))
+    r = c.post("/vervolg", data={i: "min" for i in ids})
+    assert 'formaction="/geen-past"' in r.text and 'data-laad="' in r.text
+
+
+def test_mislukte_gemini_poging_wordt_gelogd_zonder_tekst_van_de_jongere(caplog):
+    import logging
+    from durfheilig.llm import LlmFout
+    def llm(systeem, gegevens):
+        raise LlmFout("Gemini-aanroep mislukt: HTTPStatusError (HTTP 404)")
+    db, app = maak(llm)
+    c = kind(app)
+    with caplog.at_level(logging.INFO, logger="durfheilig.llm"):
+        naar_keuze(c, "Uil")
+    tekst = caplog.text
+    assert "HTTP 404" in tekst and "vaste terugval" in tekst and "tekenen" not in tekst and "Uil" not in tekst
+    sp = spel.speler_voor(db, "kind1")
+    assert spel.match_van(db, sp["id"])["via_llm"] == 0
+
+
+def test_beheer_toont_of_de_uitleg_van_gemini_kwam():
+    db, app = maak(None)
+    speel(kind(app, "a"), "Aap")
+    assert "vaste tekst" in kind(app, "x").get("/beheer", headers={"remote-groups": "admins"}).text
+
+
+def test_zware_heiligen_krijgen_alleen_de_korte_tekst_en_de_rest_de_uitklapbare_verhalen():
+    from durfheilig.app import KORT_VOOR_KINDEREN, info
+    assert KORT_VOOR_KINDEREN <= {h.qid for h in H}
+    zwaar = next(h for h in H if h.qid == "Q236030")                       # Josephine Bakhita
+    html = str(info(zwaar))
+    for h in H:
+        for x in h.record.get("haakjes", []):
+            if h.qid in KORT_VOOR_KINDEREN and x.get("meer"):
+                assert x["meer"][:60] not in str(info(h)), h.naam
+    assert all(f"<summary>{x['kort']}" not in html and x["kort"] in html for x in zwaar.record["haakjes"])
+    assert "Waarom heilig?" not in html
+    gewoon = next(h for h in H if h.qid not in KORT_VOOR_KINDEREN and any(x.get("meer") for x in h.record.get("haakjes", [])))
+    assert any(f"<summary>{x['kort']}" in str(info(gewoon)) for x in gewoon.record["haakjes"] if x.get("meer"))
+
+
+def test_linkfilter_weigert_lookalike_hosts_en_backslash_trucs():
+    from durfheilig.app import info
+    h = H[0]
+    bron = [{"titel": t, "url": u} for t, u in [("ok", "https://nl.wikipedia.org/wiki/X"), ("nep", "https://notwikipedia.org/x"),
+            ("slash", "https://evil.example\\@nl.wikipedia.org/x"), ("sub", "https://evil.wikipedia.org.evil.example/x")]]
+    nep = type(h)(h.qid, h.naam, h.geslacht, h.assen, h.interesses, {**h.record, "lees_zelf": bron})
+    html = str(info(nep))
+    assert "nl.wikipedia.org/wiki/X" in html and "notwikipedia" not in html and "evil" not in html
+
+
+def test_het_laadscherm_sluit_zichzelf_en_met_een_tik():
+    _, app = maak()
+    html = kind(app).get("/").text
+    assert "setTimeout" in html and 'onclick="this.hidden=true"' in html
