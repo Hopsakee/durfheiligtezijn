@@ -1,7 +1,7 @@
 {
  "versie": 2,
  "gemaakt": "2026-10-07",
- "beschrijving": "Fase 2: profielen van de 77 heiligen die de drempel van 4 van 6 assen halen. Concept v2, stijl goedgekeurd.",
+ "beschrijving": "Fase 2: profielen van de 89 heiligen die de drempel van 4 van 6 assen halen. Concept v2, stijl goedgekeurd.",
  "interesses_lijst": [
   "Mensen helpen",
   "Kinderen en jongeren",
@@ -1027,6 +1027,11 @@
      "interesse": "Opkomen voor wat eerlijk is",
      "onderbouwing": "Ze vocht voor de bevrijding van haar land en bleef bij haar verhaal in een oneerlijk proces (nl).",
      "zekerheid": "hoog"
+    },
+    {
+     "interesse": "Sport en buiten bewegen",
+     "onderbouwing": "Ze reed in harnas voor het leger uit, klom met haar vaandel een stormladder op en sprong bij een ontsnappingspoging uit een toren (en).",
+     "zekerheid": "midden"
     }
    ],
    "open_vragen": [],
@@ -2714,6 +2719,11 @@
     {
      "interesse": "Wetenschap en ontdekken",
      "onderbouwing": "Hij verbond geloof met het denken van Aristoteles (nl).",
+     "zekerheid": "midden"
+    },
+    {
+     "interesse": "Muziek en kunst",
+     "onderbouwing": "Hij schreef hymnen voor het feest van Sacramentsdag die nog steeds gezongen worden, zoals het Pange lingua, Tantum ergo en Panis angelicus (en; nl noemt zijn kerkliederen).",
      "zekerheid": "midden"
     }
    ],
@@ -5712,6 +5722,11 @@
      "interesse": "Muziek en kunst",
      "onderbouwing": "Ze liet een schilderij maken (nl).",
      "zekerheid": "laag"
+    },
+    {
+     "interesse": "Natuur en dieren",
+     "onderbouwing": "Ze werkte in Vilnius als tuinierster en kweekte groenten (en).",
+     "zekerheid": "laag"
     }
    ],
    "open_vragen": [],
@@ -5955,6 +5970,11 @@
     {
      "interesse": "Kinderen en jongeren",
      "onderbouwing": "Moeder van drie (nl).",
+     "zekerheid": "laag"
+    },
+    {
+     "interesse": "Techniek, bouwen en computers",
+     "onderbouwing": "Ze bouwde met het geld van haar bruidsschat een ziekenhuis in Marburg, waar ze zelf zieken verzorgde (en). Laten bouwen, niet zelf bouwen.",
      "zekerheid": "laag"
     }
    ],
@@ -7464,6 +7484,11 @@
      "interesse": "Opkomen voor wat eerlijk is",
      "onderbouwing": "Ze bepleitte genade voor ter dood veroordeelden (nl).",
      "zekerheid": "midden"
+    },
+    {
+     "interesse": "Techniek, bouwen en computers",
+     "onderbouwing": "Ze was betrokken bij twee grote bouwprojecten in Parijs. Voor de basiliek voor Sint-Denis wees ze de priesters de weg naar bouwmateriaal: een verlaten kalkoven bij de brug van Parijs (en).",
+     "zekerheid": "midden"
     }
    ],
    "open_vragen": [],
@@ -8582,6 +8607,11 @@
      "interesse": "Mensen helpen",
      "onderbouwing": "Steun aan arme weduwen met kleine kinderen (nl).",
      "zekerheid": "hoog"
+    },
+    {
+     "interesse": "Sport en buiten bewegen",
+     "onderbouwing": "Volgens de bron een uitstekende ruiter (en).",
+     "zekerheid": "midden"
     }
    ],
    "open_vragen": [],
@@ -8861,9 +8891,9 @@
      "soort": "feit"
     }
    ],
-   "waarom_heilig": "Paus Leo XIII bevestigde in 1890 haar heiligheid. Officieel heeft ze de titel 'gelukzalige', maar ze mag vereerd worden alsof ze heilig is.",
+   "waarom_heilig": "Liduina is nooit op de gewone manier heilig verklaard, met een lang onderzoek en twee wonderen. In 1890 erkende paus Leo XIII dat ze al eeuwenlang als heilige werd vereerd. Wat dat precies betekent, daarover zijn de bronnen het niet eens. Het begin van het Nederlandse Wikipedia-artikel zegt dat ze volgens de kerkelijke regels alleen de titel 'gelukzalige' heeft, maar vereerd mag worden alsof ze heilig is. Verderop in hetzelfde artikel, en in de Engelse Wikipedia, staat dat het besluit van 1890 wél een volwaardige heiligverklaring is: haar heiligheid werd niet 'verklaard' maar 'erkend'. Is ze nu officieel heilig of niet? Dat mag de groep zelf afwegen.",
    "waarom_voorbeeld": "Liduina kon niets meer, behalve er zijn voor anderen, en juist dat deed ze 38 jaar lang. Ze laat zien dat je ook als je ziek bent iets kunt betekenen.",
-   "waarschuwing_voor_leiding": "Voor een Nederlandse groep extra herkenbaar: schaatsen, Schiedam, de Maas. Let op: volgens de verhalen leefde ze uiteindelijk alleen nog van de hostie (het brood bij de mis); presenteer dat niet als voorbeeld, en wees alert op jongeren met eetproblemen. Haar opstandigheid over haar ziekte is een mooi, eerlijk gesprekspunt.",
+   "waarschuwing_voor_leiding": "Voor een Nederlandse groep extra herkenbaar: schaatsen, Schiedam, de Maas. Let op: volgens de verhalen leefde ze uiteindelijk alleen nog van de hostie (het brood bij de mis); presenteer dat niet als voorbeeld, en wees alert op jongeren met eetproblemen. Haar opstandigheid over haar ziekte is een mooi, eerlijk gesprekspunt. Wees eerlijk over haar status: ze is niet op de gewone manier heilig verklaard, en de bronnen verschillen over of ze officieel heilig of 'gelukzalig' is.",
    "gespreksvraag": "Liduina was eerst boos over haar ziekte. Mag je boos zijn op God of op het leven?",
    "wat_er_nog_van_over_is": "Ze is de patrones van chronisch zieken en een van de bekendste heiligen uit Nederland.",
    "verdieping": null,
@@ -8871,6 +8901,10 @@
     {
      "term": "zaligverklaring",
      "uitleg": "De stap vóór de heiligverklaring. Er is één erkend wonder voor nodig, behalve bij martelaren: daar is geen wonder nodig."
+    },
+    {
+     "term": "gelijkwaardige heiligverklaring",
+     "uitleg": "Als iemand al heel lang als heilige wordt vereerd, kan de paus dat bevestigen zonder het gewone onderzoek met wonderen. Dat telt volgens de kerk als heiligverklaring, maar is wel een uitzondering."
     }
    ],
    "lees_zelf": [
@@ -8924,7 +8958,9 @@
      "zekerheid": "laag"
     }
    ],
-   "open_vragen": [],
+   "open_vragen": [
+    "Status: nl-Wikipedia zegt in de inleiding 'gelukzalige', maar verderop 'volwaardige heilige'; en-Wikipedia noemt het een 'equipollent canonization' (1890). Beide kanten staan in waarom_heilig."
+   ],
    "afbeelding": {
     "bestand": "Liduina ijs.jpg",
     "licentie": "Public domain",
@@ -9034,6 +9070,11 @@
      "interesse": "Reizen en andere culturen",
      "onderbouwing": "Ze werkte op Hawaï (nl).",
      "zekerheid": "midden"
+    },
+    {
+     "interesse": "Wetenschap en ontdekken",
+     "onderbouwing": "Als ziekenhuisdirecteur hielp ze een medische opleiding naar Syracuse te halen en nam ze studenten geneeskunde op in haar ziekenhuis; op Hawaï hielp ze de medische zorg opbouwen (en).",
+     "zekerheid": "laag"
     }
    ],
    "open_vragen": [],
@@ -9050,6 +9091,1530 @@
    "assen_bekend": 4,
    "drempel_4_van_6_gehaald": true,
    "tijdvak": "moderne tijd",
+   "geslacht": "vrouwelijk"
+  },
+  {
+   "qid": "Q238983",
+   "naam": "Francisca Xaveria Cabrini",
+   "versie": 2,
+   "brok": 3,
+   "core": false,
+   "periode": "1850 – 1917 · negentiende en twintigste eeuw",
+   "levensverhaal": "Maria Francesca Cabrini wordt in 1850 twee maanden te vroeg geboren in Lombardije, in Noord-Italië, als jongste van dertien kinderen van een boer. Ze is haar hele leven zwak van gezondheid, en twee kloosters weigeren haar daarom. Dan begint ze zelf een orde, de Missiezusters van het Heilig Hart. Ze wil naar China, maar de paus stuurt haar in 1889 naar New York, waar duizenden arme Italiaanse migranten wonen. Daar en in Latijns-Amerika en Europa sticht ze 67 scholen, weeshuizen en ziekenhuizen.",
+   "haakjes": [
+    {
+     "kort": "Ze boekte een plek op de Titanic, en ruilde die op het laatste moment om.",
+     "meer": "In 1912 was Cabrini met een paar zusters in Napels. Voor de terugreis naar New York hadden ze plaatsen geboekt op de eerste reis van de Titanic. Toen ze hoorde dat er problemen waren met de bouw van haar nieuwe ziekenhuis in Chicago, ruilde ze die om voor een eerdere boot. De Titanic zonk op 15 april 1912. In haar leven stak ze 24 keer de Atlantische Oceaan over.",
+     "soort": "feit"
+    },
+    {
+     "kort": "De aartsbisschop van New York zei: ga terug naar Italië. Zij bleef.",
+     "meer": "Toen Cabrini in 1889 met zes zusters in New York aankwam, was er niemand om ze op te halen en geen slaapplek: de eerste nacht sliepen ze op stoelen in een pension vol bedwantsen. De aartsbisschop, een Ier, vond dat alleen mannen geschikt waren voor dit werk en zei dat ze meteen terug moesten. Cabrini zei alleen: 'Ik heb brieven van de paus.' Hij kon haar niet wegsturen.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Italianen werden in Amerika gehaat en uitgescholden; zij bouwde voor hen.",
+     "meer": "Rond 1890 werden Italiaanse migranten in Amerika uitgescholden en gediscrimineerd. Zelfs in de kerk moesten ze soms in de kelder zitten. In New Orleans haalde een menigte in 1891 elf Italiaanse mannen uit de gevangenis en vermoordde hen. Cabrini ging juist daar werken, in de armste Italiaanse wijk. Bij de bouw van haar ziekenhuis in Chicago sneed iemand uit protest de waterleiding door, zodat de bouwplaats onderliep.",
+     "soort": "feit"
+    }
+   ],
+   "waarom_heilig": "Cabrini werd in 1938 zalig verklaard door paus Pius XI en in 1946 heilig door paus Pius XII. Ze was de eerste Amerikaanse staatsburger die heilig werd. In 1950 werd ze de patroonheilige van migranten. Een van de erkende wonderen is omstreden: een baby die door een verpleegster per ongeluk een bijtende vloeistof in zijn ogen kreeg, kon na gebed tot Cabrini weer zien. De kerk noemde dat een wonder, maar volgens de Engelse Wikipedia is zo'n herstel ook zonder geloof een paar keer beschreven.",
+   "waarom_voorbeeld": "Cabrini was klein, ziek en een vrouw in een kerk die vond dat vrouwen dit werk niet konden doen. Ze liet zich door niemand wegsturen en bouwde scholen en ziekenhuizen voor mensen die door iedereen werden weggezet: migranten. Haar worsteling: ze wilde naar China, en kwam daar nooit.",
+   "waarschuwing_voor_leiding": "Haar verhaal raakt aan migratie en discriminatie, toen en nu. Jongeren met een migratieachtergrond kunnen zich hierin herkennen; laat het gesprek ruimte. Over het wonder: laat beide kanten zien en laat jongeren zelf nadenken. In de verdieping staat de lynchpartij op elf Italiaanse mannen in New Orleans (1891): alleen bespreken als jongeren ernaar vragen, zonder details.",
+   "gespreksvraag": "Cabrini werd gezegd dat ze terug moest. Ze bleef. Wanneer is blijven moedig, en wanneer is het koppig?",
+   "wat_er_nog_van_over_is": "Over de hele wereld zijn scholen, ziekenhuizen en straten naar haar genoemd. Haar orde werkt nog steeds in 15 landen. Paus Franciscus vertelde dat haar werk in Argentinië hem inspireerde om priester te worden.",
+   "verdieping": null,
+   "begrippen": [
+    {
+     "term": "kloosterorde",
+     "uitleg": "Een groep kloosters die dezelfde regel en hetzelfde doel hebben, zoals de franciscanen, de clarissen of de karmelieten."
+    },
+    {
+     "term": "missionaris",
+     "uitleg": "Iemand die naar een ander land of volk gaat om over het christelijk geloof te vertellen."
+    },
+    {
+     "term": "heiligverklaring",
+     "uitleg": "De paus verklaart na een lang en grondig onderzoek dat iemand heilig is. Daarvoor zijn volgens de regels minstens twee wonderen nodig. In de eerste eeuwen bestond dit nog niet: toen werd iemand heilig doordat gelovigen hem of haar gingen vereren, vooral martelaren."
+    },
+    {
+     "term": "wonder",
+     "uitleg": "Een genezing of gebeurtenis die artsen en onderzoekers niet kunnen verklaren, en die de kerk na onderzoek toeschrijft aan gebed tot de overleden persoon. Iedereen mag zelf bepalen wat hij of zij daarvan gelooft."
+    },
+    {
+     "term": "migrant",
+     "uitleg": "Iemand die naar een ander land verhuist om daar te wonen en te werken, vaak omdat het in het eigen land te arm of te gevaarlijk is."
+    }
+   ],
+   "lees_zelf": [
+    {
+     "titel": "Frances Xavier Cabrini op Wikipedia (Engels)",
+     "url": "https://en.wikipedia.org/wiki/Frances_Xavier_Cabrini"
+    }
+   ],
+   "wat_voor_mens": "Een kleine, zieke vrouw met een ijzeren wil, die bouwde voor mensen die niemand wilde hebben.",
+   "assen": {
+    "samen_alleen": {
+     "score": 1,
+     "onderbouwing": "Ze werkte altijd met groepen zusters en ging met hen langs de deuren in Little Italy; ze schreef wel dat stilte en gebed nodig waren (en).",
+     "zekerheid": "laag"
+    },
+    "denken_doen": {
+     "score": 2,
+     "onderbouwing": "De bron noemt haar iemand die in directe actie gelooft; ze stichtte 67 instellingen (en).",
+     "zekerheid": "hoog"
+    },
+    "achter_voorop": {
+     "score": 2,
+     "onderbouwing": "Ze stichtte haar eigen orde en weigerde terug te gaan toen de aartsbisschop dat eiste (en).",
+     "zekerheid": "hoog"
+    },
+    "plek_pad": {
+     "score": 2,
+     "onderbouwing": "24 keer de Atlantische Oceaan over, per muilezel over de Andes, werk in vijftien landen (en).",
+     "zekerheid": "hoog"
+    },
+    "diepgang_licht": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "vrede_strijd": {
+     "score": 1,
+     "onderbouwing": "Ze ging in tegen de aartsbisschop en verbrak alle banden met een orde die haar ziekenhuis in de schulden had gewerkt (en).",
+     "zekerheid": "midden"
+    }
+   },
+   "interesses": [
+    {
+     "interesse": "Techniek, bouwen en computers",
+     "onderbouwing": "Ze bouwde ziekenhuizen en scholen, liet in 1914 het Stone House bouwen als slaapzaal en bouwde een kapel op een berg in Californië (en).",
+     "zekerheid": "midden"
+    },
+    {
+     "interesse": "Reizen en andere culturen",
+     "onderbouwing": "Ze werkte in Italië, de VS, Nicaragua, Chili, Argentinië en Brazilië en stak 24 keer de oceaan over (en).",
+     "zekerheid": "hoog"
+    },
+    {
+     "interesse": "Mensen helpen",
+     "onderbouwing": "Weeshuizen, ziekenhuizen en zorg voor arme migranten (en).",
+     "zekerheid": "hoog"
+    }
+   ],
+   "open_vragen": [
+    "Er is geen Nederlandstalig Wikipedia-artikel; alles komt uit de Engelse Wikipedia. Het veld nl_url is daarom leeg.",
+    "Bij 'Techniek' gaat het om laten bouwen en organiseren van gebouwen, niet om zelf metselen. De bron zegt 'she built', maar niet hoeveel ze zelf deed."
+   ],
+   "afbeelding": {
+    "bestand": "Francesca Cabrini.JPG",
+    "licentie": "Public domain",
+    "maker": null,
+    "url": "https://commons.wikimedia.org/wiki/File:Francesca_Cabrini.JPG",
+    "soort": "heilige"
+   },
+   "nl_url": null,
+   "interpretatie": true,
+   "feiten_verified": true,
+   "status": "concept v2: wacht op feedback",
+   "assen_bekend": 5,
+   "drempel_4_van_6_gehaald": true,
+   "tijdvak": "moderne tijd",
+   "geslacht": "vrouwelijk"
+  },
+  {
+   "qid": "Q256166",
+   "naam": "Teresa van Los Andes",
+   "versie": 2,
+   "brok": 3,
+   "core": false,
+   "periode": "1900 – 1920 · twintigste eeuw",
+   "levensverhaal": "Juana Fernández Solar wordt in 1900 geboren in Santiago, de hoofdstad van Chili, in een rijke familie. Ze speelt tennis en croquet, zwemt goed, zingt, danst en speelt piano. Ze heeft ook een opvliegend karakter en is ijdel, en ze besluit daar bewust tegen te vechten. Op haar veertiende weet ze dat ze karmelietes wil worden, een non in een gesloten klooster. In mei 1919 gaat ze het klooster in in Los Andes, en minder dan een jaar later sterft ze, nog geen twintig jaar oud.",
+   "haakjes": [
+    {
+     "kort": "Ze was sportief: tennis, croquet, zwemmen.",
+     "meer": "Als kind en tiener speelde Juana tennis en croquet (een balspel op gras met een hamer en poortjes), ze kon goed zwemmen, en ze hield van zingen en dansen. Ze speelde piano en harmonium (een soort klein orgel). Een heilige die gewoon een sportieve tiener was.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Ze kreeg ruzie met haar zus, en gaf haar toen een kus.",
+     "meer": "Juana kon snel kwaad worden. Een keer had haar zus Rebeca zo genoeg van haar dat ze haar sloeg. Juana greep haar met een rood hoofd vast, maar stopte, en gaf haar een kus op haar wang. Rebeca vertrouwde het niet en joeg haar weg: 'Ga weg! Je hebt me de kus van Judas gegeven!' (Judas verraadde Jezus met een kus.)",
+     "soort": "feit"
+    },
+    {
+     "kort": "Ze stierf vóór haar twintigste, en mocht op haar sterfbed haar geloften afleggen.",
+     "meer": "Een paar maanden na haar intrede werd ze zwaar ziek. Volgens de diagnose was het vlektyfus; sommige historici denken dat het de Spaanse griep was, die toen in Chili heerste. Normaal moet je een jaar proeftijd afmaken voordat je je geloften aflegt, maar omdat ze stervende was, mocht het eerder. Vijf dagen later, op 12 april 1920, stierf ze.",
+     "soort": "feit"
+    }
+   ],
+   "waarom_heilig": "Paus Johannes Paulus II verklaarde haar in 1987 zalig tijdens een bezoek aan Chili, en in 1993 heilig. Ze is de eerste heilige van Chili, en de eerste karmelietes van buiten Europa die heilig werd. Elk jaar bezoeken ongeveer 100.000 pelgrims haar graf in Los Andes.",
+   "waarom_voorbeeld": "Teresa was geen brave heilige van nature: ze was ijdel en driftig, en dat wist ze. Ze besloot er zelf iets aan te doen. Haar worsteling was haar eigen karakter.",
+   "waarschuwing_voor_leiding": "Teresa is bijna even oud als de jongeren, en sterft heel jong. Ze las als kind het boek van Theresia van Lisieux, die ook in deze set zit: mooi om te koppelen. Ze 'vocht' tegen zichzelf met strenge vroomheid (ascese); presenteer dat niet als iets om na te doen.",
+   "gespreksvraag": "Teresa vond haar eigen karakter soms lastig en wilde veranderen. Kan je je karakter veranderen? Moet dat?",
+   "wat_er_nog_van_over_is": "Haar graf in Los Andes is een bedevaartsplaats, en er is een Chileense tv-serie over haar leven gemaakt.",
+   "verdieping": null,
+   "begrippen": [
+    {
+     "term": "kloosterorde",
+     "uitleg": "Een groep kloosters die dezelfde regel en hetzelfde doel hebben, zoals de franciscanen, de clarissen of de karmelieten."
+    },
+    {
+     "term": "gelofte",
+     "uitleg": "Een plechtige belofte, bijvoorbeeld om arm te leven, om niet te trouwen of om te gehoorzamen."
+    },
+    {
+     "term": "zaligverklaring",
+     "uitleg": "De stap vóór de heiligverklaring. Er is één erkend wonder voor nodig, behalve bij martelaren: daar is geen wonder nodig."
+    },
+    {
+     "term": "karmelietes",
+     "uitleg": "Een non van de orde van de karmelieten. Ongeschoeide karmelietessen leven in een gesloten klooster: ze gaan er bijna nooit uit en besteden hun dag aan gebed en werk."
+    },
+    {
+     "term": "ascese",
+     "uitleg": "Jezelf bewust dingen ontzeggen, zoals eten, slaap of gemak, om dichter bij God te komen."
+    }
+   ],
+   "lees_zelf": [
+    {
+     "titel": "Teresa van Los Andes op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Teresa_van_Los_Andes"
+    },
+    {
+     "titel": "Teresa of the Andes op Wikipedia (Engels)",
+     "url": "https://en.wikipedia.org/wiki/Teresa_of_the_Andes"
+    }
+   ],
+   "wat_voor_mens": "Een sportieve, muzikale en driftige tiener die besloot aan haar eigen karakter te werken.",
+   "assen": {
+    "samen_alleen": {
+     "score": 0,
+     "onderbouwing": "Als kind sportief en gezellig (tennis, dansen, zingen), maar ze koos voor een gesloten klooster (en).",
+     "zekerheid": "laag"
+    },
+    "denken_doen": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "achter_voorop": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "plek_pad": {
+     "score": -2,
+     "onderbouwing": "Ze koos voor een gesloten karmelklooster, waar je je hele leven op één plek blijft; ze verliet Chili nooit (nl, en).",
+     "zekerheid": "midden"
+    },
+    "diepgang_licht": {
+     "score": 0,
+     "onderbouwing": "Ze zong, danste en sportte, en voerde volgens de bron tegelijk een verbeten strijd tegen haar eigen karakter (nl, en).",
+     "zekerheid": "laag"
+    },
+    "vrede_strijd": {
+     "score": -1,
+     "onderbouwing": "Ze kon snel kwaad worden, maar maakte het goed met haar zus met een kus (en).",
+     "zekerheid": "laag"
+    }
+   },
+   "interesses": [
+    {
+     "interesse": "Sport en buiten bewegen",
+     "onderbouwing": "Ze speelde tennis en croquet en was een goede zwemmer (en).",
+     "zekerheid": "hoog"
+    },
+    {
+     "interesse": "Muziek en kunst",
+     "onderbouwing": "Ze zong, danste en speelde piano en harmonium (en).",
+     "zekerheid": "hoog"
+    }
+   ],
+   "open_vragen": [
+    "De nl-bron noemt vlektyfus als doodsoorzaak; de en-bron zegt dat sommige historici aan de Spaanse griep denken. Beide genoemd.",
+    "Paardrijden, dat in de opdracht als idee stond, staat niet in de nl- of en-bron. Weggelaten."
+   ],
+   "afbeelding": {
+    "bestand": "Teresa de Los Andes con habito de Carmelita Descalza.jpg",
+    "licentie": "Public domain",
+    "maker": null,
+    "url": "https://commons.wikimedia.org/wiki/File:Teresa_de_Los_Andes_con_habito_de_Carmelita_Descalza.jpg",
+    "soort": "heilige"
+   },
+   "nl_url": "https://nl.wikipedia.org/wiki/Teresa_van_Los_Andes",
+   "interpretatie": true,
+   "feiten_verified": true,
+   "status": "concept v2: wacht op feedback",
+   "assen_bekend": 4,
+   "drempel_4_van_6_gehaald": true,
+   "tijdvak": "moderne tijd",
+   "geslacht": "vrouwelijk"
+  },
+  {
+   "qid": "Q238963",
+   "naam": "Gianna Beretta Molla",
+   "versie": 2,
+   "brok": 3,
+   "core": false,
+   "periode": "1922 – 1962 · twintigste eeuw",
+   "levensverhaal": "Gianna Beretta wordt in 1922 geboren in Magenta, bij Milaan, als tiende van dertien kinderen. Ze studeert geneeskunde, opent in 1950 een eigen praktijk en wordt kinderarts. Ze wil eigenlijk als arts naar Brazilië, om arme vrouwen te helpen, maar haar gezondheid laat dat niet toe. In 1955 trouwt ze met de ingenieur Pietro Molla en ze krijgen vier kinderen. Tijdens haar vierde zwangerschap krijgt ze een gezwel in haar baarmoeder, en ze kiest een behandeling die het kind spaart, maar haar eigen leven in gevaar brengt. Een week na de geboorte van haar dochter sterft ze, 39 jaar oud.",
+   "haakjes": [
+    {
+     "kort": "Ze was kinderarts, en wilde eigenlijk naar Brazilië.",
+     "meer": "Gianna studeerde geneeskunde in Milaan en Pavia en specialiseerde zich in kindergeneeskunde. Haar broer werkte als priester in Brazilië, en ze wilde daarheen om arme vrouwen te helpen bij zwangerschap en bevalling. Omdat ze vaak ziek was, ging dat niet door. Ze bleef werken in haar praktijk in Mesero, vlak bij haar geboorteplaats.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Ze moest kiezen tussen drie behandelingen, en koos voor haar kind.",
+     "meer": "In de tweede maand van haar vierde zwangerschap vonden artsen een gezwel (vleesboom) in haar baarmoeder. Ze kreeg drie keuzes: een abortus, het weghalen van haar hele baarmoeder (dan zou het kind ook sterven), of alleen het gezwel weghalen. Ze koos het laatste, omdat het kind dan kon blijven leven. Ze zei tegen de artsen dat het leven van haar kind belangrijker was dan dat van haarzelf. Haar dochter werd met een keizersnede geboren; Gianna stierf een week later aan een buikvliesontsteking.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Haar man stond erbij toen ze heilig werd verklaard.",
+     "meer": "Bij de heiligverklaring in 2004 waren haar man Pietro en haar kinderen aanwezig op het Sint-Pietersplein. Het was de eerste keer dat een man de heiligverklaring van zijn eigen vrouw meemaakte. Haar dochter Gianna Emanuela, het kind voor wie ze koos, werd later zelf arts.",
+     "soort": "feit"
+    }
+   ],
+   "waarom_heilig": "Paus Johannes Paulus II verklaarde haar in 1994 zalig, in het Internationaal Jaar van het Gezin, en in 2004 heilig. Daarvoor werden twee genezingen in Brazilië als wonder erkend, allebei bij vrouwen rond een zwangerschap of bevalling.",
+   "waarom_voorbeeld": "Gianna was een arts die zorgde voor kinderen, ouderen en armen, en een moeder. Ze maakte een keuze waarbij ze haar eigen leven op het spel zette voor haar kind. Volgens haar man was het een gewetenskeuze, als moeder en als arts.",
+   "waarschuwing_voor_leiding": "Gevoelig: haar verhaal gaat over abortus, een zwangerschap met risico's en een moeder die sterft. Dit onderwerp ligt politiek en persoonlijk gevoelig, en er kunnen jongeren zijn die een moeder hebben verloren of thuis iets met dit thema hebben meegemaakt. Laat ruimte voor verschillende meningen: de kerk ziet haar keuze als een voorbeeld van opoffering; niet iedereen vindt dat je zo'n keuze van een moeder mag verwachten. Presenteer haar niet als 'zo hoort het'. Haar werk als arts en haar leven vóór die keuze zijn minstens zo belangrijk.",
+   "gespreksvraag": "Gianna maakte een keuze die haar het leven kostte. Vind je dat moedig, en mag iemand anders zo'n keuze ooit van je vragen?",
+   "wat_er_nog_van_over_is": "Haar dochter Gianna Emanuela werd arts voor ouderen. Een universiteit in de VS noemde haar opleiding gezondheidswetenschappen naar haar.",
+   "verdieping": null,
+   "begrippen": [
+    {
+     "term": "heiligverklaring",
+     "uitleg": "De paus verklaart na een lang en grondig onderzoek dat iemand heilig is. Daarvoor zijn volgens de regels minstens twee wonderen nodig. In de eerste eeuwen bestond dit nog niet: toen werd iemand heilig doordat gelovigen hem of haar gingen vereren, vooral martelaren."
+    },
+    {
+     "term": "zaligverklaring",
+     "uitleg": "De stap vóór de heiligverklaring. Er is één erkend wonder voor nodig, behalve bij martelaren: daar is geen wonder nodig."
+    },
+    {
+     "term": "wonder",
+     "uitleg": "Een genezing of gebeurtenis die artsen en onderzoekers niet kunnen verklaren, en die de kerk na onderzoek toeschrijft aan gebed tot de overleden persoon. Iedereen mag zelf bepalen wat hij of zij daarvan gelooft."
+    },
+    {
+     "term": "kinderarts",
+     "uitleg": "Een arts die gespecialiseerd is in de gezondheid en ziektes van kinderen. Ook wel pediater."
+    },
+    {
+     "term": "keizersnede",
+     "uitleg": "Een operatie waarbij een baby via een snee in de buik ter wereld komt."
+    }
+   ],
+   "lees_zelf": [
+    {
+     "titel": "Gianna Beretta Molla op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Gianna_Beretta_Molla"
+    },
+    {
+     "titel": "Gianna Beretta Molla op Wikipedia (Engels)",
+     "url": "https://en.wikipedia.org/wiki/Gianna_Beretta_Molla"
+    }
+   ],
+   "wat_voor_mens": "Een betrokken kinderarts en moeder die haar geweten volgde, ook toen dat haar alles kostte.",
+   "assen": {
+    "samen_alleen": {
+     "score": 1,
+     "onderbouwing": "Actief in de Katholieke Actie, vrijwilligerswerk voor ouderen en armen, een groot gezin (en).",
+     "zekerheid": "laag"
+    },
+    "denken_doen": {
+     "score": 0,
+     "onderbouwing": "Lange studie geneeskunde en specialisatie, én dagelijks werk in haar eigen praktijk (en).",
+     "zekerheid": "laag"
+    },
+    "achter_voorop": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "plek_pad": {
+     "score": -1,
+     "onderbouwing": "Ze wilde naar Brazilië, maar bleef haar hele leven in de buurt van Magenta, waar ze geboren werd en stierf (nl, en).",
+     "zekerheid": "midden"
+    },
+    "diepgang_licht": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "vrede_strijd": {
+     "score": 1,
+     "onderbouwing": "Ze volgde haar geweten tegen het advies van haar artsen in (en).",
+     "zekerheid": "laag"
+    }
+   },
+   "interesses": [
+    {
+     "interesse": "Wetenschap en ontdekken",
+     "onderbouwing": "Ze studeerde geneeskunde en specialiseerde zich aan de universiteit van Milaan (en).",
+     "zekerheid": "midden"
+    },
+    {
+     "interesse": "Kinderen en jongeren",
+     "onderbouwing": "Ze was kinderarts (nl, en).",
+     "zekerheid": "hoog"
+    },
+    {
+     "interesse": "Mensen helpen",
+     "onderbouwing": "Liefdadigheidswerk voor ouderen en armen, en de Vincentiusvereniging (en).",
+     "zekerheid": "midden"
+    }
+   ],
+   "open_vragen": [
+    "Skiën en bergbeklimmen, die in de opdracht als idee stonden, staan niet in het nl- of en-artikel. Ik heb 'Sport en buiten bewegen' daarom niet toegekend. Mogelijk staat het in de Italiaanse Wikipedia of op vatican.va, maar die kon ik vanuit de container niet bereiken.",
+    "De nl-bron zegt dat ze 'een abortus weigerde'; de en-bron geeft de drie behandelkeuzes. Ik volg de en-bron, omdat die preciezer is."
+   ],
+   "afbeelding": {
+    "bestand": "GiannaBerettaMolla.jpg",
+    "licentie": "Public domain",
+    "maker": null,
+    "url": "https://commons.wikimedia.org/wiki/File:GiannaBerettaMolla.jpg",
+    "soort": "heilige"
+   },
+   "nl_url": "https://nl.wikipedia.org/wiki/Gianna_Beretta_Molla",
+   "interpretatie": true,
+   "feiten_verified": true,
+   "status": "concept v2: wacht op feedback",
+   "assen_bekend": 4,
+   "drempel_4_van_6_gehaald": true,
+   "tijdvak": "moderne tijd",
+   "geslacht": "vrouwelijk"
+  },
+  {
+   "qid": "Q2487594",
+   "naam": "Germaine Cousin",
+   "versie": 2,
+   "brok": 3,
+   "core": false,
+   "periode": "ca. 1579 – 1601 · zestiende eeuw",
+   "levensverhaal": "Germaine wordt rond 1579 geboren in Pibrac, een dorp bij Toulouse in Frankrijk, in een arm boerengezin. Ze heeft een misvormde hand en een klierziekte, en haar moeder sterft als ze nog een baby is. Haar stiefmoeder behandelt haar wreed en zorgt ervoor dat ze niet in huis mag wonen: al als klein kind moet ze de schapen hoeden, en 's nachts slaapt ze in de stal. Ze is diep gelovig, en deelt haar eigen brood met arme mensen. Ze sterft in 1601, 22 jaar oud.",
+   "haakjes": [
+    {
+     "kort": "Ze moest als klein kind de schapen hoeden en sliep in de stal.",
+     "meer": "Haar stiefmoeder zei dat Germaine de andere kinderen kon besmetten met haar klierziekte, en overtuigde haar vader om haar uit huis te houden. Zo werd ze al bijna als peuter herderin. 's Nachts sliep ze in de stal of op een bed van wijnranken op zolder.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Ze liet haar kudde alleen om naar de mis te gaan, aan de rand van een wolvenbos.",
+     "meer": "Elke dag ging Germaine naar de mis. Als de kerkklok luidde, stak ze haar herdersstaf in de grond en liet ze de schapen achter. De weide lag aan de rand van een bos vol wolven, maar volgens het verhaal is er nooit een schaap gepakt. Ook zou het water van een gezwollen beek voor haar opzij zijn gegaan.",
+     "soort": "overlevering"
+    },
+    {
+     "kort": "Haar stiefmoeder beschuldigde haar van diefstal; uit haar schort vielen bloemen.",
+     "meer": "Volgens een verhaal achtervolgde haar stiefmoeder haar op een winterdag, omdat ze dacht dat Germaine brood had gestolen voor de armen. Germaine opende haar schort, en er vielen zomerbloemen uit. Ze gaf de bloemen aan haar stiefmoeder, als teken dat ze haar vergaf.",
+     "soort": "overlevering"
+    }
+   ],
+   "waarom_heilig": "Na haar dood kwamen er verhalen over genezingen aan haar graf, en in 1644 bleek haar lichaam niet vergaan. Een eerste poging om haar zalig te laten verklaren, in 1700, liep op niets uit. Paus Pius IX verklaarde haar in 1854 zalig en in 1867 heilig. Ze is de patroonheilige van herders.",
+   "waarom_voorbeeld": "Germaine kreeg een slechte start en werd thuis buitengesloten. Toch deelde ze het weinige dat ze had, en vergaf ze de vrouw die haar zo slecht behandelde. Toen haar vader haar eindelijk een plek in huis wilde geven, koos ze ervoor om te blijven waar ze was.",
+   "waarschuwing_voor_leiding": "Haar verhaal gaat over een kind dat thuis wordt mishandeld en buitengesloten. Er kunnen jongeren zijn die dat herkennen. Benadruk niet dat 'stil verdragen' de oplossing is: de mishandeling was fout, ook al vergaf ze. Bijna alles over haar is overlevering; zeg dat erbij.",
+   "gespreksvraag": "Germaine vergaf haar stiefmoeder. Moet je iemand vergeven die je pijn heeft gedaan? En betekent vergeven dat het goed was?",
+   "wat_er_nog_van_over_is": "In Pibrac staat een basiliek met haar lichaam, en ze wordt vereerd als patroonheilige van herders. In 1793, tijdens de Franse Revolutie, groef een blikslager haar lichaam op en goot er ongebluste kalk overheen; volgens de bron bleef het toch grotendeels heel.",
+   "verdieping": null,
+   "begrippen": [
+    {
+     "term": "heiligverklaring",
+     "uitleg": "De paus verklaart na een lang en grondig onderzoek dat iemand heilig is. Daarvoor zijn volgens de regels minstens twee wonderen nodig. In de eerste eeuwen bestond dit nog niet: toen werd iemand heilig doordat gelovigen hem of haar gingen vereren, vooral martelaren."
+    },
+    {
+     "term": "zaligverklaring",
+     "uitleg": "De stap vóór de heiligverklaring. Er is één erkend wonder voor nodig, behalve bij martelaren: daar is geen wonder nodig."
+    },
+    {
+     "term": "legende",
+     "uitleg": "Een oud verhaal dat niet (helemaal) historisch waar hoeft te zijn, maar wel iets wil vertellen over iemand."
+    },
+    {
+     "term": "relikwie",
+     "uitleg": "Een overblijfsel van een heilige, zoals een bot of een stukje kleding, dat in de katholieke traditie wordt vereerd."
+    },
+    {
+     "term": "scrofulose",
+     "uitleg": "Een ziekte waarbij de lymfeklieren in de hals opzwellen en gaan ontsteken. Vroeger heette het klierziekte."
+    }
+   ],
+   "lees_zelf": [
+    {
+     "titel": "Germaine Cousin op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Germaine_Cousin"
+    },
+    {
+     "titel": "Germaine Cousin op Wikipedia (Engels)",
+     "url": "https://en.wikipedia.org/wiki/Germaine_Cousin"
+    }
+   ],
+   "wat_voor_mens": "Een stille herderin die buiten bij haar schapen leefde en die vergaf in plaats van terug te slaan.",
+   "assen": {
+    "samen_alleen": {
+     "score": -2,
+     "onderbouwing": "Ze leefde alleen met haar kudde; de bron spreekt van haar eenzame leven (en).",
+     "zekerheid": "hoog"
+    },
+    "denken_doen": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "achter_voorop": {
+     "score": -2,
+     "onderbouwing": "Toen ze in huis mocht komen, vroeg ze om in haar eenvoudige plek te mogen blijven (en).",
+     "zekerheid": "midden"
+    },
+    "plek_pad": {
+     "score": -2,
+     "onderbouwing": "Ze woonde haar hele leven in Pibrac (nl, en).",
+     "zekerheid": "hoog"
+    },
+    "diepgang_licht": {
+     "score": -1,
+     "onderbouwing": "Diepe vroomheid; de dorpelingen lachten haar eerst uit (en).",
+     "zekerheid": "laag"
+    },
+    "vrede_strijd": {
+     "score": -2,
+     "onderbouwing": "Ze vergaf haar stiefmoeder met de bloemen (overlevering, en).",
+     "zekerheid": "midden"
+    }
+   },
+   "interesses": [
+    {
+     "interesse": "Natuur en dieren",
+     "onderbouwing": "Ze was haar hele leven herderin en leefde buiten bij haar schapen; ze wordt afgebeeld met een herdershond en een schaap (nl, en).",
+     "zekerheid": "midden"
+    },
+    {
+     "interesse": "Mensen helpen",
+     "onderbouwing": "Ze deelde haar eigen portie brood met de armen (en).",
+     "zekerheid": "midden"
+    }
+   ],
+   "open_vragen": [
+    "Bijna alles over haar leven komt uit overlevering, opgeschreven in de Catholic Encyclopedia (1913). De nl-bron zegt zelf dat er weinig feiten bekend zijn."
+   ],
+   "afbeelding": {
+    "bestand": "Ingres Sainte Germaine Cousin.jpg",
+    "licentie": "Public domain",
+    "maker": "Jean-Auguste-Dominique Ingres",
+    "url": "https://commons.wikimedia.org/wiki/File:Ingres_Sainte_Germaine_Cousin.jpg",
+    "soort": "heilige"
+   },
+   "nl_url": "https://nl.wikipedia.org/wiki/Germaine_Cousin",
+   "interpretatie": true,
+   "feiten_verified": true,
+   "status": "concept v2: wacht op feedback",
+   "assen_bekend": 5,
+   "drempel_4_van_6_gehaald": true,
+   "tijdvak": "nieuwe tijd",
+   "geslacht": "vrouwelijk"
+  },
+  {
+   "qid": "Q179718",
+   "naam": "Catharina van Alexandrië",
+   "versie": 2,
+   "brok": 3,
+   "core": false,
+   "periode": "? – ca. 305/307 · late oudheid (legende)",
+   "levensverhaal": "Over Catharina is niets met zekerheid bekend; het oudste verhaal over haar werd pas ongeveer zeshonderd jaar na haar dood opgeschreven. Volgens de legende is ze de dochter van de gouverneur van Alexandrië, in Egypte, en studeert ze vanaf jonge leeftijd: op haar vijftiende kent ze alle werken van de filosoof Plato uit haar hoofd. Rond haar veertiende wordt ze christen. Als keizer Maxentius christenen laat vervolgen, gaat ze naar hem toe en zegt hem dat hij wreed is. Hij laat haar martelen en onthoofden.",
+   "haakjes": [
+    {
+     "kort": "Ze won een debat van vijftig geleerden.",
+     "meer": "Volgens de legende liet de keizer vijftig van de beste heidense filosofen en sprekers komen om Catharina met argumenten te verslaan. Het liep andersom: Catharina won het debat, en een aantal van de geleerden werd zelf christen. De keizer liet hen meteen doden.",
+     "soort": "overlevering"
+    },
+    {
+     "kort": "Het martelwiel brak toen ze het aanraakte.",
+     "meer": "De keizer wilde Catharina laten verpletteren op een wiel met scherpe ijzeren punten. Volgens de legende brak het wiel zodra ze het aanraakte. Daarna werd ze onthoofd. Daarom wordt ze altijd afgebeeld met een gebroken wiel.",
+     "soort": "overlevering"
+    },
+    {
+     "kort": "Misschien is haar verhaal geïnspireerd op een vrouw die juist door christenen werd vermoord.",
+     "meer": "Sommige geleerden denken dat de legende van Catharina deels gebaseerd is op het leven van Hypatia, een wiskundige, sterrenkundige en filosoof uit Alexandrië. Hypatia was geen christen, en werd ruim honderd jaar na de dood van Catharina door een groep christenen vermoord. Andere geleerden vinden dat er geen bewijs is voor of tegen dat idee. Wie had dan gelijk? Dat is een open vraag.",
+     "soort": "feit"
+    }
+   ],
+   "waarom_heilig": "Catharina is nooit door een paus heilig verklaard: in de eerste eeuwen werd iemand heilig doordat gelovigen hem of haar gingen vereren. In de middeleeuwen was ze een van de populairste heiligen. In 1969 werd haar feestdag uit de kalender van de kerk gehaald, omdat er geen betrouwbare bronnen over haar zijn. Rond 2001-2002 kwam hij terug: het leek onwaarschijnlijk dat zo'n grote verering op helemaal niets gebaseerd was.",
+   "waarom_voorbeeld": "Catharina gebruikte haar verstand en haar stem tegen iemand met alle macht. Ze liet zich niet uit het veld slaan door vijftig geleerden, en ook niet door een keizer.",
+   "waarschuwing_voor_leiding": "Dit is vooral een legende; zeg dat duidelijk. De vraag of haar verhaal deels gebaseerd is op Hypatia is mooi discussiemateriaal over hoe verhalen ontstaan en wie ze vertelt. Volgens de legende stroomde er melk in plaats van bloed uit haar hals; dat hoef je niet uit te leggen als feit. Over het martelwiel en de onthoofding: één zin, geen details.",
+   "gespreksvraag": "Van Catharina weten we bijna niets zeker. Kan iemand van wie je niet zeker weet of ze bestond, toch een voorbeeld zijn?",
+   "wat_er_nog_van_over_is": "De kathedraal van het aartsbisdom Utrecht is aan haar gewijd. Het Catharinaklooster bij de Sinaïberg in Egypte draagt haar naam. Jeanne d'Arc, die ook in deze set zit, zei dat Catharina vaak aan haar verscheen.",
+   "verdieping": null,
+   "begrippen": [
+    {
+     "term": "martelaar",
+     "uitleg": "Iemand die wordt gedood vanwege zijn of haar geloof."
+    },
+    {
+     "term": "legende",
+     "uitleg": "Een oud verhaal dat niet (helemaal) historisch waar hoeft te zijn, maar wel iets wil vertellen over iemand."
+    },
+    {
+     "term": "heiligverklaring",
+     "uitleg": "De paus verklaart na een lang en grondig onderzoek dat iemand heilig is. Daarvoor zijn volgens de regels minstens twee wonderen nodig. In de eerste eeuwen bestond dit nog niet: toen werd iemand heilig doordat gelovigen hem of haar gingen vereren, vooral martelaren."
+    },
+    {
+     "term": "filosoof",
+     "uitleg": "Iemand die nadenkt over grote vragen, zoals wat waar is, wat goed is en wat de mens is."
+    }
+   ],
+   "lees_zelf": [
+    {
+     "titel": "Catharina van Alexandrië op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Catharina_van_Alexandri%C3%AB"
+    },
+    {
+     "titel": "Catherine of Alexandria op Wikipedia (Engels)",
+     "url": "https://en.wikipedia.org/wiki/Catherine_of_Alexandria"
+    },
+    {
+     "titel": "Hypatia op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Hypatia"
+    }
+   ],
+   "wat_voor_mens": "Een slimme, scherpe jonge vrouw uit een legende, die met argumenten tegen de macht in ging.",
+   "assen": {
+    "samen_alleen": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "denken_doen": {
+     "score": -2,
+     "onderbouwing": "Ze wijdde zich vanaf jonge leeftijd aan studie en kende Plato uit haar hoofd (legende, nl, en).",
+     "zekerheid": "midden"
+    },
+    "achter_voorop": {
+     "score": 2,
+     "onderbouwing": "Ze ging zelf naar de keizer en ging het debat met vijftig geleerden aan (legende, en).",
+     "zekerheid": "midden"
+    },
+    "plek_pad": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "diepgang_licht": {
+     "score": -1,
+     "onderbouwing": "Ze is vooral de debater en denker; humor wordt niet genoemd (legende, en).",
+     "zekerheid": "laag"
+    },
+    "vrede_strijd": {
+     "score": 2,
+     "onderbouwing": "Ze zei de keizer recht in zijn gezicht dat hij wreed was (legende, en).",
+     "zekerheid": "hoog"
+    }
+   },
+   "interesses": [
+    {
+     "interesse": "Wetenschap en ontdekken",
+     "onderbouwing": "Volgens de legende een bekende geleerde die vijftig filosofen versloeg in een debat (nl, en).",
+     "zekerheid": "midden"
+    },
+    {
+     "interesse": "Opkomen voor wat eerlijk is",
+     "onderbouwing": "Ze verweet de keizer zijn wreedheid tegen christenen (en).",
+     "zekerheid": "midden"
+    },
+    {
+     "interesse": "Lezen en schrijven",
+     "onderbouwing": "Ze kende alle werken van Plato uit haar hoofd (nl).",
+     "zekerheid": "laag"
+    }
+   ],
+   "open_vragen": [
+    "De nl-bron zegt veertig filosofen, de en-bron vijftig. In de tekst heb ik vijftig gebruikt; dit is legende, dus beide zijn 'het verhaal'.",
+    "Wanneer haar feestdag precies terugkwam verschilt: nl noemt 2001 (Martyrologium), en noemt 2002 (kalender). Ik schreef 'rond 2001-2002'."
+   ],
+   "afbeelding": {
+    "bestand": "Michelangelo Caravaggio 060.jpg",
+    "licentie": "Public domain",
+    "maker": "Caravaggio",
+    "url": "https://commons.wikimedia.org/wiki/File:Michelangelo_Caravaggio_060.jpg",
+    "soort": "heilige"
+   },
+   "nl_url": "https://nl.wikipedia.org/wiki/Catharina_van_Alexandri%C3%AB",
+   "interpretatie": true,
+   "feiten_verified": true,
+   "status": "concept v2: wacht op feedback",
+   "assen_bekend": 4,
+   "drempel_4_van_6_gehaald": true,
+   "tijdvak": "oudheid",
+   "geslacht": "vrouwelijk"
+  },
+  {
+   "qid": "Q379685",
+   "naam": "Isidorus van Madrid",
+   "versie": 2,
+   "brok": 3,
+   "core": false,
+   "periode": "ca. 1070/1082 – 1130 · middeleeuwen",
+   "levensverhaal": "Isidorus wordt rond 1070 geboren bij Madrid, in Spanje, als kind van arme, gelovige ouders. In zijn jeugd veroveren christelijke legers Madrid op de moslims. Hij werkt zijn hele leven als knecht op de boerderij van een rijke landeigenaar, Juan de Vargas, die hem later rentmeester van zijn hele landgoed maakt. Hij is boer, ploegt het land, en deelt wat hij heeft, zelfs zijn maaltijden, met arme mensen. Hij trouwt met Maria Torribia en ze krijgen een zoon, die jong sterft.",
+   "haakjes": [
+    {
+     "kort": "Hij kwam te laat op het werk, en toen ploegde een engel voor hem.",
+     "meer": "Isidorus ging elke ochtend eerst naar de mis. Zijn collega's klaagden bij de baas dat hij altijd te laat was. Toen de baas ging kijken, zag hij Isidorus bidden terwijl een engel voor hem ploegde. Een andere keer zag de baas aan elke kant van Isidorus een engel ploegen, zodat hij het werk van drie man deed.",
+     "soort": "overlevering"
+    },
+    {
+     "kort": "Hij gooide de helft van zijn graan voor hongerige duiven.",
+     "meer": "Op een besneeuwde dag liep Isidorus met een zak graan naar de molen. Onderweg zag hij een zwerm houtduiven die op de bevroren grond vergeefs naar eten zochten. Terwijl omstanders hem uitlachten, strooide hij de helft van zijn graan voor de vogels. Volgens het verhaal was de zak bij de molen weer vol, en leverde het graan twee keer zoveel meel op.",
+     "soort": "overlevering"
+    },
+    {
+     "kort": "Zijn skelet werd in 2022 onderzocht.",
+     "meer": "In 2022 onderzocht een team van een universiteit in Madrid zijn stoffelijke resten. In zijn keel vonden ze een munt, die mogelijk uit de tijd van een koning van ruim drie eeuwen later komt. Hij was tussen de 1,67 en 1,86 meter lang, en had waarschijnlijk tandabcessen. Zijn schedel wijst op een Noord-Afrikaanse afkomst. De bron noemt hem een mozarabier: een christen uit de groep die lang onder moslimbestuur had geleefd.",
+     "soort": "feit"
+    }
+   ],
+   "waarom_heilig": "Al tijdens zijn leven zagen de mensen hem als heilig. In 1615 genas de Spaanse koning Filips III van een ernstige ziekte nadat de relikwieën van Isidorus bij hem waren gebracht. De koning vroeg de paus daarop om Isidorus heilig te verklaren. Dat gebeurde in 1622, samen met Ignatius van Loyola, Franciscus Xaverius, Theresia van Ávila en Filippus Neri, die alle vier ook in deze set zitten.",
+   "waarom_voorbeeld": "Isidorus was een gewone boerenknecht die nooit beroemd werd. Hij deed zijn werk, deelde zijn eten met wie honger had, en had oog voor mensen en dieren. Hij laat zien dat je geen leider of geleerde hoeft te zijn om heilig te worden.",
+   "waarschuwing_voor_leiding": "De meeste mooie verhalen over hem zijn legende; zeg dat erbij. De bronnen zijn het oneens over zijn vrouw: volgens de Nederlandse Wikipedia is zij ook heilig verklaard, volgens de Engelse nooit. Leuk om aan de groep voor te leggen.",
+   "gespreksvraag": "Isidorus deed gewoon werk op de boerderij en werd toch heilig. Wat maakt gewoon werk waardevol?",
+   "wat_er_nog_van_over_is": "Hij is de patroonheilige van boeren en van Madrid; zijn feestdag is 15 mei. In Nederland zijn veldkapellen naar hem genoemd, en het dorp Sint Isidorushoeve in Twente.",
+   "verdieping": null,
+   "begrippen": [
+    {
+     "term": "heiligverklaring",
+     "uitleg": "De paus verklaart na een lang en grondig onderzoek dat iemand heilig is. Daarvoor zijn volgens de regels minstens twee wonderen nodig. In de eerste eeuwen bestond dit nog niet: toen werd iemand heilig doordat gelovigen hem of haar gingen vereren, vooral martelaren."
+    },
+    {
+     "term": "relikwie",
+     "uitleg": "Een overblijfsel van een heilige, zoals een bot of een stukje kleding, dat in de katholieke traditie wordt vereerd."
+    },
+    {
+     "term": "legende",
+     "uitleg": "Een oud verhaal dat niet (helemaal) historisch waar hoeft te zijn, maar wel iets wil vertellen over iemand."
+    },
+    {
+     "term": "rentmeester",
+     "uitleg": "Iemand die voor een rijke eigenaar het landgoed beheert: de pacht innen, de knechten aansturen en de boekhouding doen."
+    }
+   ],
+   "lees_zelf": [
+    {
+     "titel": "Isidorus van Madrid op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Isidorus_van_Madrid"
+    },
+    {
+     "titel": "Isidore the Laborer op Wikipedia (Engels)",
+     "url": "https://en.wikipedia.org/wiki/Isidore_the_Laborer"
+    }
+   ],
+   "wat_voor_mens": "Een eenvoudige, harde werker op het land, met een groot hart voor mensen en dieren.",
+   "assen": {
+    "samen_alleen": {
+     "score": 1,
+     "onderbouwing": "Hij nam vaak hongerige mensen mee naar huis om mee te eten (en).",
+     "zekerheid": "laag"
+    },
+    "denken_doen": {
+     "score": 2,
+     "onderbouwing": "Hij werkte zijn hele leven met zijn handen op het land (nl, en).",
+     "zekerheid": "hoog"
+    },
+    "achter_voorop": {
+     "score": -1,
+     "onderbouwing": "Zijn hele leven knecht in dienst van een ander, later rentmeester (en).",
+     "zekerheid": "midden"
+    },
+    "plek_pad": {
+     "score": -2,
+     "onderbouwing": "Geboren en gestorven bij Madrid; hij werkte zijn hele leven op dezelfde boerderij (en).",
+     "zekerheid": "hoog"
+    },
+    "diepgang_licht": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "vrede_strijd": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    }
+   },
+   "interesses": [
+    {
+     "interesse": "Natuur en dieren",
+     "onderbouwing": "Boer en ploeger; de bron noemt zijn zorg voor armen en dieren, zoals de duiven in de sneeuw (en, nl).",
+     "zekerheid": "hoog"
+    },
+    {
+     "interesse": "Mensen helpen",
+     "onderbouwing": "Hij deelde zijn maaltijden met de armen (nl, en).",
+     "zekerheid": "hoog"
+    }
+   ],
+   "open_vragen": [
+    "Zijn vrouw Maria Torribia: volgens nl ook heilig verklaard, volgens en nooit heilig verklaard. Beide genoemd.",
+    "Sterfjaar: 1130 volgens de meeste bronnen, maar de en-bron noemt één officiële bron die 1172 zegt."
+   ],
+   "afbeelding": {
+    "bestand": "Hüttau Kirche - St.Isidor.jpg",
+    "licentie": "CC BY-SA 3.0",
+    "maker": "Wolfgang Sauber",
+    "url": "https://commons.wikimedia.org/wiki/File:H%C3%BCttau_Kirche_-_St.Isidor.jpg",
+    "soort": "heilige"
+   },
+   "nl_url": "https://nl.wikipedia.org/wiki/Isidorus_van_Madrid",
+   "interpretatie": true,
+   "feiten_verified": true,
+   "status": "concept v2: wacht op feedback",
+   "assen_bekend": 4,
+   "drempel_4_van_6_gehaald": true,
+   "tijdvak": "middeleeuwen",
+   "geslacht": "mannelijk"
+  },
+  {
+   "qid": "Q159834",
+   "naam": "Hubertus van Luik",
+   "versie": 2,
+   "brok": 3,
+   "core": false,
+   "periode": "ca. 655/658 – 727 · vroege middeleeuwen",
+   "levensverhaal": "Hubertus wordt rond 656 geboren als oudste zoon van een Frankische hertog. Als jongen gaat hij naar het koninklijk hof in Parijs, later naar Metz, waar hij een belangrijke functie krijgt. Hij is een fanatieke jager. Als zijn vrouw sterft bij de geboorte van hun zoon, trekt hij zich van verdriet terug in de bossen van de Ardennen en doet hij niets anders meer dan jagen. Daarna kiest hij voor het geloof: hij geeft zijn rijkdom weg, wordt priester en uiteindelijk de eerste bisschop van Luik.",
+   "haakjes": [
+    {
+     "kort": "Tijdens de jacht zag hij een kruis tussen het gewei van een hert.",
+     "meer": "Volgens de legende ging Hubertus op Goede Vrijdag jagen, terwijl iedereen in de kerk zat. Hij achtervolgde een groot hert. Toen het dier zich omdraaide, zag hij een lichtend kruis tussen het gewei, en hoorde hij een stem die zei dat hij naar bisschop Lambertus van Maastricht moest gaan. Dit verhaal werd pas in de vijftiende eeuw aan Hubertus gekoppeld; het komt eigenlijk uit de legende van een andere heilige, Eustachius.",
+     "soort": "overlevering"
+    },
+    {
+     "kort": "Hij was getrouwd, en zijn zoon werd na hem bisschop.",
+     "meer": "Hubertus was getrouwd met Floribanne en had een zoon, Floribertus. Toen Hubertus in 727 stierf, werd zijn zoon de nieuwe bisschop van Luik. Dat kon toen nog: getrouwde mannen konden priester en bisschop worden.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Hij won de mensen in de bossen voor zich met zijn kennis van het bos.",
+     "meer": "Als bisschop trok Hubertus door de grote bossen van de Ardennen en door de streek tussen Tongeren en de Waal en de Rijn. Volgens de Engelse bron won hij het vertrouwen van de mensen daar met wat hij als jager had geleerd over het leven buiten, en werd hij een gezaghebbende stem bij alles wat met het bos te maken had.",
+     "soort": "feit"
+    }
+   ],
+   "waarom_heilig": "In de tijd van Hubertus bestond de officiële heiligverklaring nog niet: iemand werd heilig doordat gelovigen hem gingen vereren. In 825 werd zijn lichaam naar een abdij in de Ardennen gebracht, die zo'n bedevaartsoord werd dat de plaats nu Saint-Hubert heet. Zijn kist verdween tijdens de Reformatie.",
+   "waarom_voorbeeld": "Hubertus was een rijke edelman en jager die na een groot verdriet zijn leven omgooide. Hij gaf zijn bezit weg aan de armen en werd een leider die de mensen in de bossen kende en begreep.",
+   "waarschuwing_voor_leiding": "Het verhaal van het hert is legende; zeg dat erbij. Jagen kan een gevoelig onderwerp zijn: sommige jongeren zijn ertegen, anderen hebben een vader of opa die jaagt. Dat is een goed gesprek. Hubertus' voorganger Lambertus werd vermoord; dat hoeft niet uitgebreid.",
+   "gespreksvraag": "Hubertus veranderde zijn leven na een groot verlies. Kan een verlies iemand ook iets opleveren?",
+   "wat_er_nog_van_over_is": "Hij is de patroonheilige van de jagers, en ook van wiskundigen, opticiens en metaalbewerkers. Het Jachthuis Sint-Hubertus op de Hoge Veluwe is naar hem genoemd; de plattegrond heeft de vorm van een hertengewei. Zijn naamdag is 3 november. Omdat hij volgens de verhalen iemand van hondsdolheid genas, wordt hubertusbrood gezegend. In het zuiden van Nederland en in België zijn heel veel kerken naar hem genoemd.",
+   "verdieping": null,
+   "begrippen": [
+    {
+     "term": "bisschop",
+     "uitleg": "Een leider van de katholieke kerk in een stad of streek."
+    },
+    {
+     "term": "priester",
+     "uitleg": "De voorganger in een katholieke kerk."
+    },
+    {
+     "term": "legende",
+     "uitleg": "Een oud verhaal dat niet (helemaal) historisch waar hoeft te zijn, maar wel iets wil vertellen over iemand."
+    },
+    {
+     "term": "relikwie",
+     "uitleg": "Een overblijfsel van een heilige, zoals een bot of een stukje kleding, dat in de katholieke traditie wordt vereerd."
+    },
+    {
+     "term": "Reformatie",
+     "uitleg": "De beweging in de zestiende eeuw waarbij een groot deel van de christenen zich afscheidde van de katholieke kerk. Zo ontstonden de protestantse kerken."
+    }
+   ],
+   "lees_zelf": [
+    {
+     "titel": "Hubertus van Luik op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Hubertus_van_Luik"
+    },
+    {
+     "titel": "Hubert of Liège op Wikipedia (Engels)",
+     "url": "https://en.wikipedia.org/wiki/Hubertus"
+    },
+    {
+     "titel": "Jachthuis Sint-Hubertus op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Jachthuis_Sint-Hubertus"
+    }
+   ],
+   "wat_voor_mens": "Een buitenmens en jager die na een groot verdriet een leider werd voor de mensen in de bossen.",
+   "assen": {
+    "samen_alleen": {
+     "score": 0,
+     "onderbouwing": "Eerst het hof en de jacht, na zijn verdriet trok hij zich terug in het bos; later leefde hij tussen de mensen (nl, en).",
+     "zekerheid": "laag"
+    },
+    "denken_doen": {
+     "score": 1,
+     "onderbouwing": "Een buitenmens met praktische kennis van het bos; hij studeerde wel voor priester (en).",
+     "zekerheid": "laag"
+    },
+    "achter_voorop": {
+     "score": 2,
+     "onderbouwing": "Hoge functie aan het hof, bisschop, en stichter van het bisdom Luik (nl, en).",
+     "zekerheid": "hoog"
+    },
+    "plek_pad": {
+     "score": 1,
+     "onderbouwing": "Van Parijs naar Metz, de Ardennen, een pelgrimstocht naar Rome, en hij verplaatste de bisschopszetel naar Luik (nl, en).",
+     "zekerheid": "midden"
+    },
+    "diepgang_licht": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "vrede_strijd": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    }
+   },
+   "interesses": [
+    {
+     "interesse": "Natuur en dieren",
+     "onderbouwing": "Hij leefde in de bossen van de Ardennen tussen de mensen en de dieren van het bos (en).",
+     "zekerheid": "midden"
+    },
+    {
+     "interesse": "Sport en buiten bewegen",
+     "onderbouwing": "Volgens de bron een fervent jager met de vaardigheden van een buitenmens (en).",
+     "zekerheid": "midden"
+    }
+   ],
+   "open_vragen": [
+    "Waar hij stierf ('Fura') is onzeker: een lokale traditie zegt Tervuren, recent onderzoek denkt eerder aan de Voerstreek.",
+    "Het verhaal van het hert hoort oorspronkelijk bij Eustachius en is pas in de 15e eeuw aan Hubertus gekoppeld."
+   ],
+   "afbeelding": {
+    "bestand": "Hubert de Lieja-Delcour.jpg",
+    "licentie": "CC BY-SA 3.0",
+    "maker": "Flamenc",
+    "url": "https://commons.wikimedia.org/wiki/File:Hubert_de_Lieja-Delcour.jpg",
+    "soort": "heilige"
+   },
+   "nl_url": "https://nl.wikipedia.org/wiki/Hubertus_van_Luik",
+   "interpretatie": true,
+   "feiten_verified": true,
+   "status": "concept v2: wacht op feedback",
+   "assen_bekend": 4,
+   "drempel_4_van_6_gehaald": true,
+   "tijdvak": "middeleeuwen",
+   "geslacht": "mannelijk"
+  },
+  {
+   "qid": "Q332130",
+   "naam": "Dunstan",
+   "versie": 2,
+   "brok": 3,
+   "core": false,
+   "periode": "ca. 909/910 – 988 · vroege middeleeuwen",
+   "levensverhaal": "Dunstan wordt rond 910 geboren in Somerset, in Engeland, in een adellijke familie. Als jongen studeert hij bij Ierse monniken in de ruïnes van de abdij van Glastonbury, en hij blinkt uit in studie en in allerlei ambachten. Aan het hof van de koning wordt hij door jaloerse hovelingen beschuldigd van tovenarij, in elkaar geslagen en in een beerput gegooid. Hij wordt monnik, en later abt van Glastonbury, adviseur van meerdere koningen en vanaf 960 aartsbisschop van Canterbury, de belangrijkste bisschop van Engeland.",
+   "haakjes": [
+    {
+     "kort": "Hij was zilversmid, maakte klokken en orgels, en speelde harp.",
+     "meer": "Na zijn wijding woonde Dunstan als kluizenaar in een piepkleine cel tegen de kerk van Glastonbury, anderhalve meter lang en tachtig centimeter diep. Daar studeerde hij, werkte hij aan zijn ambachten en speelde hij harp. Hij werkte als zilversmid, maakte klokken en orgels, en tekende: waarschijnlijk is een bekende tekening van Christus met een kleine knielende monnik van zijn hand. Hij werd beroemd als muzikant, verluchter van boeken en metaalbewerker.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Volgens de legende greep hij de duivel met zijn smidstang.",
+     "meer": "Over Dunstan gingen veel verhalen rond over hoe slim hij de duivel te slim af was. Toen de duivel hem in zijn cel kwam verleiden, klemde Dunstan zijn gezicht vast met zijn smidstang. Een ander verhaal zegt dat de duivel hem vroeg zijn hoef te beslaan, en dat Dunstan er een hoefijzer op spijkerde dat zo'n pijn deed dat de duivel beloofde nooit meer een huis binnen te gaan met een hoefijzer boven de deur. Volgens de Engelse Wikipedia komt het hoefijzer als gelukssymbool hiervandaan.",
+     "soort": "overlevering"
+    },
+    {
+     "kort": "Hij sleepte een koning terug naar een vergadering, en vluchtte daarna naar Gent.",
+     "meer": "Koning Eadwig was volgens de bron een eigenwijze jongen die op de dag van zijn kroning niet kwam opdagen bij een vergadering van de edelen. Dunstan ging hem halen en sleepte hem terug. Dunstan verweet hem ook een losbandig leven. Daarna moest hij vluchten, en kreeg hij asiel in de Sint-Pietersabdij in Gent, in Vlaanderen. Kort daarna haalde de nieuwe koning Edgar hem terug.",
+     "soort": "feit"
+    }
+   ],
+   "waarom_heilig": "Dunstan werd in 1029 heilig verklaard. Twee eeuwen lang was hij de populairste heilige van Engeland, mede door de verhalen over hoe hij de duivel te slim af was. Zijn gedenkdag is 19 mei.",
+   "waarom_voorbeeld": "Dunstan was handig én slim: een kunstenaar, muzikant en smid die ook een land mee bestuurde. Hij durfde een koning de waarheid te zeggen, ook al kostte het hem zijn plek.",
+   "waarschuwing_voor_leiding": "Weinig gevoelige punten. De duivelverhalen zijn legende; zeg dat erbij. Leuk voor techniekliefhebbers: hij was smid en orgelbouwer.",
+   "gespreksvraag": "Dunstan zei een koning eerlijk wat hij van hem vond, en moest daarna vluchten. Wanneer zeg je de waarheid tegen iemand met macht, ook als het jou iets kost?",
+   "wat_er_nog_van_over_is": "Hij bedacht de kroningsceremonie voor koning Edgar in 973. Volgens de bron is de kroning van de Britse koning sindsdien in grote lijnen hetzelfde gebleven. Hij is de patroonheilige van Engelse goud- en zilversmeden.",
+   "verdieping": null,
+   "begrippen": [
+    {
+     "term": "monnik",
+     "uitleg": "Een man die in een klooster leeft en daar plechtige beloften (geloften) heeft afgelegd. Een vrouw heet non of zuster."
+    },
+    {
+     "term": "abt",
+     "uitleg": "Het hoofd van een mannenklooster. Het hoofd van een vrouwenklooster heet abdis."
+    },
+    {
+     "term": "bisschop",
+     "uitleg": "Een leider van de katholieke kerk in een stad of streek."
+    },
+    {
+     "term": "kluizenaar",
+     "uitleg": "Iemand die alleen en afgezonderd leeft om te bidden."
+    },
+    {
+     "term": "legende",
+     "uitleg": "Een oud verhaal dat niet (helemaal) historisch waar hoeft te zijn, maar wel iets wil vertellen over iemand."
+    },
+    {
+     "term": "verluchter",
+     "uitleg": "Iemand die handgeschreven boeken versiert met tekeningen, gekleurde beginletters en bladgoud."
+    }
+   ],
+   "lees_zelf": [
+    {
+     "titel": "Dunstan op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Dunstan"
+    },
+    {
+     "titel": "Dunstan op Wikipedia (Engels)",
+     "url": "https://en.wikipedia.org/wiki/Dunstan"
+    }
+   ],
+   "wat_voor_mens": "Een handige, muzikale en slimme man die zijn eigen werkplaats net zo serieus nam als het bestuur van een land.",
+   "assen": {
+    "samen_alleen": {
+     "score": 0,
+     "onderbouwing": "Hij leefde een tijd als kluizenaar in een piepkleine cel, maar was ook adviseur aan het hof van meerdere koningen (nl, en).",
+     "zekerheid": "midden"
+    },
+    "denken_doen": {
+     "score": 0,
+     "onderbouwing": "Bekend om zijn studie én om zijn ambachten als smid, orgelbouwer en tekenaar (nl, en).",
+     "zekerheid": "midden"
+    },
+    "achter_voorop": {
+     "score": 2,
+     "onderbouwing": "Abt, aartsbisschop van Canterbury, adviseur van koningen; hij bedacht de kroningsceremonie (nl, en).",
+     "zekerheid": "hoog"
+    },
+    "plek_pad": {
+     "score": 0,
+     "onderbouwing": "Lang verbonden aan Glastonbury, maar ook in Winchester, ballingschap in Gent, Worcester, Londen en Canterbury (nl, en).",
+     "zekerheid": "laag"
+    },
+    "diepgang_licht": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "vrede_strijd": {
+     "score": 2,
+     "onderbouwing": "Hij verweet koning Eadwig een losbandig leven en sleepte hem terug naar de vergadering; hij voerde zijn hervormingen door tegen de edelen in (nl, en).",
+     "zekerheid": "hoog"
+    }
+   },
+   "interesses": [
+    {
+     "interesse": "Muziek en kunst",
+     "onderbouwing": "Hij speelde harp, maakte orgels en tekende; beroemd als muzikant en verluchter (nl, en).",
+     "zekerheid": "hoog"
+    },
+    {
+     "interesse": "Techniek, bouwen en computers",
+     "onderbouwing": "Zilversmid en metaalbewerker; hij maakte klokken en orgels en herbouwde de abdij van Glastonbury (nl, en).",
+     "zekerheid": "hoog"
+    },
+    {
+     "interesse": "Opkomen voor wat eerlijk is",
+     "onderbouwing": "Hij durfde een koning op zijn gedrag aan te spreken (nl).",
+     "zekerheid": "midden"
+    }
+   ],
+   "open_vragen": [
+    "Zijn geboortejaar is onzeker: een biograaf zegt 924/925, maar historici houden het op rond 910 of eerder (nl).",
+    "Of het hoefijzer als gelukssymbool echt uit dit verhaal komt, is een bewering uit de en-bron ('claimed'); ik noem het als bewering."
+   ],
+   "afbeelding": {
+    "bestand": "Saint Dunstan.jpg",
+    "licentie": "CC BY 2.0",
+    "maker": "Randy OHC",
+    "url": "https://commons.wikimedia.org/wiki/File:Saint_Dunstan.jpg",
+    "soort": "heilige"
+   },
+   "nl_url": "https://nl.wikipedia.org/wiki/Dunstan",
+   "interpretatie": true,
+   "feiten_verified": true,
+   "status": "concept v2: wacht op feedback",
+   "assen_bekend": 5,
+   "drempel_4_van_6_gehaald": true,
+   "tijdvak": "middeleeuwen",
+   "geslacht": "mannelijk"
+  },
+  {
+   "qid": "Q466565",
+   "naam": "Maria Mazzarello",
+   "versie": 2,
+   "brok": 3,
+   "core": false,
+   "periode": "1837 – 1881 · negentiende eeuw",
+   "levensverhaal": "Maria Mazzarello wordt in 1837 geboren als oudste van tien kinderen in een boerengezin in Noord-Italië. Ze ziet dat de meisjes in haar dorp al jong zwaar werk moeten doen, en begint voor hen een naaischooltje zodat ze een vak leren. Als ze zieken in haar dorp verzorgt, krijgt ze tyfus en wordt ze bijna dood ziek. In 1864 ontmoet ze Don Bosco, en samen met hem sticht ze in 1872 de Zusters van Don Bosco.",
+   "haakjes": [
+    {
+     "kort": "Ze begon een naaischool zodat meisjes een vak konden leren.",
+     "meer": "Maria zag dat meisjes in haar dorp al op jonge leeftijd zwaar werk moesten doen. Ze gaf hun les in het geloof en begon een naaischooltje, zodat ze een vak konden leren en een eigen inkomen konden verdienen.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Ze werkte samen met Don Bosco.",
+     "meer": "In 1864 kwam Don Bosco, die ook in deze set zit, naar haar dorp. Maria was onder de indruk van zijn aanpak en ging in op zijn uitnodiging om een orde voor vrouwen te stichten. Zo ontstonden in 1872 de Dochters van Maria Hulp der Christenen, ook wel de Zusters van Don Bosco.",
+     "soort": "feit"
+    },
+    {
+     "kort": "In negen jaar groeide haar orde naar 26 gemeenschappen.",
+     "meer": "Toen Maria in 1881 stierf, pas 44 jaar oud, telde haar orde al meer dan honderd zusters en vijftig nieuwe kandidaten in 26 gemeenschappen.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Toen hun schip kapot ging, maakte ze bedden van stro.",
+     "meer": "In 1877 bracht Maria de eerste zusters die naar Uruguay gingen naar de boot, en reisde zelf door naar Frankrijk. In Marseille ging hun schip kapot en moest iedereen van boord. Het beloofde onderdak bleek er niet te zijn. Maria stopte de lakens die ze bij zich hadden vol stro en maakte zo voor iedereen een bed. Daarna werd ze zelf zwaar ziek.",
+     "soort": "feit"
+    }
+   ],
+   "waarom_heilig": "Maria werd in 1938 zalig en in 1951 heilig verklaard door paus Pius XII. Ze ligt begraven in de basiliek van Maria Hulp der Christenen in Turijn.",
+   "waarom_voorbeeld": "Maria zag meisjes die geen kansen kregen, en gaf ze die: een vak, onderwijs, een toekomst.",
+   "waarschuwing_voor_leiding": "Weinig gevoelige punten. Mooi om te koppelen aan Don Bosco: zij deed voor meisjes wat hij voor jongens deed.",
+   "gespreksvraag": "Maria gaf meisjes een vak zodat ze zelfstandig konden worden. Waarom is dat belangrijk?",
+   "wat_er_nog_van_over_is": "Bij haar dood telde haar orde al 26 gemeenschappen.",
+   "verdieping": null,
+   "begrippen": [
+    {
+     "term": "kloosterorde",
+     "uitleg": "Een groep kloosters die dezelfde regel en hetzelfde doel hebben, zoals de franciscanen, de clarissen of de karmelieten."
+    },
+    {
+     "term": "heiligverklaring",
+     "uitleg": "De paus verklaart na een lang en grondig onderzoek dat iemand heilig is. Daarvoor zijn volgens de regels minstens twee wonderen nodig. In de eerste eeuwen bestond dit nog niet: toen werd iemand heilig doordat gelovigen hem of haar gingen vereren, vooral martelaren."
+    },
+    {
+     "term": "zaligverklaring",
+     "uitleg": "De stap vóór de heiligverklaring. Er is één erkend wonder voor nodig, behalve bij martelaren: daar is geen wonder nodig."
+    }
+   ],
+   "lees_zelf": [
+    {
+     "titel": "Maria Mazzarello op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Maria_Mazzarello"
+    },
+    {
+     "titel": "Maria Domenica Mazzarello op Wikipedia (Engels)",
+     "url": "https://en.wikipedia.org/wiki/Maria_Domenica_Mazzarello"
+    }
+   ],
+   "wat_voor_mens": "Een praktische, opgewekte boerendochter met humor, die meisjes een toekomst gaf.",
+   "assen": {
+    "samen_alleen": {
+     "score": 1,
+     "onderbouwing": "Ze werkte met de meisjes van haar dorp en haalde vriendinnen over om mee te doen; ze wilde sterven in haar eigen gemeenschap (nl, en).",
+     "zekerheid": "midden"
+    },
+    "denken_doen": {
+     "score": 2,
+     "onderbouwing": "Ze begon een naaischool en verzorgde zieken (nl).",
+     "zekerheid": "hoog"
+    },
+    "achter_voorop": {
+     "score": 1,
+     "onderbouwing": "Medestichteres van een orde (nl).",
+     "zekerheid": "midden"
+    },
+    "plek_pad": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "diepgang_licht": {
+     "score": 1,
+     "onderbouwing": "De bron noemt haar de bron van de goede sfeer, het gevoel voor humor en het optimisme van haar gemeenschap (en).",
+     "zekerheid": "midden"
+    },
+    "vrede_strijd": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    }
+   },
+   "interesses": [
+    {
+     "interesse": "Kinderen en jongeren",
+     "onderbouwing": "Naaischool en onderwijs voor meisjes (nl).",
+     "zekerheid": "hoog"
+    },
+    {
+     "interesse": "Mensen helpen",
+     "onderbouwing": "Ze verzorgde zieken in haar dorp (nl).",
+     "zekerheid": "midden"
+    },
+    {
+     "interesse": "Techniek, bouwen en computers",
+     "onderbouwing": "Ze ging in de leer als naaister en leerde meisjes kleren maken als vak (nl, en). Dit is een handvak, geen techniek in strikte zin.",
+     "zekerheid": "laag"
+    }
+   ],
+   "open_vragen": [
+    "Zaligverklaring: nl zegt 21 november 1938, en zegt 20 november 1938.",
+    "Plek ↔ pad blijft onbekend: ze reisde naar Frankrijk, maar wilde in haar eigen gemeenschap sterven; te weinig om te scoren.",
+    "De interesse 'Techniek' rust op naaien als vak. Overweeg of dat genoeg is."
+   ],
+   "afbeelding": {
+    "bestand": "Maria Dominika Mazzarello.jpg",
+    "licentie": "CC BY-SA 3.0",
+    "maker": null,
+    "url": "https://commons.wikimedia.org/wiki/File:Maria_Dominika_Mazzarello.jpg",
+    "soort": "heilige"
+   },
+   "nl_url": "https://nl.wikipedia.org/wiki/Maria_Mazzarello",
+   "interpretatie": true,
+   "feiten_verified": true,
+   "status": "concept v2: wacht op feedback (terug uit uitgevallen, 2026-10-08)",
+   "assen_bekend": 4,
+   "drempel_4_van_6_gehaald": true,
+   "tijdvak": "moderne tijd",
+   "geslacht": "vrouwelijk"
+  },
+  {
+   "qid": "Q230507",
+   "naam": "Margaretha van Schotland",
+   "versie": 2,
+   "brok": 3,
+   "core": false,
+   "periode": "ca. 1045 – 1093 · middeleeuwen",
+   "levensverhaal": "Margaretha wordt rond 1045 in Hongarije geboren, als kleindochter van een Engelse koning in ballingschap. Na de Normandische verovering van Engeland in 1066 wil haar moeder met haar kinderen terug naar het vasteland, maar een storm drijft hun schip naar Schotland. Daar krijgen ze bescherming van koning Malcolm III, met wie Margaretha trouwt; ze krijgen acht kinderen. Als koningin hervormt ze de kerk in Schotland en zorgt ze persoonlijk voor de armen.",
+   "haakjes": [
+    {
+     "kort": "Een storm bracht haar naar Schotland, waar ze koningin werd.",
+     "meer": "Na 1066 wilde Margaretha's familie vluchten naar het vasteland, maar een storm sloeg hun schip uit koers, naar Schotland. Daar strandden ze. De Schotse koning gaf hun onderdak, en Margaretha trouwde met hem. De plek waar ze aan land zou zijn gekomen, heet nog steeds St Margaret's Hope.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Ze gaf de armen te eten voordat ze zelf at.",
+     "meer": "Margaretha werd heilig verklaard onder meer omdat ze armen persoonlijk eten gaf voordat ze zelf at, en elke nacht om middernacht naar de mis ging. Ze liet ook een veerpont aanleggen over de Firth of Forth voor pelgrims; de plaatsen South en North Queensferry zijn daarnaar genoemd.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Ze stierf drie dagen na haar man en zoon, van verdriet.",
+     "meer": "In 1093 kwamen haar man en oudste zoon om bij een inval in Engeland. Drie dagen later stierf Margaretha. Volgens het Engelse artikel stierf ze van verdriet.",
+     "soort": "feit"
+    },
+    {
+     "kort": "De plaatsen Queensferry zijn naar haar veerdienst genoemd.",
+     "meer": "Margaretha liet een veerdienst aanleggen over de Firth of Forth, een brede zeearm in Schotland, zodat pelgrims op weg naar St Andrews niet om hoefden te reizen. De twee plaatsen aan weerszijden heten nog steeds South en North Queensferry: de veerpont van de koningin.",
+     "soort": "feit"
+    }
+   ],
+   "waarom_heilig": "Margaretha werd in 1250 heilig verklaard door paus Innocentius IV. In 1673 werd ze de beschermheilige van Schotland.",
+   "waarom_voorbeeld": "Margaretha kwam als vluchteling in een vreemd land terecht, en gebruikte haar plek als koningin om de armen te helpen en de kerk te hervormen.",
+   "waarschuwing_voor_leiding": "Weinig gevoelige punten. Interessant voor een protestantse groep: haar relieken raakten verspreid en verloren na de Schotse Reformatie.",
+   "gespreksvraag": "Margaretha kwam per ongeluk in Schotland terecht en werd er koningin. Hoe ga je om met een plan dat totaal anders uitpakt?",
+   "wat_er_nog_van_over_is": "De plaatsen North en South Queensferry in Schotland zijn genoemd naar haar veerpont. Ze werd begraven in Dunfermline Abbey, in een kapel die naar haar werd genoemd.",
+   "verdieping": null,
+   "begrippen": [
+    {
+     "term": "heiligverklaring",
+     "uitleg": "De paus verklaart na een lang en grondig onderzoek dat iemand heilig is. Daarvoor zijn volgens de regels minstens twee wonderen nodig. In de eerste eeuwen bestond dit nog niet: toen werd iemand heilig doordat gelovigen hem of haar gingen vereren, vooral martelaren."
+    },
+    {
+     "term": "relikwie",
+     "uitleg": "Een overblijfsel van een heilige, zoals een bot of een stukje kleding, dat in de katholieke traditie wordt vereerd."
+    }
+   ],
+   "lees_zelf": [
+    {
+     "titel": "Margaretha van Schotland op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Margaretha_van_Schotland_(ca._1045-1093)"
+    }
+   ],
+   "wat_voor_mens": "Een vrome, zorgzame vluchtelinge die koningin werd.",
+   "assen": {
+    "samen_alleen": {
+     "score": 0,
+     "onderbouwing": "Ze bad en las veel alleen, en had een eigen grot om te bidden, maar diende elke dag wezen en armen (en).",
+     "zekerheid": "midden"
+    },
+    "denken_doen": {
+     "score": 1,
+     "onderbouwing": "Ze gaf armen persoonlijk eten en liet een veerpont aanleggen (nl, en).",
+     "zekerheid": "midden"
+    },
+    "achter_voorop": {
+     "score": 1,
+     "onderbouwing": "Ze hervormde de kerk en het hof (nl).",
+     "zekerheid": "midden"
+    },
+    "plek_pad": {
+     "score": 1,
+     "onderbouwing": "Hongarije, Engeland, Schotland (nl).",
+     "zekerheid": "midden"
+    },
+    "diepgang_licht": {
+     "score": -1,
+     "onderbouwing": "Kroniekschrijvers beschrijven haar geloof als echt en intens, en haar karakter als sterk en ernstig; humor wordt niet genoemd (en).",
+     "zekerheid": "laag"
+    },
+    "vrede_strijd": {
+     "score": 1,
+     "onderbouwing": "Ze kwam op voor Engelse ballingen die na de Normandische verovering tot horigen waren gemaakt, en voerde hervormingen door tegen oude gewoonten in (en).",
+     "zekerheid": "laag"
+    }
+   },
+   "interesses": [
+    {
+     "interesse": "Mensen helpen",
+     "onderbouwing": "Ze gaf de armen persoonlijk te eten (nl).",
+     "zekerheid": "hoog"
+    },
+    {
+     "interesse": "Kinderen en jongeren",
+     "onderbouwing": "Moeder van acht kinderen (nl).",
+     "zekerheid": "laag"
+    },
+    {
+     "interesse": "Techniek, bouwen en computers",
+     "onderbouwing": "Ze liet een veerdienst over de Firth of Forth aanleggen voor pelgrims (de plaatsen Queensferry zijn ernaar genoemd) en zette het herstel van de abdij van Iona in gang (en). Laten aanleggen, niet zelf bouwen.",
+     "zekerheid": "laag"
+    }
+   ],
+   "open_vragen": [],
+   "afbeelding": {
+    "bestand": "StMargareth edinburgh castle2.jpg",
+    "licentie": "CC BY 2.5",
+    "maker": "Kjetil Bjørnsrud New york",
+    "url": "https://commons.wikimedia.org/wiki/File:StMargareth_edinburgh_castle2.jpg",
+    "soort": "heilige"
+   },
+   "nl_url": "https://nl.wikipedia.org/wiki/Margaretha_van_Schotland_(ca._1045-1093)",
+   "interpretatie": true,
+   "feiten_verified": true,
+   "status": "concept v2: wacht op feedback (terug uit uitgevallen, 2026-10-08)",
+   "assen_bekend": 6,
+   "drempel_4_van_6_gehaald": true,
+   "tijdvak": "middeleeuwen",
+   "geslacht": "vrouwelijk"
+  },
+  {
+   "qid": "Q232365",
+   "naam": "Clothilde",
+   "versie": 2,
+   "brok": 3,
+   "core": false,
+   "periode": "ca. 480 – 545 · vroege middeleeuwen",
+   "levensverhaal": "Clothilde wordt rond 480 geboren als prinses van Bourgondië. Haar ouders worden in 493 vermoord door haar eigen oom. Ze trouwt met Clovis, de koning van de Franken, op voorwaarde dat hij haar christelijk geloof respecteert. Na een gewonnen veldslag laat Clovis zich dopen, en volgens het Engelse artikel is dat vooral aan haar invloed te danken; de Franken blijven daardoor eeuwenlang katholiek.",
+   "haakjes": [
+    {
+     "kort": "Ze overtuigde de koning van de Franken om christen te worden.",
+     "meer": "Clothilde liet haar kinderen dopen. Toen haar oudste zoon na zijn doop stierf en de tweede zwaar ziek werd, gaf Clovis de schuld aan de God van zijn vrouw. Maar de tweede zoon genas, en Clovis won een veldslag. Daarna liet hij zich dopen, waarschijnlijk rond het jaar 500.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Volgens een legende moest ze kiezen tussen een zwaard en een schaar voor haar kleinkinderen.",
+     "meer": "Na de dood van haar zoon probeerde Clothilde zijn drie kleine kinderen te beschermen tegen hun ooms, die hun erfdeel wilden. De ooms stuurden haar een zwaard (de dood) en een schaar (haren afknippen en het klooster in), en vroegen haar te kiezen. In haar woede zei ze dat ze ze liever dood zag. Twee jongens werden vermoord; de derde vluchtte en ging het klooster in. Volgens andere bronnen is dit verhaal niet waar.",
+     "soort": "overlevering"
+    },
+    {
+     "kort": "Haar ouders werden vermoord door haar eigen oom.",
+     "meer": "Clothilde was de dochter van koning Chilperik van Bourgondië. Haar oom Gundobad vermoordde haar ouders in 493. Clothilde vond bescherming bij een andere oom, in Genève.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Ze liet kerken en kloosters bouwen, en maakte de kerk van haar man af.",
+     "meer": "Clothilde liet kerken en kloosters bouwen, onder meer in Rouen, Lyon en Les Andelys. Clovis begon in Parijs aan een kerk voor de apostelen Petrus en Paulus, mogelijk op aanraden van Genoveva, die ook in deze set zit. Na zijn dood maakte Clothilde die kerk af. Volgens een legende klaagden de bouwvakkers in Les Andelys over hitte en dorst, en smaakte het water uit een bron daarna naar wijn.",
+     "soort": "feit"
+    }
+   ],
+   "waarom_heilig": "Clothilde werd heilig verklaard door paus Pelagius II, in de zesde eeuw. Ze is de beschermheilige van vrouwen, van mensen die verlamd zijn, en van notarissen, en wordt aangeroepen voor de bekering van echtgenoten.",
+   "waarom_voorbeeld": "Clothilde verloor haar ouders door moord, en hield in een wereld van geweld vast aan haar geloof. Na veel verdriet gaf ze haar leven aan de zieken en de armen.",
+   "waarschuwing_voor_leiding": "Haar verhaal zit vol geweld binnen families: ouders vermoord door een oom, kleinkinderen vermoord door hun ooms. De legende van het zwaard en de schaar is waarschijnlijk niet waar; vertel dat erbij. Genoveva van Parijs, ook in deze set, was haar vriendin.",
+   "gespreksvraag": "Clothilde was er volgens een legende zo boos dat ze iets zei waar ze spijt van kreeg. Heb jij weleens iets in boosheid gezegd dat je niet meende?",
+   "wat_er_nog_van_over_is": "Omdat Clovis zich liet dopen, werd het Frankische rijk, de voorloper van Frankrijk, katholiek. Haar feestdag is 3 juni.",
+   "verdieping": null,
+   "begrippen": [
+    {
+     "term": "heiligverklaring",
+     "uitleg": "De paus verklaart na een lang en grondig onderzoek dat iemand heilig is. Daarvoor zijn volgens de regels minstens twee wonderen nodig. In de eerste eeuwen bestond dit nog niet: toen werd iemand heilig doordat gelovigen hem of haar gingen vereren, vooral martelaren."
+    },
+    {
+     "term": "legende",
+     "uitleg": "Een oud verhaal dat niet (helemaal) historisch waar hoeft te zijn, maar wel iets wil vertellen over iemand."
+    }
+   ],
+   "lees_zelf": [
+    {
+     "titel": "Clothilde op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Clothilde_(480-545)"
+    }
+   ],
+   "wat_voor_mens": "Een vastberaden koningin die haar man overtuigde om christen te worden en kerken liet bouwen.",
+   "assen": {
+    "samen_alleen": {
+     "score": -1,
+     "onderbouwing": "Na de dood van Clovis trok ze zich terug in Tours, bij het graf van Martinus, los van de politiek, alleen nog met gebed (en).",
+     "zekerheid": "midden"
+    },
+    "denken_doen": {
+     "score": 1,
+     "onderbouwing": "Ze liet kerken, kloosters en een kapel bouwen en maakte de kerk van de Heilige Apostelen af na de dood van Clovis (en).",
+     "zekerheid": "laag"
+    },
+    "achter_voorop": {
+     "score": 1,
+     "onderbouwing": "Koningin met invloed op de koning (nl, en).",
+     "zekerheid": "midden"
+    },
+    "plek_pad": {
+     "score": 1,
+     "onderbouwing": "Na de dood van Clovis reisde ze het land door (nl).",
+     "zekerheid": "midden"
+    },
+    "diepgang_licht": {
+     "score": -1,
+     "onderbouwing": "Ze bad, vastte en huilde, en gaf alles weg aan de armen (en).",
+     "zekerheid": "laag"
+    },
+    "vrede_strijd": {
+     "score": 0,
+     "onderbouwing": "Omstreden: een oud verhaal zegt dat ze haar zoon aanzette tot oorlog om haar ouders te wreken; andere schrijvers vinden dat verhaal onbetrouwbaar, en volgens Gregorius van Tours stelden haar gebeden juist een oorlog tussen haar zoons uit (en).",
+     "zekerheid": "laag"
+    }
+   },
+   "interesses": [
+    {
+     "interesse": "Mensen helpen",
+     "onderbouwing": "Zorg voor zieken en armen (nl).",
+     "zekerheid": "midden"
+    },
+    {
+     "interesse": "Techniek, bouwen en computers",
+     "onderbouwing": "Ze bouwde kerken, kloosters en een klooster voor meisjes in Les Andelys, en maakte de basiliek van de Heilige Apostelen in Parijs af (en).",
+     "zekerheid": "midden"
+    }
+   ],
+   "open_vragen": [
+    "Of Clothilde haar zoon aanzette tot een wraakoorlog is omstreden; beide kanten staan bij vrede ↔ strijd, met score 0."
+   ],
+   "afbeelding": {
+    "bestand": "Sainte Clotilde - gradient background 01.jpg",
+    "licentie": "CC BY-SA 4.0",
+    "maker": "Sukkoria",
+    "url": "https://commons.wikimedia.org/wiki/File:Sainte_Clotilde_-_gradient_background_01.jpg",
+    "soort": "heilige"
+   },
+   "nl_url": "https://nl.wikipedia.org/wiki/Clothilde_(480-545)",
+   "interpretatie": true,
+   "feiten_verified": true,
+   "status": "concept v2: wacht op feedback (terug uit uitgevallen, 2026-10-08)",
+   "assen_bekend": 6,
+   "drempel_4_van_6_gehaald": true,
+   "tijdvak": "oudheid",
+   "geslacht": "vrouwelijk"
+  },
+  {
+   "qid": "Q53449",
+   "naam": "Hedwig van Polen",
+   "versie": 2,
+   "brok": 3,
+   "core": false,
+   "periode": "1373 – 1399 · late middeleeuwen",
+   "levensverhaal": "Hedwig wordt in 1373 geboren als jongste dochter van de koning van Hongarije en Polen. Al direct na haar geboorte wordt ze verloofd, en op haar vijfde is er al een 'voorlopig huwelijk' met een Oostenrijkse prins, Willem. Op haar tiende moet ze alleen naar Polen, waar ze in 1384 wordt gekroond, niet tot koningin, maar tot 'koning', omdat de Poolse wet geen vrouwelijke opvolging kende. De Poolse edelen dwingen haar te trouwen met de heidense groothertog van Litouwen, Jogaila, die zich daarvoor laat dopen.",
+   "haakjes": [
+    {
+     "kort": "Ze greep volgens een kroniek een bijl om bij haar geliefde te komen.",
+     "meer": "Hedwig wilde eigenlijk met Willem trouwen, de prins met wie ze als kind al 'verbonden' was. Volgens de kroniekschrijver Jan Długosz greep ze een bijl om een deur open te hakken toen Willem in de stad was. Alleen een ridder wist haar te kalmeren. Daarna trouwde ze toch met Jogaila.",
+     "soort": "overlevering"
+    },
+    {
+     "kort": "Ze werd gekroond tot 'koning' van Polen.",
+     "meer": "Omdat de Poolse wet geen opvolging via vrouwen erkende, werd Hedwig in 1384 in Krakau niet tot koningin, maar tot koning gekroond. Ze was toen ongeveer elf jaar oud.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Ze was 1,80 meter lang en sprak volgens sommigen zeven talen.",
+     "meer": "Toen haar graf werd geopend, bleek uit haar botten dat Hedwig 1,80 meter lang was geweest, heel lang voor die tijd. Volgens sommige kroniekschrijvers sprak ze zeven talen.",
+     "soort": "feit"
+    },
+    {
+     "kort": "Ze verkocht haar juwelen voor een universiteit.",
+     "meer": "De universiteit van Krakau was opgericht in 1364, maar ging na de dood van de stichter ten onder. Hedwig kocht huizen in een straat in het centrum van Krakau voor een nieuwe start. In haar testament liet ze haar juwelen verkopen om de universiteit te betalen. Een jaar na haar dood ging die weer open.",
+     "soort": "feit"
+    }
+   ],
+   "waarom_heilig": "Hedwig stierf in 1399, pas 25 jaar oud, kort nadat haar enige dochtertje was overleden; moeder en kind werden samen begraven. Ze werd pas in 1997 in Krakau heilig verklaard.",
+   "waarom_voorbeeld": "Hedwig moest als kind haar thuis verlaten en trouwen met iemand die ze niet had gekozen, en maakte er toch iets goeds van: ze zorgde voor kerken en legde de basis voor een universiteit.",
+   "waarschuwing_voor_leiding": "Kinderhuwelijken en gedwongen huwelijken: dat mag gezegd, en is een mooi gesprekspunt. De dood van haar baby en van haarzelf kort daarna kan raken.",
+   "gespreksvraag": "Hedwig moest trouwen met iemand die ze niet had gekozen. Hoe zou jij daarmee omgaan?",
+   "wat_er_nog_van_over_is": "De Jagiellonische Universiteit in Krakau, die dankzij haar werd gesticht, werd officieel gesticht een paar maanden na haar dood.",
+   "verdieping": null,
+   "begrippen": [
+    {
+     "term": "heiligverklaring",
+     "uitleg": "De paus verklaart na een lang en grondig onderzoek dat iemand heilig is. Daarvoor zijn volgens de regels minstens twee wonderen nodig. In de eerste eeuwen bestond dit nog niet: toen werd iemand heilig doordat gelovigen hem of haar gingen vereren, vooral martelaren."
+    }
+   ],
+   "lees_zelf": [
+    {
+     "titel": "Hedwig van Polen op Wikipedia",
+     "url": "https://nl.wikipedia.org/wiki/Hedwig_van_Polen_(1373-1399)"
+    }
+   ],
+   "wat_voor_mens": "Een jonge, sterke vrouw die een zware rol kreeg en die serieus nam.",
+   "assen": {
+    "samen_alleen": {
+     "score": null,
+     "onderbouwing": "Niet in de bron.",
+     "zekerheid": null
+    },
+    "denken_doen": {
+     "score": 0,
+     "onderbouwing": "Ze stichtte ziekenhuizen, scholen en kerken, en liet de Bijbel in het Pools vertalen en kocht huizen voor de universiteit; geen duidelijke kant (en).",
+     "zekerheid": "laag"
+    },
+    "achter_voorop": {
+     "score": 2,
+     "onderbouwing": "Gekroond tot koning van Polen (nl).",
+     "zekerheid": "hoog"
+    },
+    "plek_pad": {
+     "score": 1,
+     "onderbouwing": "Van Boeda naar Wenen en Krakau (nl).",
+     "zekerheid": "laag"
+    },
+    "diepgang_licht": {
+     "score": -1,
+     "onderbouwing": "Ze bad vaak lang voor een groot zwart kruisbeeld in de kathedraal van Krakau; humor wordt niet genoemd (en).",
+     "zekerheid": "laag"
+    },
+    "vrede_strijd": {
+     "score": -1,
+     "onderbouwing": "Volgens de en-bron een bekwame bemiddelaar, beroemd om haar onpartijdigheid, die ruzies in de familie van haar man suste en een oorlog met de Duitse Orde wilde voorkomen. Wel greep ze volgens een kroniek een bijl om bij haar geliefde te komen (nl, en).",
+     "zekerheid": "midden"
+    }
+   },
+   "interesses": [
+    {
+     "interesse": "Lezen en schrijven",
+     "onderbouwing": "Ze stond aan de basis van de Jagiellonische Universiteit (nl).",
+     "zekerheid": "midden"
+    },
+    {
+     "interesse": "Reizen en andere culturen",
+     "onderbouwing": "Ze sprak volgens sommigen zeven talen (nl).",
+     "zekerheid": "laag"
+    },
+    {
+     "interesse": "Wetenschap en ontdekken",
+     "onderbouwing": "Ze kocht huizen voor de universiteit van Krakau en liet in haar testament haar juwelen verkopen om die universiteit weer op te bouwen; ze regelde een college voor Litouwse studenten in Praag (en).",
+     "zekerheid": "midden"
+    }
+   ],
+   "open_vragen": [],
+   "afbeelding": {
+    "bestand": "Jadwiga by Bacciarelli.jpg",
+    "licentie": "Public domain",
+    "maker": "Marcello Bacciarelli",
+    "url": "https://commons.wikimedia.org/wiki/File:Jadwiga_by_Bacciarelli.jpg",
+    "soort": "heilige"
+   },
+   "nl_url": "https://nl.wikipedia.org/wiki/Hedwig_van_Polen_(1373-1399)",
+   "interpretatie": true,
+   "feiten_verified": true,
+   "status": "concept v2: wacht op feedback (terug uit uitgevallen, 2026-10-08)",
+   "assen_bekend": 5,
+   "drempel_4_van_6_gehaald": true,
+   "tijdvak": "middeleeuwen",
    "geslacht": "vrouwelijk"
   }
  ],

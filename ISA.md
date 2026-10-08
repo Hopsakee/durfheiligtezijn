@@ -8,7 +8,7 @@ principal_stated_goal: "I merged #6, please start phase 4."
 
 ## Problem
 
-Eight to fifteen people (thirteen-year-olds plus leaders) each need to be matched to a saint they recognize themselves in, from a curated set of 77, before the game afternoon of Saturday 11 October 2026. The design lives in `docs/design/plan-heiligen-welkomstspel.md` and `docs/design/rubric.md`. Phase 3 of that plan is the deterministic core: the question bank, the scoring and matching, and a simulation that shows the matching spreads over the set instead of handing everyone the same few saints.
+Eight to fifteen people (thirteen-year-olds plus leaders) each need to be matched to a saint they recognize themselves in, from a curated set of 89, before the game afternoon of Saturday 11 October 2026. The design lives in `docs/design/plan-heiligen-welkomstspel.md` and `docs/design/rubric.md`. Phase 3 of that plan is the deterministic core: the question bank, the scoring and matching, and a simulation that shows the matching spreads over the set instead of handing everyone the same few saints.
 
 ## Vision
 
@@ -44,7 +44,7 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - [x] ISC-15: Tests fail when a spread threshold comparison is inverted, and when the gender filter or exclusion runs after slicing to n.
 - [x] ISC-16: The data directory is configurable through `DURFHEILIG_DATA`, so a non-editable install (the phase 6 Docker image) can point at it; tested by loading all data from a copied directory.
 - [x] ISC-17: Ranking uses each saint's relative score (z-score of the match score against that saint's own mean and spread over every answer pattern and every 2- or 3-interest pick); over that reference distribution every saint's relative score has mean 0 and standard deviation 1.
-- [ ] ISC-18: Every gender preference has at least 5 saints per interest (needs new sourced records; prompt in `docs/pipeline/prompt-aanvulling-heiligen.md`).
+- [ ] ISC-18: Every gender preference has at least 5 saints per interest. After the claude.ai supplement (8 new saints, 4 returned from the dropped list, 7 interests added, merged by `pipeline/merge_aanvulling.py`) only women with "Sport en buiten bewegen" fall short: 4 of 5.
 - [x] ISC-19: Both LLM calls validate their JSON against the candidate list (3 follow-up questions; exactly 3 distinct chosen saints, none rejected, none outside the candidates), retry once, then fall back to deterministic output (follow-up questions from the question bank, top-3 from the ranking with a standard explanation), so a failing API never stops the game. Tested with a fake client for valid, malformed, wrong-saint, duplicate, short and network-error answers.
 - [x] ISC-20: The prompt data holds only profile, interests, the kid's own text and the candidates' records, never a username, nickname or name; the kid's text sits in its own JSON field the prompt calls data, not instructions; the Gemini key travels in a header, never in the URL or an error message.
 - [x] ISC-21: Every route returns 401 without `Remote-User`; `/beheer` also requires group `admins` (compared exactly, not as a substring); the app reads no other identity header.
@@ -112,3 +112,4 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - [ ] [none] Images are not local yet (see Decisions); the plan wants resized local copies with maker and licence.
 - [ ] [none] Leaders splitting the reading of explanations (and not voting in the round of a player whose explanation they read) is not built; `/beheer` only lists progress and flags.
 - [ ] [none] The lock covers Linux only (no macOS `apsw` build in the box's wheel store); on the Mac add `sys_platform == 'darwin'` back under `[tool.uv] environments` and run `uv lock` once.
+- [ ] [none] The 12 saints added from the supplement are claude.ai output, read by me only for structure, validation and sensitive themes; Jelle's review of their texts (Gianna Beretta Molla's story is about abortion and a mother's death, Germaine Cousin's about abuse) is still open. The 77 older records have no `afbeelding.soort`; the new ones carry `heilige`.
