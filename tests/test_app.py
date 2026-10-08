@@ -447,19 +447,18 @@ def test_beheer_toont_of_de_uitleg_van_gemini_kwam():
     assert "vaste tekst" in kind(app, "x").get("/beheer", headers={"remote-groups": "admins"}).text
 
 
-def test_zware_heiligen_krijgen_alleen_de_korte_tekst_en_de_rest_de_uitklapbare_verhalen():
-    from durfheilig.app import KORT_VOOR_KINDEREN, info
-    assert KORT_VOOR_KINDEREN <= {h.qid for h in H}
-    zwaar = next(h for h in H if h.qid == "Q236030")                       # Josephine Bakhita
-    html = str(info(zwaar))
+def test_alle_kinderen_krijgen_alle_verhalen_van_hun_heilige_te_lezen():
+    from durfheilig.app import info
     for h in H:
+        html = str(info(h))
         for x in h.record.get("haakjes", []):
-            if h.qid in KORT_VOOR_KINDEREN and x.get("meer"):
-                assert x["meer"][:60] not in str(info(h)), h.naam
-    assert all(f"<summary>{x['kort']}" not in html and x["kort"] in html for x in zwaar.record["haakjes"])
-    assert "Waarom heilig?" not in html
-    gewoon = next(h for h in H if h.qid not in KORT_VOOR_KINDEREN and any(x.get("meer") for x in h.record.get("haakjes", [])))
-    assert any(f"<summary>{x['kort']}" in str(info(gewoon)) for x in gewoon.record["haakjes"] if x.get("meer"))
+            assert x["kort"] in html
+            if x.get("meer"):
+                assert f"<summary>{x['kort']}" in html, h.naam
+        if h.record.get("wat_er_nog_van_over_is"):
+            assert "Wat er nog van over is" in html, h.naam
+        for veld in ("waarschuwing_voor_leiding", "gespreksvraag"):
+            assert str(h.record.get(veld) or "x")[:40] not in html, (h.naam, veld)
 
 
 def test_linkfilter_weigert_lookalike_hosts_en_backslash_trucs():
