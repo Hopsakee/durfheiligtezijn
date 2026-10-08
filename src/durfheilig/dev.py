@@ -74,13 +74,35 @@ def maak_dev_app(db=None, llm=None):
                                  laad_heiligen(), laad_vragen(), llm))
 
 
+def laad_env(pad: str | Path = ".env", env=os.environ) -> list[str]:
+    """Lees KEY=waarde-regels uit een .env en zet ze in `env`, behalve wat al gezet is. Geeft de gezette namen terug."""
+    pad = Path(pad)
+    gezet = []
+    if not pad.is_file():
+        return gezet
+    for regel in pad.read_text(encoding="utf-8").splitlines():
+        regel = regel.strip()
+        if not regel or regel.startswith("#") or "=" not in regel:
+            continue
+        naam, waarde = (x.strip() for x in regel.split("=", 1))
+        waarde = waarde.strip("\"'")
+        if naam and waarde and naam not in env:
+            env[naam] = waarde
+            gezet.append(naam)
+    return gezet
+
+
 def main() -> int:
     import uvicorn
 
+    gezet = laad_env()
+    if gezet:
+        print(".env gelezen:", ", ".join(gezet))
     llm = llm_uit_omgeving()
-    print("LLM:", "Gemini" if llm else "geen sleutel, de vaste terugval (zet GEMINI_API_KEY en GEMINI_MODEL om Gemini te proberen)")
-    print("Open http://127.0.0.1:8000/dev")
-    uvicorn.run(maak_dev_app(llm=llm), host="127.0.0.1", port=int(os.environ.get("PORT", "8000")))
+    print("LLM:", "Gemini" if llm else "geen sleutel, de vaste terugval (vul GEMINI_API_KEY en GEMINI_MODEL in `.env` in, zie `.env.example`)")
+    poort = int(os.environ.get("PORT", "8000"))
+    print(f"Open http://127.0.0.1:{poort}/dev")
+    uvicorn.run(maak_dev_app(llm=llm), host="127.0.0.1", port=poort)
     return 0
 
 
