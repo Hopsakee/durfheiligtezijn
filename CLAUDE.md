@@ -1,0 +1,35 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+A welcome game for a Catholic youth group (13-year-olds plus leaders). Each participant does a home quiz that matches them to a saint, picks one of three, and on the game afternoon the group guesses who has which saint. Design: `docs/design/plan-heiligen-welkomstspel.md` (decisions) and `docs/design/rubric.md` (axes, interests, matching formula). `ISA.md` is the state of record: which claims are closed, what is open. The code and the UI are Dutch.
+
+## Commands
+
+```bash
+uv sync
+uv run pytest -q                                   # all tests
+uv run pytest -q tests/test_scoring.py::test_matchformule_met_de_hand_berekend   # one test (or -k "geslachtsfilter")
+uv run python -m durfheilig.speel                  # play the quiz in the terminal, no web
+uv run python -m durfheilig.simulatie              # regenerates docs/simulatie/rapport.md (seeded, reproducible)
+uv run python -m durfheilig.dev                    # web app on 127.0.0.1:8000/dev, pick a kid or leader; reads .env
+python pipeline/merge_aanvulling.py FILE.json      # merge a saint supplement into data/heiligen.json
+```
+
+`uv run --frozen ...` skips re-locking (needed in the offline sandbox that cannot reach PyPI). `uv.lock` must be produced on a machine with PyPI access: a lock made offline points at `/opt/wheels`, and the `Dockerfile` refuses to build with it. Gemini is optional locally: copy `.env.example` to `.env` and fill `GEMINI_API_KEY` and `GEMINI_MODEL`; without them the app uses the fixed fallback texts.
+
+## Architecture
+
+- **Content is JSON in git, state is SQLite.** `data/heiligen.json` (the saints) and `data/vragen.json` (24 either-or questions plus the interest question) are loaded into memory by `data.py`, which validates every record and fails loudly. `data/heiligen-uitgevallen.json` holds saints dropped for having fewer than 4 of 6 known axes; it is never loaded. SQLite (`db.py`) holds only players, their answers and matches. Fix a text by editing the JSON and redeploying. Do not hardcode counts of saints in tests; derive them from the data.
+- **Matching is deterministic first, LLM second** (`scoring.py`, `llm.py`). Answers give a profile on six axes (-2..+2) plus 2 or 3 interests; saints are ranked by a z-score of the match score against that saint's own distribution over all possible answer patterns, so saints with one interest or middling axes do not win for everyone. The top 12 go to Gemini twice: call 1 invents 3 follow-up either-or questions, call 2 picks 3 saints and writes a personal explanation. Both answers are validated against the candidate list, retried once, then replaced by a deterministic fallback, so a failing API never stops the game. Axis sign convention follows `rubric.md`, not the key name (for `samen_alleen` the minus pole is "alleen").
+- **The web app is a step machine** (`app.py`). `invulling.stap` holds the step; every step is a plain form POST plus redirect, so a phone that locks or loses signal loses nothing. Quiz order: welkom, voorkeur, 12 questions, interests, open answers, follow-up questions, choice of 3, thank-you. Slow steps (Gemini) mark their form with `data-laad` to show a loading cover. A saint can be chosen once: a unique database constraint, and a lost race quietly gives that player a fresh top 3.
+- **Identity comes only from the `Remote-User` header** set by Caddy after Authelia; there is no login in the app. `Remote-Groups` is read only for the leader routes (`/beheer`, export, wipe): groups `durfheilig-leiding` or `admins`. A player may read only their own three saints; leaders may read all. The container must have no published port, otherwise the header can be forged. `dev.py` fakes the headers from a cookie for local testing, binds 127.0.0.1, and must never be imported by `app.py` (tested). Server config (compose, Caddy, Authelia) lives in the separate `hopsakee-server` repo.
+- **The repo is public.** No real names, e-mail addresses, children's names or secrets in code, data, docs or commit messages. Only quiz answers, never a username or nickname, go to the LLM. Log lines may name a failure but never contain the kid's text or the API key.
+
+## Content rules
+
+- **Design rules** (plan): nobody is shown up (every saint is presented positively), low barrier (a quiz takes at most 7 minutes on a phone), ownership (the kid chooses and says why), surprise (the explanation refers to what the kid wrote), life story rather than horror.
+- **Texts are direct and kids may read them.** Saint texts are written under the `stijlregels` in `data/heiligen.json`: direct, no glossing over; 13-year-olds can handle a lot. Murder, sexual violence and martyrdom get one sentence saying that it happened, never how (not how the skin was stripped or how the lion started eating). Legend and history are labelled apart; disputed matters show both sides.
+- **Kids read everything meant for their own use** (stories, background, words explained). Hide only what is addressed to leaders: `waarschuwing_voor_leiding`, `gespreksvraag`, `open_vragen`; `info()` in `app.py` decides what a kid sees. Whether a given app lets children read everything is a per-app choice; do not carry this decision to other apps.
+- Every saint needs an image with maker and licence (`afbeelding.soort` is `heilige` or `tijd_en_streek`); images load from Wikimedia Commons unless a local copy exists in `data/afbeeldingen/`.
+- Some existing records still go into more detail than the one-sentence rule allows (for example Josephine Bakhita and Catharina van Alexandrië). Treat those as texts to shorten when asked, not as a license to write more.
