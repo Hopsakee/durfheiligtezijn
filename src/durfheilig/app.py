@@ -23,7 +23,7 @@ from .scoring import VOORKEUR_GESLACHT, kies_vragen, profiel, rangschik
 
 MAX_OPEN = 200
 MAX_NICKNAME = 20
-LEIDING_GROEPEN = {"admins", "durfheilig-leiding"}
+LEIDING_GROEPEN = {"admins", "durfte-leiding"}
 STAPPEN = ("welkom", "voorkeur", "vragen", "interesses", "open", "vervolg", "keuze", "klaar")
 
 CSS = """

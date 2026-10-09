@@ -52,9 +52,9 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - [x] ISC-23: A saint confirmed by one player never appears in another player's top-3, enforced where the match is stored, not only in the ranking.
 - [x] ISC-24: The "Mijn heilige" page shows a player's own three saints with explanation and chosen saint, and nobody else's.
 - [x] ISC-25: A leader overview shows who has finished and which explanations are flagged, to leaders only.
-- [x] ISC-26: Leaders (group `durfheilig-leiding` or `admins`) can download everything the app stores as JSON and wipe the whole group behind a typed confirmation; after a wipe the kids' answers are in neither the database file nor its write-ahead log; a request started from another site or with a wrong word wipes nothing; kids get 403 on both routes.
+- [x] ISC-26: Leaders (group `durfte-leiding` or `admins`) can download everything the app stores as JSON and wipe the whole group behind a typed confirmation; after a wipe the kids' answers are in neither the database file nor its write-ahead log; a request started from another site or with a wrong word wipes nothing; kids get 403 on both routes.
 - [x] ISC-27: The Dockerfile installs production dependencies from `uv.lock`, runs as uid 10001, publishes no port, reads the Gemini key from an env file only, answers its health check, and refuses to build when the lock points at the box's offline `/opt/wheels`.
-- [ ] ISC-28: A kid logged in through Authelia reaches the quiz at `https://durfheiligtezijn.hopsakee.top`, gets 403 on `/beheer`, and a leader gets in. Deployed files are staged in the server repo PR; needs Jelle's host steps (below).
+- [ ] ISC-28: A kid logged in through Authelia reaches the quiz at `https://durfte.hopsakee.top`, gets 403 on `/beheer`, and a leader gets in. Deployed files are staged in the server repo PR; needs Jelle's host steps (below).
 
 ## Anti-claims
 

@@ -63,7 +63,7 @@ class AlsGebruiker:
             return await _pagina(gebruiker)(scope, receive, send)
         if gebruiker is None:
             return await RedirectResponse("/dev", status_code=303)(scope, receive, send)
-        groepen = "durfheilig,durfheilig-leiding" if gebruiker.startswith("leiding") else "durfheilig"
+        groepen = "durfte,durfte-leiding" if gebruiker.startswith("leiding") else "durfte"
         headers = [(k, v) for k, v in scope["headers"] if k not in (b"remote-user", b"remote-groups", b"remote-name", b"remote-email")]
         headers += [(b"remote-user", gebruiker.encode()), (b"remote-groups", groepen.encode())]
         await self.app({**scope, "headers": headers}, receive, send)
