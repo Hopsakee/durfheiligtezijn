@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import statistics
+import time
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -37,12 +38,17 @@ class LlmFout(Exception):
     pass
 
 
-def gemini(api_key: str, model: str, *, timeout: float = 12.0, client: httpx.Client | None = None) -> Llm:
-    """Gemini via de REST-API. De sleutel gaat in een header, nooit in de URL."""
-    http = client or httpx.Client(timeout=timeout)
+class LlmTimeout(LlmFout):
+    """Gemini did not answer in time. Asking again would wait just as long, so the caller does not retry."""
+
+
+def gemini(api_key: str, model: str, *, timeout: float = 30.0, client: httpx.Client | None = None) -> Llm:
+    """Gemini via de REST-API. De sleutel gaat in een header, nooit in de URL. Elke aanroep logt hoe lang hij duurde."""
+    http = client or httpx.Client(timeout=httpx.Timeout(timeout, connect=5.0))
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
     def roep(systeem: str, gegevens: str) -> str:
+        begin = time.monotonic()
         try:
             r = http.post(
                 url,
@@ -54,10 +60,17 @@ def gemini(api_key: str, model: str, *, timeout: float = 12.0, client: httpx.Cli
                 },
             )
             r.raise_for_status()
-            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            antwoord = r.json()
+            tekst = antwoord["candidates"][0]["content"]["parts"][0]["text"]
+            tokens = antwoord.get("usageMetadata", {})   # numbers only: how much was read, thought and written
+            log.info("Gemini %s antwoordde in %.1f s (%d tekens verstuurd, tokens: in %s, denken %s, uit %s)", model, time.monotonic() - begin,
+                     len(systeem) + len(gegevens), tokens.get("promptTokenCount"), tokens.get("thoughtsTokenCount"), tokens.get("candidatesTokenCount"))
+            return tekst
         except Exception as e:   # any failure, incl. an odd 200 body: the caller falls back
             status = f" (HTTP {e.response.status_code})" if isinstance(e, httpx.HTTPStatusError) else ""
-            raise LlmFout(f"Gemini-aanroep mislukt: {type(e).__name__}{status}") from e
+            duur = time.monotonic() - begin
+            fout = LlmTimeout if isinstance(e, httpx.TimeoutException) else LlmFout
+            raise fout(f"Gemini-aanroep mislukt: {type(e).__name__}{status} na {duur:.1f} s met model {model}") from e
 
     return roep
 
@@ -65,7 +78,11 @@ def gemini(api_key: str, model: str, *, timeout: float = 12.0, client: httpx.Cli
 def llm_uit_omgeving(env: Mapping[str, str] = os.environ) -> Llm | None:
     """None als er geen sleutel is: de app draait dan op de terugval."""
     sleutel, model = env.get("GEMINI_API_KEY"), env.get("GEMINI_MODEL")
-    return gemini(sleutel, model) if sleutel and model else None
+    try:
+        wacht = float(env.get("GEMINI_TIMEOUT") or 30.0)
+    except ValueError:
+        wacht = 30.0
+    return gemini(sleutel, model, timeout=wacht) if sleutel and model else None
 
 
 # ---------------------------------------------------------------- gegevens voor de prompt
@@ -231,6 +248,8 @@ def _probeer(llm: Llm | None, systeem: str, gegevens: str, valideer):
             return uit
         except LlmFout as e:   # the message names the failure, never the kid's text or the key
             log.warning("Gemini-poging %d van %d mislukt: %s", poging, POGINGEN, e)
+            if isinstance(e, LlmTimeout):
+                break
     log.warning("Gemini gaf geen bruikbaar antwoord: de vaste terugval wordt gebruikt")
     return None
 
