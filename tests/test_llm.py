@@ -226,3 +226,85 @@ def test_wat_gemini_teruggeeft_komt_nooit_in_de_log(situatie, caplog):
         vervolgvragen(Fake(slecht_vervolg, slecht_vervolg), p, i, [echo], top, laad_vragen(), set())
         finale(Fake(slechte_finale, slechte_finale), p, i, [echo], top, [], {})
     assert "mislukt" in caplog.text and "Jorik" not in caplog.text and echo not in caplog.text
+
+
+def _traag_gemini(wat, **kw):
+    def handler(request):
+        raise wat("te traag", request=request)
+    return gemini("GEHEIMESLEUTEL", "model-x", client=httpx.Client(transport=httpx.MockTransport(handler)), **kw)
+
+
+def test_een_timeout_wordt_een_llmtimeout_met_duur_en_model_maar_zonder_sleutel():
+    from durfheilig.llm import LlmTimeout
+    with pytest.raises(LlmTimeout) as e:
+        _traag_gemini(httpx.ReadTimeout)("s", "d")
+    tekst = str(e.value)
+    assert "ReadTimeout" in tekst and " s met model model-x" in tekst and "GEHEIMESLEUTEL" not in tekst
+
+
+def test_na_een_timeout_wordt_niet_opnieuw_geprobeerd_want_dat_wacht_even_lang(situatie, caplog):
+    import logging
+    p, i, _, top = situatie
+    aanroepen = []
+
+    def llm(systeem, gegevens):
+        aanroepen.append(1)
+        _traag_gemini(httpx.ReadTimeout)(systeem, gegevens)
+    with caplog.at_level(logging.INFO, logger="durfheilig.llm"):
+        uit = finale(llm, p, i, [], top, [], {})
+    assert len(aanroepen) == 1 and not uit.door_llm and "vaste terugval" in caplog.text
+
+
+def test_een_ongeldig_antwoord_wordt_nog_wel_een_keer_geprobeerd(situatie):
+    p, i, _, top = situatie
+    uit = finale(Fake("kapot", goede_finale(top)), p, i, [], top, [], {})
+    assert uit.door_llm
+
+
+def test_een_gelukte_aanroep_logt_duur_en_tokens_zonder_tekst(caplog):
+    import logging
+    body = {"candidates": [{"content": {"parts": [{"text": "{}"}]}}], "usageMetadata": {"promptTokenCount": 900, "thoughtsTokenCount": 1500, "candidatesTokenCount": 80}}
+    llm = gemini("GEHEIMESLEUTEL", "model-x", client=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=body))))
+    with caplog.at_level(logging.INFO, logger="durfheilig.llm"):
+        llm("systeemtekst", "kindertekst")
+    assert "model-x antwoordde in" in caplog.text and "denken 1500" in caplog.text
+    assert "kindertekst" not in caplog.text and "GEHEIMESLEUTEL" not in caplog.text
+
+
+def test_wachttijd_komt_uit_de_omgeving_met_een_veilige_standaard():
+    from durfheilig.llm import llm_uit_omgeving
+    for env in ({"GEMINI_API_KEY": "k", "GEMINI_MODEL": "m", "GEMINI_TIMEOUT": "45"}, {"GEMINI_API_KEY": "k", "GEMINI_MODEL": "m", "GEMINI_TIMEOUT": "onzin"},
+                {"GEMINI_API_KEY": "k", "GEMINI_MODEL": "m"}):
+        assert llm_uit_omgeving(env) is not None
+
+
+def _verstuurd(**kw):
+    gezien = {}
+
+    def handler(request):
+        gezien["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "{}"}]}}]})
+    gemini("K", "m", client=httpx.Client(transport=httpx.MockTransport(handler)), **kw)("s", "d")
+    return gezien["body"]["generationConfig"]
+
+
+def test_denken_staat_standaard_uit_en_is_in_te_stellen():
+    from durfheilig.llm import llm_uit_omgeving
+    assert _verstuurd()["thinkingConfig"] == {"thinkingBudget": 0}
+    assert _verstuurd(denkbudget=256)["thinkingConfig"] == {"thinkingBudget": 256}
+    assert "thinkingConfig" not in _verstuurd(denkbudget=None)
+    assert _verstuurd()["responseMimeType"] == "application/json"
+    basis = {"GEMINI_API_KEY": "k", "GEMINI_MODEL": "m"}
+    for extra in ({}, {"GEMINI_THINKING_BUDGET": "-1"}, {"GEMINI_THINKING_BUDGET": "onzin"}, {"GEMINI_THINKING_BUDGET": "0"}):
+        assert llm_uit_omgeving({**basis, **extra}) is not None
+
+
+def test_de_vervolgvragen_krijgen_korte_kandidaten_en_de_uitleg_de_volledige(situatie, vragen):
+    p, i, beantwoord, top = situatie
+    vervolg_llm, finale_llm = Fake(goede_vervolgvragen(top)), Fake(goede_finale(top))
+    vervolgvragen(vervolg_llm, p, i, [], top, vragen, beantwoord)
+    finale(finale_llm, p, i, [], top, [], {})
+    kort, lang = vervolg_llm.aanroepen[0][1], finale_llm.aanroepen[0][1]
+    assert "levensverhaal" not in kort and "haakjes" not in kort and "wat_voor_mens" in kort
+    assert "levensverhaal" in lang and "haakjes" in lang
+    assert len(kort) < len(lang) / 2

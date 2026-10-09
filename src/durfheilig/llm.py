@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import statistics
+import time
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -37,12 +38,22 @@ class LlmFout(Exception):
     pass
 
 
-def gemini(api_key: str, model: str, *, timeout: float = 12.0, client: httpx.Client | None = None) -> Llm:
-    """Gemini via de REST-API. De sleutel gaat in een header, nooit in de URL."""
-    http = client or httpx.Client(timeout=timeout)
+class LlmTimeout(LlmFout):
+    """Gemini did not answer in time. Asking again would wait just as long, so the caller does not retry."""
+
+
+def gemini(api_key: str, model: str, *, timeout: float = 30.0, denkbudget: int | None = 0, client: httpx.Client | None = None) -> Llm:
+    """Gemini via de REST-API. De sleutel gaat in een header, nooit in de URL. Elke aanroep logt hoe lang hij duurde.
+
+    `denkbudget` is het aantal tokens dat het model mag "denken" voor het antwoordt; 0 zet het uit en maakt het snel (gemeten op de server: een
+    kleine vraag 6 in plaats van 12 tot 18 seconden). None laat het aan het model. Niet elk model accepteert 0: dan geeft Gemini een fout die in de log staat."""
+    generatie = {"responseMimeType": "application/json", "temperature": 0.7,
+                 **({} if denkbudget is None else {"thinkingConfig": {"thinkingBudget": denkbudget}})}
+    http = client or httpx.Client(timeout=httpx.Timeout(timeout, connect=5.0))
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
     def roep(systeem: str, gegevens: str) -> str:
+        begin = time.monotonic()
         try:
             r = http.post(
                 url,
@@ -50,14 +61,21 @@ def gemini(api_key: str, model: str, *, timeout: float = 12.0, client: httpx.Cli
                 json={
                     "systemInstruction": {"parts": [{"text": systeem}]},
                     "contents": [{"role": "user", "parts": [{"text": gegevens}]}],
-                    "generationConfig": {"responseMimeType": "application/json", "temperature": 0.7},
+                    "generationConfig": generatie,
                 },
             )
             r.raise_for_status()
-            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            antwoord = r.json()
+            tekst = antwoord["candidates"][0]["content"]["parts"][0]["text"]
+            tokens = antwoord.get("usageMetadata", {})   # numbers only: how much was read, thought and written
+            log.info("Gemini %s antwoordde in %.1f s (%d tekens verstuurd, tokens: in %s, denken %s, uit %s)", model, time.monotonic() - begin,
+                     len(systeem) + len(gegevens), tokens.get("promptTokenCount"), tokens.get("thoughtsTokenCount"), tokens.get("candidatesTokenCount"))
+            return tekst
         except Exception as e:   # any failure, incl. an odd 200 body: the caller falls back
             status = f" (HTTP {e.response.status_code})" if isinstance(e, httpx.HTTPStatusError) else ""
-            raise LlmFout(f"Gemini-aanroep mislukt: {type(e).__name__}{status}") from e
+            duur = time.monotonic() - begin
+            fout = LlmTimeout if isinstance(e, httpx.TimeoutException) else LlmFout
+            raise fout(f"Gemini-aanroep mislukt: {type(e).__name__}{status} na {duur:.1f} s met model {model}") from e
 
     return roep
 
@@ -65,31 +83,42 @@ def gemini(api_key: str, model: str, *, timeout: float = 12.0, client: httpx.Cli
 def llm_uit_omgeving(env: Mapping[str, str] = os.environ) -> Llm | None:
     """None als er geen sleutel is: de app draait dan op de terugval."""
     sleutel, model = env.get("GEMINI_API_KEY"), env.get("GEMINI_MODEL")
-    return gemini(sleutel, model) if sleutel and model else None
+    try:
+        wacht = float(env.get("GEMINI_TIMEOUT") or 30.0)
+    except ValueError:
+        wacht = 30.0
+    try:
+        denk = int(env.get("GEMINI_THINKING_BUDGET", "0"))
+    except ValueError:
+        denk = 0
+    return gemini(sleutel, model, timeout=wacht, denkbudget=None if denk < 0 else denk) if sleutel and model else None
 
 
 # ---------------------------------------------------------------- gegevens voor de prompt
 
-def _kandidaat(h: Heilige) -> dict:
+def _kandidaat(h: Heilige, kort: bool = False) -> dict:
+    """`kort` leaves out the life story and the hooks: enough to tell candidates apart, much less to read."""
     r = h.record
-    return {
+    uit = {
         "qid": h.qid,
         "naam": h.naam,
         "wat_voor_mens": r.get("wat_voor_mens", ""),
-        "levensverhaal": r.get("levensverhaal", ""),
         "assen": {a: s for a, s in h.assen.items() if s is not None},
         "interesses": list(h.interesses),
-        "haakjes": [x["kort"] for x in r.get("haakjes", [])][:4],
     }
+    if not kort:
+        uit["levensverhaal"] = r.get("levensverhaal", "")
+        uit["haakjes"] = [x["kort"] for x in r.get("haakjes", [])][:4]
+    return uit
 
 
 def _gegevens(p: Mapping[str, int], interesses: Sequence[str], open_antwoorden: Sequence[str],
-              kandidaten: Sequence[Heilige], **extra) -> str:
+              kandidaten: Sequence[Heilige], *, kort: bool = False, **extra) -> str:
     return json.dumps({
         "profiel_assen": dict(p),
         "gekozen_interesses": list(interesses),
         "tekst_van_de_jongere": list(open_antwoorden),
-        "kandidaten": [_kandidaat(h) for h in kandidaten],
+        "kandidaten": [_kandidaat(h, kort) for h in kandidaten],
         **extra,
     }, ensure_ascii=False)
 
@@ -231,6 +260,8 @@ def _probeer(llm: Llm | None, systeem: str, gegevens: str, valideer):
             return uit
         except LlmFout as e:   # the message names the failure, never the kid's text or the key
             log.warning("Gemini-poging %d van %d mislukt: %s", poging, POGINGEN, e)
+            if isinstance(e, LlmTimeout):
+                break
     log.warning("Gemini gaf geen bruikbaar antwoord: de vaste terugval wordt gebruikt")
     return None
 
@@ -238,7 +269,7 @@ def _probeer(llm: Llm | None, systeem: str, gegevens: str, valideer):
 def vervolgvragen(llm: Llm | None, p: Mapping[str, int], interesses: Sequence[str], open_antwoorden: Sequence[str],
                   kandidaten: Sequence[Heilige], vragen: Vragenbank, beantwoord: set[str]) -> tuple[list[Vervolgvraag], bool]:
     """(vragen, door_llm). Valt terug op de vragenbank als de LLM faalt."""
-    gegevens = _gegevens(p, interesses, open_antwoorden, kandidaten)
+    gegevens = _gegevens(p, interesses, open_antwoorden, kandidaten, kort=True)   # follow-up questions need to tell candidates apart, not their stories
     uit = _probeer(llm, PROMPT_VERVOLG, gegevens, lambda t: valideer_vervolgvragen(t, kandidaten))
     if uit is not None:
         return uit, True
