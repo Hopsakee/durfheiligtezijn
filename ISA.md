@@ -1,6 +1,6 @@
 ---
 phase: climbing
-progress: 26/28
+progress: 33/35
 principal_stated_goal: "I merged #6, please start phase 4."
 ---
 
@@ -16,7 +16,7 @@ Jelle answers twelve either-or questions as three different kinds of teenager, a
 
 ## Out of Scope
 
-- The game screens and voting (phase 5), deployment (phase 6); `/tv` comes with phase 5.
+- Deployment details outside this repo (the server repo holds the compose file, Caddy and Authelia).
 - Changing saint records; the simulation reports on them, Jelle edits them through git.
 
 ## Goal
@@ -47,7 +47,7 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - [ ] ISC-18: Every gender preference has at least 5 saints per interest. After the claude.ai supplement (8 new saints, 4 returned from the dropped list, 7 interests added, merged by `pipeline/merge_aanvulling.py`) only women with "Sport en buiten bewegen" fall short: 4 of 5.
 - [x] ISC-19: Both LLM calls validate their JSON against the candidate list (3 follow-up questions; exactly 3 distinct chosen saints, none rejected, none outside the candidates), retry once, then fall back to deterministic output (follow-up questions from the question bank, top-3 from the ranking with a standard explanation), so a failing API never stops the game. Tested with a fake client for valid, malformed, wrong-saint, duplicate, short and network-error answers.
 - [x] ISC-20: The prompt data holds only profile, interests, the kid's own text and the candidates' records, never a username, nickname or name; the kid's text sits in its own JSON field the prompt calls data, not instructions; the Gemini key travels in a header, never in the URL or an error message.
-- [x] ISC-21: Every route returns 401 without `Remote-User`; `/beheer` also requires group `admins` (compared exactly, not as a substring); the app reads no other identity header.
+- [x] ISC-21: Every route returns 401 without `Remote-User`; `/beheer` also requires group `durfte-leiding` or `admins` (compared exactly, not as a substring); the app reads no other identity header.
 - [x] ISC-22: A kid can close the app at any step and resume at that step with earlier answers intact.
 - [x] ISC-23: A saint confirmed by one player never appears in another player's top-3, enforced where the match is stored, not only in the ranking.
 - [x] ISC-24: The "Mijn heilige" page shows a player's own three saints with explanation and chosen saint, and nobody else's.
@@ -55,6 +55,13 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - [x] ISC-26: Leaders (group `durfte-leiding` or `admins`) can download everything the app stores as JSON and wipe the whole group behind a typed confirmation; after a wipe the kids' answers are in neither the database file nor its write-ahead log; a request started from another site or with a wrong word wipes nothing; kids get 403 on both routes.
 - [x] ISC-27: The Dockerfile installs production dependencies from `uv.lock`, runs as uid 10001, publishes no port, reads the Gemini key from an env file only, answers its health check, and refuses to build when the lock points at the box's offline `/opt/wheels`.
 - [ ] ISC-28: A kid logged in through Authelia reaches the quiz at `https://durfte.hopsakee.top`, gets 403 on `/beheer`, and a leader gets in. Deployed files are staged in the server repo PR; needs Jelle's host steps (below).
+- [x] ISC-29: The board holds 2 × N saints (the N chosen plus N random others from the rest), drawn once at the start and shuffled so the chosen ones are not first; starting again changes nothing; fewer than 3 finished players cannot start.
+- [x] ISC-30: Each round runs overleg 1, uitslag 1, vragen, overleg 2, uitslag 2, onthuld, advanced only by a leader; votes are accepted only in the two voting phases, only for saints on the board, only from players in the game who are not that round's subject and did not read the subject's explanation; voting again replaces the vote.
+- [x] ISC-31: Points are group points: more than half of the votes cast right after vote 1 gives 2, after vote 2 gives 1, otherwise 0 (exactly half does not count); the final screen shows the total of the 2 × N maximum.
+- [x] ISC-32: No screen shows who voted for what, no screen before the reveal shows which saint belongs to the current subject or which board saints were chosen, and the tv shows counts only after a vote is closed (during voting only how many have voted).
+- [x] ISC-33: The tv (`/beheer/tv`), the control page (`/beheer/spel`), the print version of the board (`/beheer/print`) and the explanation reader (`/beheer/speler/{id}`) are leader-only, as are all their POSTs; kids see only `/spel`.
+- [x] ISC-34: Group wipe and export cover the game tables; a leader can start the game over without losing the players' answers.
+- [x] ISC-35: Every page except the tv screen carries a menu (hamburger) with the pages the viewer may use, and `/menu` lists them with a line of explanation; leaders land on that page at `/`, kids land straight in their quiz; a kid's menu never contains a `/beheer` link, one visitor's menu never leaks into the next request, and looking around as a leader does not create a participant.
 
 ## Anti-claims
 
@@ -122,3 +129,7 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - [ ] [none] Host steps for the first deploy: DNS record at OVH, `GEMINI_API_KEY` and `GEMINI_MODEL` in the laptop `.env`, groups and accounts in `users_database.yml`, then a full `server-deploy.sh` (Authelia needs a restart for the new rules).
 - [ ] [none] No backup job covers `/db/spel.db`; leaders download `/beheer/export` before wiping. Every container on the `hup` network can reach the app and forge `Remote-User` (same as bg3 and jonkies-tody); a per-app network would close it.
 - [ ] [none] The September/June comparison screen is not built.
+- [ ] [none] The game screens (tv, phones, control) are tested through HTTP responses only; nobody has looked at them in a real browser, on a real tv or with htmx polling over a real connection.
+- [ ] [none] The tv shows the link to join as text; there is no QR code (no QR library in the offline wheel store).
+- [ ] [none] The game lives under `/beheer/...` (tv at `/beheer/tv`, not `/tv`) so the existing Authelia rule for `/beheer` already covers it.
+- [ ] [none] The printed fallback is a numbered copy of the board and a blank ballot line, not full voting slips per round.

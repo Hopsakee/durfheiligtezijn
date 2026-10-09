@@ -71,7 +71,8 @@ class AlsGebruiker:
 
 def maak_dev_app(db=None, llm=None):
     return AlsGebruiker(maak_app(db or spel.open_db(Path(os.environ.get("DURFHEILIG_DEV_DB", "data/spel-dev.db"))),
-                                 laad_heiligen(), laad_vragen(), llm))
+                                 laad_heiligen(), laad_vragen(), llm,
+                                 extra_menu=[("/dev", "Wissel van persoon (alleen lokaal)")]))
 
 
 def laad_env(pad: str | Path = ".env", env=os.environ) -> list[str]:
