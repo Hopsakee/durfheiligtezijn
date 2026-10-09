@@ -1,6 +1,6 @@
 ---
 phase: climbing
-progress: 32/34
+progress: 33/35
 principal_stated_goal: "I merged #6, please start phase 4."
 ---
 
@@ -61,6 +61,7 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - [x] ISC-32: No screen shows who voted for what, no screen before the reveal shows which saint belongs to the current subject or which board saints were chosen, and the tv shows counts only after a vote is closed (during voting only how many have voted).
 - [x] ISC-33: The tv (`/beheer/tv`), the control page (`/beheer/spel`), the print version of the board (`/beheer/print`) and the explanation reader (`/beheer/speler/{id}`) are leader-only, as are all their POSTs; kids see only `/spel`.
 - [x] ISC-34: Group wipe and export cover the game tables; a leader can start the game over without losing the players' answers.
+- [x] ISC-35: Every page except the tv screen carries a menu (hamburger) with the pages the viewer may use, and `/menu` lists them with a line of explanation; leaders land on that page at `/`, kids land straight in their quiz; a kid's menu never contains a `/beheer` link, one visitor's menu never leaks into the next request, and looking around as a leader does not create a participant.
 
 ## Anti-claims
 

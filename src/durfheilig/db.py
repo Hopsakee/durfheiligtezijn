@@ -192,6 +192,13 @@ def kies(db, speler_id: int, qid: str, klopt_want: str, niet_want: dict[str, str
         raise AlGekozen(qid) from e
 
 
+def profiel_van(db, gebruikersnaam: str) -> dict | None:
+    """Zonder iets aan te maken: de stap van deze account en of er al een match is. None als de account nog niet bestaat."""
+    rij = db.q("select i.stap, (select count(*) from match m where m.invulling_id = i.id) as match from speler s "
+               "join invulling i on i.speler_id = s.id where s.gebruikersnaam = ?", [gebruikersnaam])
+    return {"stap": rij[0]["stap"], "heeft_match": bool(rij[0]["match"])} if rij else None
+
+
 def overzicht(db) -> list[dict]:
     """Voor de begeleiders: wie is waar, en wat is gemarkeerd."""
     return [_uit(r) for r in db.q(

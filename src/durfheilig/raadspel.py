@@ -235,7 +235,7 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, leiding, wie, pagina, na
     def tv_pagina(req):
         if not leiding(req):
             return Response("Alleen voor begeleiders.", status_code=403)
-        return pagina("Raadspel", Div(tv_inhoud(req), hx_get="/beheer/tv/inhoud", hx_trigger="every 2s", hx_target="this", hx_swap="innerHTML", cls="tv"))
+        return pagina("Raadspel", Div(tv_inhoud(req), hx_get="/beheer/tv/inhoud", hx_trigger="every 2s", hx_target="this", hx_swap="innerHTML", cls="tv"), toon_menu=False)
 
     @route("/beheer/tv/inhoud")
     def tv_fragment(req):

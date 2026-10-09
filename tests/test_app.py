@@ -23,11 +23,11 @@ def kind(app, naam="kind1"):
 
 def speel(c, nick, voorkeur="maakt niet uit", interesses=None, kiezen=0, extra_ronde=False):
     """Play the quiz as a scripted kid. Returns the page after the last step."""
-    assert c.get("/").status_code == 200
+    assert c.get("/quiz").status_code == 200
     c.post("/welkom", data={"nickname": nick})
     c.post("/voorkeur", data={"voorkeur": voorkeur})
     for _ in range(12):
-        html = c.get("/").text
+        html = c.get("/quiz").text
         vid = re.search(r'name="vid" value="(\w+)"', html).group(1)
         c.post("/vraag", data={"vid": vid, "kant": "plus"})
     c.post("/interesses", data={"interesse": interesses or V.interesses[:2]})
@@ -74,7 +74,7 @@ def test_voortgang_blijft_bewaard_en_hervat_op_dezelfde_stap():
     c = kind(app)
     c.post("/welkom", data={"nickname": "Uil"})
     c.post("/voorkeur", data={"voorkeur": "man"})
-    html = c.get("/").text
+    html = c.get("/quiz").text
     vid = re.search(r'name="vid" value="(\w+)"', html).group(1)
     c.post("/vraag", data={"vid": vid, "kant": "min"})
     nieuw = kind(app)                       # same account, new browser
@@ -85,10 +85,10 @@ def test_stappen_overslaan_kan_niet():
     _, app = maak()
     c = kind(app)
     c.post("/voorkeur", data={"voorkeur": "man"})        # still on the welcome screen
-    assert "Welkom" in c.get("/").text
+    assert "Welkom" in c.get("/quiz").text
     c.post("/vervolg", data={})
-    assert "Welkom" in c.get("/").text
-    assert c.get("/mijn").url.path == "/"
+    assert "Welkom" in c.get("/quiz").text
+    assert c.get("/mijn").url.path == "/quiz"
 
 
 def test_interesses_moeten_twee_of_drie_zijn():
@@ -96,7 +96,7 @@ def test_interesses_moeten_twee_of_drie_zijn():
     c = kind(app)
     c.post("/welkom", data={"nickname": "Uil"}); c.post("/voorkeur", data={"voorkeur": "man"})
     for _ in range(12):
-        vid = re.search(r'name="vid" value="(\w+)"', c.get("/").text).group(1)
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
         c.post("/vraag", data={"vid": vid, "kant": "min"})
     for aantal in (0, 1, 4):
         assert "Kies 2 of 3" in c.post("/interesses", data={"interesse": V.interesses[:aantal]}).text
@@ -125,7 +125,7 @@ def test_database_weigert_dezelfde_heilige_twee_keer_en_app_biedt_dan_een_nieuwe
     def tot_keuze(c, nick):
         c.post("/welkom", data={"nickname": nick}); c.post("/voorkeur", data={"voorkeur": "man"})
         for _ in range(12):
-            vid = re.search(r'name="vid" value="(\w+)"', c.get("/").text).group(1)
+            vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
             c.post("/vraag", data={"vid": vid, "kant": "plus"})
         c.post("/interesses", data={"interesse": V.interesses[:2]}); r = c.post("/open", data={})
         ids = list(dict.fromkeys(re.findall(r'name="(v\d)"', r.text)))
@@ -186,7 +186,7 @@ def test_met_llm_gaat_markering_naar_de_begeleider_en_nooit_naar_de_jongere():
     db, app = maak(llm)
     c = kind(app)
     r, gekozen, _ = speel(c, "Vos")
-    assert "zorgelijke zin" not in c.get("/").text and "zorgelijke zin" not in c.get("/mijn").text
+    assert "zorgelijke zin" not in c.get("/quiz").text and "zorgelijke zin" not in c.get("/mijn").text
     assert "LLM-uitleg" in c.get("/mijn").text
     assert "zorgelijke zin" in kind(app, "x").get("/beheer", headers={"remote-groups": "admins"}).text
 
@@ -194,7 +194,7 @@ def test_met_llm_gaat_markering_naar_de_begeleider_en_nooit_naar_de_jongere():
 def naar_keuze(c, nick):
     c.post("/welkom", data={"nickname": nick}); c.post("/voorkeur", data={"voorkeur": "man"})
     for _ in range(12):
-        vid = re.search(r'name="vid" value="(\w+)"', c.get("/").text).group(1)
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
         c.post("/vraag", data={"vid": vid, "kant": "plus"})
     c.post("/interesses", data={"interesse": V.interesses[:2]})
     r = c.post("/open", data={"a1": "x", "a2": "y"})
@@ -215,7 +215,7 @@ def test_vreemde_vraag_of_kant_wordt_genegeerd_en_blokkeert_niets():
     c.post("/vraag", data={"vid": vreemd, "kant": "plus"})
     c.post("/vraag", data={"vid": ids[0], "kant": "stijgers"})
     assert spel.invulling(db, spel.speler_voor(db, "kind1")["id"])["antwoorden"] == {}
-    assert "Vraag 1 van 12" in c.get("/").text
+    assert "Vraag 1 van 12" in c.get("/quiz").text
 
 
 def test_vervolgantwoord_met_vreemde_waarde_telt_niet_en_het_spel_loopt_door():
@@ -225,7 +225,7 @@ def test_vervolgantwoord_met_vreemde_waarde_telt_niet_en_het_spel_loopt_door():
         pass
     c.post("/welkom", data={"nickname": "Uil"}); c.post("/voorkeur", data={"voorkeur": "man"})
     for _ in range(12):
-        vid = re.search(r'name="vid" value="(\w+)"', c.get("/").text).group(1)
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
         c.post("/vraag", data={"vid": vid, "kant": "plus"})
     c.post("/interesses", data={"interesse": V.interesses[:2]})
     r = c.post("/open", data={})
@@ -255,7 +255,7 @@ def test_geen_past_mag_maar_een_keer_ook_met_een_directe_post():
     naar_keuze(c, "Uil")
     c.post("/geen-past")
     aantal = len(gesteld)
-    ids = list(dict.fromkeys(re.findall(r'name="(v\d)"', c.get("/").text)))
+    ids = list(dict.fromkeys(re.findall(r'name="(v\d)"', c.get("/quiz").text)))
     c.post("/vervolg", data={i: "plus" for i in ids})
     na_ronde_twee = len(gesteld)
     c.post("/geen-past"); c.post("/geen-past")
@@ -290,7 +290,7 @@ def test_te_lange_tekst_wordt_afgekapt():
     c2 = kind(app, "y")
     c2.post("/welkom", data={"nickname": "Lang"}); c2.post("/voorkeur", data={"voorkeur": "man"})
     for _ in range(12):
-        vid = re.search(r'name="vid" value="(\w+)"', c2.get("/").text).group(1)
+        vid = re.search(r'name="vid" value="(\w+)"', c2.get("/quiz").text).group(1)
         c2.post("/vraag", data={"vid": vid, "kant": "min"})
     c2.post("/interesses", data={"interesse": V.interesses[:2]})
     c2.post("/open", data={"a1": "a" * 5000, "a2": "b" * 5000})
@@ -412,13 +412,13 @@ def test_meer_info_toont_alleen_wikipedia_links_met_veilige_attributen():
 def test_trage_stappen_tonen_een_laadscherm_en_snelle_niet():
     _, app = maak(None)
     c = kind(app)
-    assert 'id="laden"' in c.get("/").text and 'data-laad="' not in c.get("/").text
+    assert 'id="laden"' in c.get("/quiz").text and 'data-laad="' not in c.get("/quiz").text
     c.post("/welkom", data={"nickname": "Uil"}); c.post("/voorkeur", data={"voorkeur": "man"})
     for _ in range(12):
-        vid = re.search(r'name="vid" value="(\w+)"', c.get("/").text).group(1)
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
         c.post("/vraag", data={"vid": vid, "kant": "min"})
     c.post("/interesses", data={"interesse": V.interesses[:2]})
-    assert 'data-laad="' in c.get("/").text                                    # the open-questions step calls Gemini
+    assert 'data-laad="' in c.get("/quiz").text                                    # the open-questions step calls Gemini
     r = c.post("/open", data={})
     assert 'data-laad="' in r.text
     ids = list(dict.fromkeys(re.findall(r'name="(v\d)"', r.text)))
@@ -475,3 +475,75 @@ def test_het_laadscherm_sluit_zichzelf_en_met_een_tik():
     _, app = maak()
     html = kind(app).get("/").text
     assert "setTimeout" in html and 'onclick="this.hidden=true"' in html
+
+
+def menu_hrefs(html):
+    blok = re.search(r'<details class="menu geen-print">(.*?)</details>', html, re.S)
+    return re.findall(r'href="([^"]+)"', blok.group(1)) if blok else None
+
+
+def test_kind_landt_in_de_quiz_en_vindt_alles_via_het_menu_en_de_startpagina():
+    db, app = maak(None)
+    c = kind(app)
+    assert "Welkom" in c.get("/").text                                   # the group-app link goes straight to the quiz
+    assert menu_hrefs(c.get("/").text) == ["/menu", "/quiz", "/spel"]    # no 'Mijn heilige' before a choice was made
+    start = c.get("/menu").text
+    assert 'href="/quiz"' in start and 'href="/spel"' in start and "/beheer" not in start and "Je quiz is nog bezig" in start
+    speel(c, "Vos")
+    assert menu_hrefs(c.get("/").text) == ["/menu", "/quiz", "/mijn", "/spel"]
+    assert 'href="/mijn"' in c.get("/menu").text and "Je quiz is af" in c.get("/menu").text
+
+
+def test_leiding_landt_op_de_startpagina_met_alles_erin_en_kan_de_quiz_nog_spelen():
+    db, app = maak(None)
+    c = kind(app, "l")
+    c.headers.update({"remote-groups": "durfte-leiding"})
+    start = c.get("/").text
+    for pad in ("/quiz", "/spel", "/beheer", "/beheer/spel", "/beheer/tv", "/beheer/print", "/beheer/export"):
+        assert f'href="{pad}"' in start, pad
+    assert "Voor begeleiders" in start and "Welkom" not in start
+    assert "Welkom" in c.get("/quiz").text
+    speel(c, "Lead")                                                       # leaders keep their quiz flow through /quiz
+    assert "Houd je heilige geheim" in c.get("/quiz").text
+
+
+def test_het_menu_staat_op_elke_pagina_behalve_de_tv_en_toont_een_kind_nooit_beheerlinks():
+    db, app = maak(None)
+    k = kind(app, "k")
+    _, gekozen, _ = speel(k, "Vos")
+    for pad in ("/", "/quiz", "/menu", "/mijn", f"/heilige/{gekozen}", "/spel"):
+        links = menu_hrefs(k.get(pad).text)
+        assert links and "/menu" in links, pad
+        assert not any(x.startswith("/beheer") for x in links), pad
+    l = kind(app, "boss")
+    l.headers.update({"remote-groups": "durfte-leiding"})
+    for pad in ("/", "/menu", "/beheer", "/beheer/spel", "/beheer/print", "/spel"):
+        links = menu_hrefs(l.get(pad).text)
+        assert links and "/beheer/tv" in links and "/beheer/spel" in links, pad
+    assert menu_hrefs(l.get("/beheer/tv").text) is None                    # the tv screen is clean
+
+
+def test_het_menu_van_de_ene_bezoeker_lekt_niet_naar_de_volgende():
+    db, app = maak(None)
+    l = kind(app, "boss"); l.headers.update({"remote-groups": "durfte-leiding"})
+    k = kind(app, "kid")
+    for _ in range(3):
+        assert "/beheer/tv" in menu_hrefs(l.get("/menu").text)
+        assert not any(x.startswith("/beheer") for x in menu_hrefs(k.get("/menu").text))
+
+
+def test_een_leider_die_alleen_rondkijkt_komt_niet_in_de_lijst_met_deelnemers():
+    db, app = maak(None)
+    l = kind(app, "kijker"); l.headers.update({"remote-groups": "durfte-leiding"})
+    for pad in ("/", "/menu", "/beheer/tv", "/beheer/spel", "/beheer/print"):
+        l.get(pad)
+    assert db.q("select * from speler") == []
+
+
+def test_dev_link_in_het_menu_komt_alleen_uit_de_dev_laag():
+    from durfheilig.dev import maak_dev_app
+    dev = TestClient(maak_dev_app(spel.open_db(), None), follow_redirects=True)
+    dev.get("/dev/als/kind1")
+    assert "/dev" in menu_hrefs(dev.get("/menu").text)
+    _, app = maak()
+    assert "/dev" not in menu_hrefs(kind(app).get("/menu").text)
