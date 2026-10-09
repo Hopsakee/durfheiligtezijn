@@ -42,8 +42,13 @@ class LlmTimeout(LlmFout):
     """Gemini did not answer in time. Asking again would wait just as long, so the caller does not retry."""
 
 
-def gemini(api_key: str, model: str, *, timeout: float = 30.0, client: httpx.Client | None = None) -> Llm:
-    """Gemini via de REST-API. De sleutel gaat in een header, nooit in de URL. Elke aanroep logt hoe lang hij duurde."""
+def gemini(api_key: str, model: str, *, timeout: float = 30.0, denkbudget: int | None = 0, client: httpx.Client | None = None) -> Llm:
+    """Gemini via de REST-API. De sleutel gaat in een header, nooit in de URL. Elke aanroep logt hoe lang hij duurde.
+
+    `denkbudget` is het aantal tokens dat het model mag "denken" voor het antwoordt; 0 zet het uit en maakt het snel (gemeten op de server: een
+    kleine vraag 6 in plaats van 12 tot 18 seconden). None laat het aan het model. Niet elk model accepteert 0: dan geeft Gemini een fout die in de log staat."""
+    generatie = {"responseMimeType": "application/json", "temperature": 0.7,
+                 **({} if denkbudget is None else {"thinkingConfig": {"thinkingBudget": denkbudget}})}
     http = client or httpx.Client(timeout=httpx.Timeout(timeout, connect=5.0))
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
@@ -56,7 +61,7 @@ def gemini(api_key: str, model: str, *, timeout: float = 30.0, client: httpx.Cli
                 json={
                     "systemInstruction": {"parts": [{"text": systeem}]},
                     "contents": [{"role": "user", "parts": [{"text": gegevens}]}],
-                    "generationConfig": {"responseMimeType": "application/json", "temperature": 0.7},
+                    "generationConfig": generatie,
                 },
             )
             r.raise_for_status()
@@ -82,31 +87,38 @@ def llm_uit_omgeving(env: Mapping[str, str] = os.environ) -> Llm | None:
         wacht = float(env.get("GEMINI_TIMEOUT") or 30.0)
     except ValueError:
         wacht = 30.0
-    return gemini(sleutel, model, timeout=wacht) if sleutel and model else None
+    try:
+        denk = int(env.get("GEMINI_THINKING_BUDGET", "0"))
+    except ValueError:
+        denk = 0
+    return gemini(sleutel, model, timeout=wacht, denkbudget=None if denk < 0 else denk) if sleutel and model else None
 
 
 # ---------------------------------------------------------------- gegevens voor de prompt
 
-def _kandidaat(h: Heilige) -> dict:
+def _kandidaat(h: Heilige, kort: bool = False) -> dict:
+    """`kort` leaves out the life story and the hooks: enough to tell candidates apart, much less to read."""
     r = h.record
-    return {
+    uit = {
         "qid": h.qid,
         "naam": h.naam,
         "wat_voor_mens": r.get("wat_voor_mens", ""),
-        "levensverhaal": r.get("levensverhaal", ""),
         "assen": {a: s for a, s in h.assen.items() if s is not None},
         "interesses": list(h.interesses),
-        "haakjes": [x["kort"] for x in r.get("haakjes", [])][:4],
     }
+    if not kort:
+        uit["levensverhaal"] = r.get("levensverhaal", "")
+        uit["haakjes"] = [x["kort"] for x in r.get("haakjes", [])][:4]
+    return uit
 
 
 def _gegevens(p: Mapping[str, int], interesses: Sequence[str], open_antwoorden: Sequence[str],
-              kandidaten: Sequence[Heilige], **extra) -> str:
+              kandidaten: Sequence[Heilige], *, kort: bool = False, **extra) -> str:
     return json.dumps({
         "profiel_assen": dict(p),
         "gekozen_interesses": list(interesses),
         "tekst_van_de_jongere": list(open_antwoorden),
-        "kandidaten": [_kandidaat(h) for h in kandidaten],
+        "kandidaten": [_kandidaat(h, kort) for h in kandidaten],
         **extra,
     }, ensure_ascii=False)
 
@@ -257,7 +269,7 @@ def _probeer(llm: Llm | None, systeem: str, gegevens: str, valideer):
 def vervolgvragen(llm: Llm | None, p: Mapping[str, int], interesses: Sequence[str], open_antwoorden: Sequence[str],
                   kandidaten: Sequence[Heilige], vragen: Vragenbank, beantwoord: set[str]) -> tuple[list[Vervolgvraag], bool]:
     """(vragen, door_llm). Valt terug op de vragenbank als de LLM faalt."""
-    gegevens = _gegevens(p, interesses, open_antwoorden, kandidaten)
+    gegevens = _gegevens(p, interesses, open_antwoorden, kandidaten, kort=True)   # follow-up questions need to tell candidates apart, not their stories
     uit = _probeer(llm, PROMPT_VERVOLG, gegevens, lambda t: valideer_vervolgvragen(t, kandidaten))
     if uit is not None:
         return uit, True
