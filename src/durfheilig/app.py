@@ -17,6 +17,7 @@ from fasthtml.common import (A, Button, Details, Div, FastHTML, FileResponse, Fo
                              Response, Small, Span, Script, Style, Summary, Table, Td, Th, Titled, Tr, Textarea)
 
 from . import db as spel
+from . import raadspel
 from .data import DATA_DIR, Heilige, Vragenbank, laad_heiligen, laad_vragen
 from .llm import Llm, Uitslag, finale, llm_uit_omgeving, vervolgvragen, Vervolgvraag
 from .scoring import VOORKEUR_GESLACHT, kies_vragen, profiel, rangschik
@@ -26,7 +27,7 @@ MAX_NICKNAME = 20
 LEIDING_GROEPEN = {"admins", "durfte-leiding"}
 STAPPEN = ("welkom", "voorkeur", "vragen", "interesses", "open", "vervolg", "keuze", "klaar")
 
-CSS = """
+CSS = raadspel.RAAD_CSS + """
 :root{--bg:#fffaf0;--ink:#2a2a2a;--accent:#b4452c;--kaart:#fff;--rand:#e5d9c3}
 *{box-sizing:border-box}body{margin:0;font:18px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
 main{max-width:34rem;margin:0 auto;padding:1rem 16px 3rem}h1{font-size:1.5rem}h2{font-size:1.2rem;margin:.2rem 0}
@@ -248,7 +249,8 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
 
     def scherm_klaar(sp, inv):
         return pagina("Bedankt!", H1("Houd je heilige geheim tot de middag!"),
-                      P("Zonder geheimhouding valt het raadspel om."), A("Lees je heilige nog eens terug", href="/mijn", cls="knop"))
+                      P("Zonder geheimhouding valt het raadspel om."), A("Lees je heilige nog eens terug", href="/mijn", cls="knop"),
+                      A("Naar het raadspel", href="/spel", cls="knop"))
 
     SCHERMEN = {"welkom": scherm_welkom, "voorkeur": scherm_voorkeur, "vragen": scherm_vraag, "interesses": scherm_interesses,
                 "open": scherm_open, "vervolg": scherm_vervolg, "keuze": scherm_keuze, "klaar": scherm_klaar}
@@ -275,6 +277,8 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
     def post_welkom(req, nickname: str = ""):
         sp, inv = wie(req)
         naam = nickname.strip()[:MAX_NICKNAME]
+        if spel.spel_status(db) and sp["nickname"]:   # the nickname is on the tv: no renaming once the game runs
+            return naar()
         if len(naam) < 2:
             return scherm_welkom(sp, inv, "Kies een bijnaam van minstens 2 letters.")
         if db.q("select 1 from speler where lower(nickname) = lower(?) and id != ?", [naam, sp["id"]]):
@@ -394,9 +398,10 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         rijen = spel.overzicht(db)
         return pagina("Overzicht", P(f"{sum(r['stap'] == 'klaar' for r in rijen)} van {len(rijen)} klaar."),
             Table(Tr(Th("Bijnaam"), Th("Account"), Th("Stap"), Th("Uitleg door"), Th("Markering")),
-                  *[Tr(Td(r["nickname"] or "–"), Td(r["gebruikersnaam"]), Td(r["stap"]),
+                  *[Tr(Td(A(r["nickname"], href=f"/beheer/speler/{r['id']}") if r["nickname"] else "–"), Td(r["gebruikersnaam"]), Td(r["stap"]),
                        Td("–" if r["via_llm"] is None else "Gemini" if r["via_llm"] else "vaste tekst"), Td(r["markering"] or ""))
                     for r in rijen]),
+            A("Het raadspel bedienen", href="/beheer/spel", cls="knop"),
             A("Alles downloaden (JSON)", href="/beheer/export", cls="knop"),
             Form(Label("Typ VERWIJDER om alle spelers en antwoorden te wissen", Input(type="text", name="bevestig")),
                  Button("Groep verwijderen", type="submit"), method="post", action="/beheer/verwijder"))
@@ -420,6 +425,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         spel.verwijder_alles(db)
         return naar("/beheer")
 
+    raadspel.registreer(app, db, per_qid, leiding=leiding, wie=wie, pagina=pagina, naar=naar, afbeelding_url=afbeelding_url, rng=rng)
     return app
 
 

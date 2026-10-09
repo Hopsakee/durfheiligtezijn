@@ -47,6 +47,36 @@ create table if not exists match (
     niet_want text not null default '{}',
     afgewezen text not null default '{}'
 );
+create table if not exists spel (
+    id integer primary key check (id = 1),
+    status text not null,
+    huidige_ronde integer
+);
+create table if not exists bord (
+    qid text primary key,
+    gekozen integer not null,
+    volgorde integer not null
+);
+create table if not exists spelronde (
+    id integer primary key,
+    speler_id integer not null unique references speler(id),
+    volgorde integer not null,
+    fase text not null default 'overleg1',
+    punten integer
+);
+create table if not exists stem (
+    id integer primary key,
+    spelronde_id integer not null references spelronde(id),
+    speler_id integer not null references speler(id),
+    qid text not null,
+    stemronde integer not null,
+    unique (spelronde_id, speler_id, stemronde)
+);
+create table if not exists gelezen (
+    speler_id integer not null references speler(id),
+    lezer text not null,
+    primary key (speler_id, lezer)
+);
 """
 
 JSON_VELDEN = {"vraag_ids", "antwoorden", "interesses", "open_antwoorden", "kandidaten", "vervolg",
@@ -176,12 +206,89 @@ def exporteer(db) -> dict:
         "spelers": db.q("select * from speler order by id"),
         "invullingen": [_uit(r) for r in db.q("select * from invulling order by id")],
         "matches": [_uit(r) for r in db.q("select * from match order by id")],
+        "spel": db.q("select * from spel"),
+        "bord": db.q("select * from bord order by volgorde"),
+        "rondes": db.q("select * from spelronde order by volgorde"),
+        # who voted what stays in the database (a vote is replaced per voter) but never leaves it, not even in the export
+        "stemmen": db.q("select spelronde_id, qid, stemronde from stem order by id"),
+        "gelezen": db.q("select * from gelezen"),
     }
 
 
 def verwijder_alles(db) -> None:
-    for tabel in ("match", "invulling", "speler"):
+    for tabel in ("stem", "spelronde", "bord", "spel", "gelezen", "match", "invulling", "speler"):
         db.execute(f"delete from {tabel}")
     # delete alone leaves the answers in free pages and in the write-ahead log: rewrite the file, then empty the log.
     db.execute("vacuum")
     db.execute("pragma wal_checkpoint(truncate)")
+
+
+# ---------------------------------------------------------------- het raadspel
+
+def spelers_klaar(db) -> list[dict]:
+    """Wie een heilige heeft gekozen en dus meedoet: id, bijnaam, account en gekozen qid."""
+    return db.q(
+        "select s.id, s.nickname, s.gebruikersnaam, m.gekozen from speler s "
+        "join invulling i on i.speler_id = s.id join match m on m.invulling_id = i.id "
+        "where i.stap = 'klaar' and m.gekozen is not null order by s.id")
+
+
+def spel_status(db) -> dict | None:
+    rij = db.q("select * from spel")
+    return rij[0] if rij else None
+
+
+def start_spel(db, bord: list[tuple[str, bool]], speler_ids: list[int]) -> None:
+    """Leg het bord en de volgorde van de rondes vast. Eén keer; daarna ligt alles vast."""
+    with db.conn:   # one transaction: a polling screen never sees half a game
+        db.execute("insert into spel(id, status, huidige_ronde) values (1, 'bord', null)")
+        for volgorde, (qid, gekozen) in enumerate(bord):
+            db.execute("insert into bord(qid, gekozen, volgorde) values (?, ?, ?)", [qid, int(gekozen), volgorde])
+        for volgorde, sid in enumerate(speler_ids):
+            db.execute("insert into spelronde(speler_id, volgorde) values (?, ?)", [sid, volgorde])
+
+
+def reset_spel(db) -> None:
+    with db.conn:
+        for tabel in ("stem", "spelronde", "bord", "spel"):
+            db.execute(f"delete from {tabel}")
+
+
+def bord_rijen(db) -> list[dict]:
+    return db.q("select * from bord order by volgorde")
+
+
+def rondes(db) -> list[dict]:
+    return db.q("select r.*, s.nickname, s.gebruikersnaam from spelronde r join speler s on s.id = r.speler_id order by r.volgorde")
+
+
+def zet_spelstatus(db, status: str, huidige_ronde: int | None = None) -> None:
+    db.execute("update spel set status = ?, huidige_ronde = ? where id = 1", [status, huidige_ronde])
+
+
+def zet_fase(db, ronde_id: int, fase: str) -> None:
+    db.execute("update spelronde set fase = ? where id = ?", [fase, ronde_id])
+
+
+def zet_punten(db, ronde_id: int, punten: int) -> None:
+    db.execute("update spelronde set punten = ? where id = ?", [punten, ronde_id])
+
+
+def stem_uit(db, ronde_id: int, speler_id: int, qid: str, stemronde: int) -> None:
+    """Een stem per speler per stemronde; opnieuw stemmen vervangt de vorige."""
+    db.execute(
+        "insert into stem(spelronde_id, speler_id, qid, stemronde) values (?, ?, ?, ?) "
+        "on conflict(spelronde_id, speler_id, stemronde) do update set qid = excluded.qid",
+        [ronde_id, speler_id, qid, stemronde])
+
+
+def stemmen(db, ronde_id: int, stemronde: int) -> list[dict]:
+    return db.q("select speler_id, qid from stem where spelronde_id = ? and stemronde = ?", [ronde_id, stemronde])
+
+
+def markeer_gelezen(db, speler_id: int, lezer: str) -> None:
+    db.execute("insert or ignore into gelezen(speler_id, lezer) values (?, ?)", [speler_id, lezer])
+
+
+def lezers(db, speler_id: int) -> set[str]:
+    return {r["lezer"] for r in db.q("select lezer from gelezen where speler_id = ?", [speler_id])}
