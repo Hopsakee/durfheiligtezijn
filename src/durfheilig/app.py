@@ -13,6 +13,7 @@ import os
 import random
 from urllib.parse import urlparse
 
+from starlette.concurrency import run_in_threadpool
 from fasthtml.common import (A, Beforeware, Button, Details, Div, FastHTML, FileResponse, Form, H1, H2, Img, Input, Label, P, Response,
                              Small, Span, Style, Summary, Table, Td, Th, Tr, Textarea)
 
@@ -78,8 +79,10 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
             return Response("Niet ingelogd.", status_code=401)
         req.scope["gebruiker"] = gebruiker
         pad = req.url.path
-        # The two rules that must never be forgotten on a new route live here, once: /beheer is for leaders only, and a request that changes
-        # something must not be started by another site (a browser marks those; one that sends no marker is let through).
+        # The two rules that must never be forgotten on a new route live here: /beheer is for leaders only, and a request that changes
+        # something must not be started by another site (a browser marks those; one that sends no marker is let through; Authelia's
+        # SameSite=Lax session cookie, its default, covers the browsers that send none). A GET that changes something must check
+        # `sec-fetch-site` itself.
         if (pad == "/beheer" or pad.startswith("/beheer/")) and not is_leiding(req.headers):
             return Response("Alleen voor begeleiders.", status_code=403)
         if req.method not in ("GET", "HEAD") and req.headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none"):
@@ -307,7 +310,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         form = await req.form()
         antw = {v["id"]: form.get(v["id"]) for v in inv["vervolg"] if form.get(v["id"]) in ("min", "plus")}
         spel.bewaar(db, sp["id"], vervolg_antwoorden=antw)
-        maak_match(sp, spel.invulling(db, sp["id"]))
+        await run_in_threadpool(maak_match, sp, spel.invulling(db, sp["id"]))   # waits for Gemini: not on the event loop
         return naar()
 
     @route("/keuze", methods=["post"])
@@ -326,7 +329,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
             spel.kies(db, sp["id"], gekozen, str(form.get("want") or "").strip()[:MAX_OPEN], niet)
         except spel.AlGekozen:
             # A parallel player confirmed this saint first: quietly offer a fresh top-3.
-            maak_match(sp, inv)
+            await run_in_threadpool(maak_match, sp, inv)
             return naar()
         spel.bewaar(db, sp["id"], stap="klaar")
         return naar()
@@ -341,7 +344,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         afgewezen = {**m["afgewezen"], **{h["qid"]: str(form.get(f"niet_{h['qid']}") or "").strip()[:MAX_OPEN] for h in m["top3"]}}
         spel.bewaar_match(db, sp["id"], m["top3"], bool(m["via_llm"]), None, afgewezen)
         spel.bewaar(db, sp["id"], extra_ronde=1)
-        maak_vervolg(sp, spel.invulling(db, sp["id"]), afgewezen)
+        await run_in_threadpool(maak_vervolg, sp, spel.invulling(db, sp["id"]), afgewezen)
         return naar()
 
     @route("/mijn")

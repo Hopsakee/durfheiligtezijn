@@ -7,6 +7,7 @@ Een heilige kan door maar één speler gekozen worden: dat dwingt de database af
 
 import json
 import os
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -103,6 +104,15 @@ def open_db(pad: str | Path = ":memory:"):
     if pad != ":memory:":
         Path(pad).parent.mkdir(parents=True, exist_ok=True)
     db = database(str(pad))
+    # One SQLite connection serves every request thread, and apsw refuses overlapping use ("Connection is busy in another thread").
+    # Phones and the tv poll every 2 seconds, so overlap is certain: every query and write waits its turn on one lock.
+    db.lock = threading.RLock()
+    for naam in ("q", "execute"):
+        origineel = getattr(db, naam)
+        def beurt(*a, _f=origineel, **k):
+            with db.lock:
+                return _f(*a, **k)
+        setattr(db, naam, beurt)
     for stuk in SCHEMA.split(";"):
         if stuk.strip():
             db.execute(stuk)
@@ -252,7 +262,7 @@ def spel_status(db) -> dict | None:
 
 def start_spel(db, bord: list[tuple[str, bool]], speler_ids: list[int]) -> None:
     """Leg het bord en de volgorde van de rondes vast. Eén keer; daarna ligt alles vast."""
-    with db.conn:   # one transaction: a polling screen never sees half a game
+    with db.lock, db.conn:   # one transaction: a polling screen never sees half a game
         db.execute("insert into spel(id, status, huidige_ronde) values (1, 'bord', null)")
         for volgorde, (qid, gekozen) in enumerate(bord):
             db.execute("insert into bord(qid, gekozen, volgorde) values (?, ?, ?)", [qid, int(gekozen), volgorde])
@@ -261,7 +271,7 @@ def start_spel(db, bord: list[tuple[str, bool]], speler_ids: list[int]) -> None:
 
 
 def reset_spel(db) -> None:
-    with db.conn:
+    with db.lock, db.conn:
         for tabel in ("stem", "spelronde", "bord", "spel"):
             db.execute(f"delete from {tabel}")
 

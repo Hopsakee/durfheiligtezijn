@@ -429,3 +429,71 @@ def test_een_heilige_die_uit_de_data_verdwijnt_breekt_geen_scherm():
     db.execute("update bord set qid = 'Q-bestaat-niet' where volgorde = 0")
     assert boss.get("/beheer/tv/inhoud", headers={"hx-request": "true"}).status_code == 200
     assert clients["a"].get("/spel/inhoud", headers={"hx-request": "true"}).status_code == 200
+
+
+def test_veel_gelijktijdige_polls_geven_nooit_een_serverfout():
+    """Phones and the tv all poll every 2 seconds; the one SQLite connection must survive that."""
+    from concurrent.futures import ThreadPoolExecutor
+    from starlette.testclient import TestClient
+    db, app, clients = spel_met(["a", "b", "c"])
+    leider(app).post("/beheer/spel/start", data={"eerste": ""})
+    kop = {"hx-request": "true"}
+    fouten = []
+
+    def poll(i):
+        with TestClient(app, headers={"remote-user": f"acct-{'abc'[i % 3]}", **({"remote-groups": "durfte-leiding"} if i % 2 else {})}) as c:
+            for _ in range(40):
+                for pad in ("/spel/inhoud", "/beheer/tv/inhoud" if i % 2 else "/spel/inhoud"):
+                    r = c.get(pad, headers=kop)
+                    if r.status_code != 200:
+                        fouten.append((pad, r.status_code))
+    with ThreadPoolExecutor(16) as pool:
+        list(pool.map(poll, range(16)))
+    assert fouten == []
+
+
+def test_een_trage_gemini_aanroep_houdt_de_andere_telefoons_niet_vast():
+    """The slow call runs off the event loop: while it waits, another request is answered at once.
+    One client for both, so both share one event loop, as they do under uvicorn."""
+    import threading
+    import time
+    from starlette.testclient import TestClient
+    from durfheilig.llm import LlmFout
+
+    def traag(systeem, gegevens):
+        if "Bedenk" not in systeem:
+            time.sleep(0.6)                                      # the final call is slow
+        raise LlmFout("traag")
+    db = spel.open_db()
+    app = maak_app(db, H, V, traag, random.Random(7))
+    with TestClient(app) as c:
+        trage = {"remote-user": "acct-slow"}
+        speel_tot_vervolg(c, trage)
+        gedaan = []
+        t = threading.Thread(target=lambda: gedaan.append(c.post("/vervolg", data={"v1": "min", "v2": "min", "v3": "min"}, headers=trage)))
+        t.start()
+        time.sleep(0.15)
+        begin = time.monotonic()
+        c.get("/health", headers={"remote-user": "acct-fast"})
+        duur = time.monotonic() - begin
+        t.join()
+    assert duur < 0.3 and gedaan
+
+
+def speel_tot_vervolg(c, kop):
+    c.post("/welkom", data={"nickname": "Trage"}, headers=kop); c.post("/voorkeur", data={"voorkeur": "man"}, headers=kop)
+    for _ in range(12):
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz", headers=kop).text).group(1)
+        c.post("/vraag", data={"vid": vid, "kant": "min"}, headers=kop)
+    c.post("/interesses", data={"interesse": V.interesses[:2]}, headers=kop)
+    c.post("/open", data={}, headers=kop)
+
+
+def test_een_uitleg_openen_via_een_link_van_een_andere_site_telt_niet_als_lezen():
+    db, app, clients = spel_met(["a", "b", "c"])
+    sid = spel.spelers_klaar(db)[0]["id"]
+    boss = leider(app)
+    r = boss.get(f"/beheer/speler/{sid}", headers={"sec-fetch-site": "cross-site"}, follow_redirects=False)
+    assert spel.lezers(db, sid) == set() and r.status_code == 303 and r.headers["location"] == "/beheer"     # sent back, nothing shown
+    boss.get(f"/beheer/speler/{sid}", headers={"sec-fetch-site": "same-origin"})
+    assert spel.lezers(db, sid) == {"boss"}

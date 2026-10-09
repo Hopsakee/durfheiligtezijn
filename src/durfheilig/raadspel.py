@@ -335,6 +335,8 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
 
     @route("/beheer/speler/{sid}")
     def speler_uitleg(req, sid: int):
+        if req.headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none"):   # opening this marks a reader: a GET with an effect
+            return naar("/beheer")
         rij = spel.speler_door_id(db, sid) if 0 < sid < 2**31 else None
         m = spel.match_van(db, sid) if rij else None
         if not rij or not m:
