@@ -240,6 +240,11 @@ def spelers_klaar(db) -> list[dict]:
         "where i.stap = 'klaar' and m.gekozen is not null order by s.id")
 
 
+def speler_door_id(db, speler_id: int) -> dict | None:
+    rij = db.q("select id, nickname from speler where id = ?", [speler_id])
+    return rij[0] if rij else None
+
+
 def spel_status(db) -> dict | None:
     rij = db.q("select * from spel")
     return rij[0] if rij else None
@@ -273,12 +278,9 @@ def zet_spelstatus(db, status: str, huidige_ronde: int | None = None) -> None:
     db.execute("update spel set status = ?, huidige_ronde = ? where id = 1", [status, huidige_ronde])
 
 
-def zet_fase(db, ronde_id: int, fase: str) -> None:
-    db.execute("update spelronde set fase = ? where id = ?", [fase, ronde_id])
-
-
-def zet_punten(db, ronde_id: int, punten: int) -> None:
-    db.execute("update spelronde set punten = ? where id = ?", [punten, ronde_id])
+def zet_fase(db, ronde_id: int, fase: str, punten: int | None = None) -> None:
+    """Move a round to its next phase; the points (at the reveal) go in the same write, so no screen sees one without the other."""
+    db.execute("update spelronde set fase = ?, punten = coalesce(?, punten) where id = ?", [fase, punten, ronde_id])
 
 
 def stem_uit(db, ronde_id: int, speler_id: int, qid: str, stemronde: int) -> None:

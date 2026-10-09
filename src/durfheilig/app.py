@@ -6,101 +6,28 @@ Elke stap is een gewoon formulier met een POST en een redirect, zodat een telefo
 gaat of even geen bereik heeft niets verliest.
 """
 
-import contextvars
+import functools
 import hashlib
 import json
 import os
 import random
 from urllib.parse import urlparse
-from pathlib import Path
 
-from fasthtml.common import (A, Button, Details, Div, FastHTML, FileResponse, Form, H1, H2, Img, Input, Label, P, RedirectResponse,
-                             Response, Small, Nav, Span, Script, Style, Summary, Table, Td, Th, Titled, Tr, Textarea)
+from fasthtml.common import (A, Beforeware, Button, Details, Div, FastHTML, FileResponse, Form, H1, H2, Img, Input, Label, P, Response,
+                             Small, Span, Style, Summary, Table, Td, Th, Tr, Textarea)
 
 from . import db as spel
-from . import raadspel
+from . import raadspel, ui
 from .data import DATA_DIR, Heilige, Vragenbank, laad_heiligen, laad_vragen
 from .llm import Llm, Uitslag, finale, llm_uit_omgeving, vervolgvragen, Vervolgvraag
 from .scoring import VOORKEUR_GESLACHT, kies_vragen, profiel, rangschik
+from .ui import KIJKER, afbeelding_url, is_leiding, naar, pagina
 
 MAX_OPEN = 200
 MAX_NICKNAME = 20
-LEIDING_GROEPEN = {"admins", "durfte-leiding"}
 STAPPEN = ("welkom", "voorkeur", "vragen", "interesses", "open", "vervolg", "keuze", "klaar")
 
-CSS = raadspel.RAAD_CSS + """
-:root{--bg:#fffaf0;--ink:#2a2a2a;--accent:#b4452c;--kaart:#fff;--rand:#e5d9c3}
-*{box-sizing:border-box}body{margin:0;font:18px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
-main{max-width:34rem;margin:0 auto;padding:1rem 16px 3rem}h1{font-size:1.5rem}h2{font-size:1.2rem;margin:.2rem 0}
-button,.knop{display:block;width:100%;padding:1rem;margin:.6rem 0;font:inherit;font-weight:600;text-align:left;
-border:2px solid var(--rand);border-radius:14px;background:var(--kaart);color:var(--ink);text-decoration:none;cursor:pointer}
-button.hoofd{background:var(--accent);border-color:var(--accent);color:#fff;text-align:center}
-.icoon{font-size:1.6rem;margin-right:.6rem}input[type=text],textarea{width:100%;padding:.8rem;font:inherit;border:2px solid var(--rand);border-radius:12px}
-.kaart{background:var(--kaart);border:2px solid var(--rand);border-radius:14px;padding:1rem;margin:1rem 0}
-.kaart img{display:block;width:100%;max-height:24rem;object-fit:contain;background:#f1eadb;border-radius:10px}.klein{font-size:.8rem;color:#666}
-.kaart.gekozen{border:6px solid var(--accent);background:#fff4ee}.badge{display:inline-block;background:var(--accent);color:#fff;border-radius:999px;padding:.2rem .8rem;font-weight:700;font-size:.9rem}
-details{margin:.5rem 0;padding:.6rem .8rem;border:1px solid var(--rand);border-radius:10px;background:var(--kaart)}summary{cursor:pointer;font-weight:600}
-#laden{position:fixed;inset:0;background:rgba(255,250,240,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;z-index:10}#laden[hidden]{display:none}
-.draai{width:3.2rem;height:3.2rem;border:.4rem solid var(--rand);border-top-color:var(--accent);border-radius:50%;animation:draai 1s linear infinite}@keyframes draai{to{transform:rotate(360deg)}}
-.menu{position:fixed;top:.5rem;right:.5rem;z-index:5}.menu summary{list-style:none;cursor:pointer;background:var(--accent);color:#fff;border-radius:999px;padding:.4rem 1rem;font-weight:700}
-.menu summary::-webkit-details-marker{display:none}.menu nav{position:absolute;right:0;margin-top:.4rem;min-width:15rem;background:#fff;border:2px solid var(--rand);border-radius:12px;padding:.4rem;box-shadow:0 4px 14px rgba(0,0,0,.15)}
-.menu nav a{display:block;padding:.7rem .8rem;color:var(--ink);text-decoration:none;border-radius:8px}.menu nav a:active{background:#f1eadb}
-main{padding-top:3rem}
-.voortgang{color:#666;font-size:.9rem}label.optie{display:block;padding:.8rem;margin:.4rem 0;border:2px solid var(--rand);border-radius:12px;background:var(--kaart)}
-table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{padding:.4rem;border-bottom:1px solid var(--rand);text-align:left}
-"""
-
-
-def afbeelding_url(h: Heilige) -> str:
-    """Lokaal bestand als dat er is (data/afbeeldingen), anders Wikimedia Commons."""
-    bestand = h.record["afbeelding"]["bestand"]
-    if (DATA_DIR / "afbeeldingen" / bestand).is_file():
-        return f"/img/{bestand}"
-    return f"https://commons.wikimedia.org/wiki/Special:FilePath/{bestand.replace(' ', '_')}?width=640"
-
-
-# Some steps wait for Gemini for several seconds. The cover shows that the app is working and blocks a second tap.
-LAADSCRIPT = """
-document.addEventListener('submit', function (e) {
-  var bron = e.submitter && e.submitter.getAttribute('data-laad') || e.target.getAttribute('data-laad');
-  if (!bron) return;
-  var o = document.getElementById('laden');
-  o.querySelector('p').textContent = bron;
-  o.hidden = false;
-  setTimeout(function () { o.hidden = true; }, 60000);   // a cancelled navigation must never leave the kid stuck
-}, true);
-window.addEventListener('pageshow', function () { document.getElementById('laden').hidden = true; });
-"""
-
-
-# Who is looking, for the menu on every page. Set once per request by the login check; the pages are built far from the request.
-KIJKER: contextvars.ContextVar = contextvars.ContextVar("kijker", default=None)
-
-MENU_KIND = [("/menu", "Alle pagina's"), ("/quiz", "Mijn quiz"), ("/mijn", "Mijn heilige"), ("/spel", "Het raadspel")]
-MENU_LEIDING = [("/beheer", "Overzicht en uitleg lezen"), ("/beheer/spel", "Het raadspel bedienen"), ("/beheer/tv", "Tv-scherm"),
-                ("/beheer/print", "Printversie van het bord"), ("/beheer/export", "Alles downloaden")]
-
-
-def menu_items() -> list[tuple[str, str]]:
-    k = KIJKER.get() or {}
-    items = [x for x in MENU_KIND if x[0] != "/mijn" or k.get("heeft_match")]
-    if k.get("leiding"):
-        items += MENU_LEIDING
-    if k.get("dev"):
-        items.append(("/dev", "Wissel van persoon (alleen lokaal)"))
-    return items
-
-
-def menu(*, toon: bool = True):
-    if not toon:
-        return ""
-    return Details(Summary("☰ Menu"), Nav(*[A(t, href=h) for h, t in menu_items()]), cls="menu geen-print")
-
-
-def pagina(titel: str, *inhoud, voortgang: str | None = None, toon_menu: bool = True):
-    laden = Div(Div(cls="draai"), P("Even geduld…", style="font-size:1.2rem;font-weight:600"), id="laden", hidden=True, role="status",
-                onclick="this.hidden=true")
-    return Titled(titel, menu(toon=toon_menu), *( [P(voortgang, cls="voortgang")] if voortgang else []), *inhoud, laden, Script(LAADSCRIPT))
+CSS = ui.CSS + raadspel.RAAD_CSS
 
 
 def knop_formulier(actie: str, *velden, tekst: str = "Verder", laad: str | None = None, **hidden):
@@ -138,7 +65,9 @@ def info(h: Heilige) -> list:
     return uit
 
 
-def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, rng: random.Random | None = None) -> FastHTML:
+def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, rng: random.Random | None = None,
+             extra_menu: list[tuple[str, str]] = ()) -> FastHTML:
+    """`extra_menu` is for the local launcher only: extra (href, title) entries in the menu."""
     rng = rng or random.Random()
     per_qid = {h.qid: h for h in heiligen}
     per_vraag = {v.id: v for v in vragen.vragen}
@@ -148,25 +77,23 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         if not gebruiker:
             return Response("Niet ingelogd.", status_code=401)
         req.scope["gebruiker"] = gebruiker
-        p = spel.profiel_van(db, gebruiker) or {}
-        KIJKER.set({"leiding": leiding(req), "heeft_match": p.get("heeft_match", False), "stap": p.get("stap"),
-                    "dev": req.headers.get("x-durfte-dev") == "1"})
+        pad = req.url.path
+        # The two rules that must never be forgotten on a new route live here, once: /beheer is for leaders only, and a request that changes
+        # something must not be started by another site (a browser marks those; one that sends no marker is let through).
+        if (pad == "/beheer" or pad.startswith("/beheer/")) and not is_leiding(req.headers):
+            return Response("Alleen voor begeleiders.", status_code=403)
+        if req.method not in ("GET", "HEAD") and req.headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none"):
+            return Response("Niet toegestaan.", status_code=403)
+        KIJKER.set({"leiding": is_leiding(req.headers), "extra": extra_menu,
+                    "profiel": functools.cache(lambda: spel.profiel_van(db, gebruiker) or {})})   # only looked up when a menu is built
 
-    from fasthtml.common import Beforeware
     app = FastHTML(before=Beforeware(auth, skip=[r"/health", r"/img/.*"]), hdrs=(Style(CSS),), secret_key=os.urandom(16).hex(),
                    pico=False)
     route = app.route
 
-    def leiding(req) -> bool:
-        groepen = set((req.headers.get("remote-groups") or "").replace(" ", "").split(","))
-        return bool(groepen & LEIDING_GROEPEN)
-
     def wie(req) -> tuple[dict, dict]:
         sp = spel.speler_voor(db, req.scope["gebruiker"])
         return sp, spel.invulling(db, sp["id"])
-
-    def naar(stap_route: str = "/quiz"):
-        return RedirectResponse(stap_route, status_code=303)
 
     def kandidaten_voor(sp: dict, inv: dict, afgewezen=()) -> list[Heilige]:
         p = profiel(inv["antwoorden"], vragen)
@@ -299,7 +226,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
     @route("/")
     def get(req):
         # Leaders land on the menu page; kids land straight in their quiz, which is what the link in the group app is for.
-        if leiding(req):
+        if is_leiding(req.headers):
             return hub(req)
         return quiz(req)
 
@@ -310,22 +237,12 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
 
     @route("/menu")
     def hub(req):
-        k = KIJKER.get() or {}
-        stap = k.get("stap")
-        quiz_tekst = ("Je quiz is af." if stap == "klaar" else "Je hebt de quiz nog niet gestart." if not stap else "Je quiz is nog bezig: ga verder waar je was.")
+        stap = ui.kijker()["profiel"]().get("stap")
+        quiz = "Je quiz is af." if stap == "klaar" else "Je hebt de quiz nog niet gestart." if not stap else "Je quiz is nog bezig: ga verder waar je was."
         kaart = lambda href, titel, uitleg: A(Span(titel, style="font-weight:700;display:block"), Small(uitleg, cls="klein"), href=href, cls="knop")
-        delen = [H2("Voor jou"),
-                 kaart("/quiz", "Mijn quiz", quiz_tekst),
-                 *([kaart("/mijn", "Mijn heilige", "Lees je drie heiligen en je keuze nog eens terug.")] if k.get("heeft_match") else []),
-                 kaart("/spel", "Het raadspel", "Stem op je telefoon tijdens het spel op de middag.")]
-        if k.get("leiding"):
-            delen += [H2("Voor begeleiders"),
-                      kaart("/beheer", "Overzicht en uitleg lezen", "Wie is klaar, welke uitleg is gemarkeerd. Een uitleg openen telt als lezen."),
-                      kaart("/beheer/spel", "Het raadspel bedienen", "Het spel starten en de rondes doorlopen, vanaf je eigen scherm."),
-                      kaart("/beheer/tv", "Tv-scherm", "Open dit op de tv; het ververst zichzelf."),
-                      kaart("/beheer/print", "Printversie van het bord", "Een genummerd bord op papier, voor als de app uitvalt."),
-                      kaart("/beheer/export", "Alles downloaden", "Alle antwoorden en het spel als JSON.")]
-        return pagina("Start", *delen)
+        pagina_s = [(h, t, u or quiz, l) for h, t, u, l in ui.PAGINAS if h != "/menu" and ui.mag_zien(h, l)]
+        return pagina("Start", H2("Voor jou"), *[kaart(h, t, u) for h, t, u, l in pagina_s if not l],
+                      *([H2("Voor begeleiders"), *[kaart(h, t, u) for h, t, u, l in pagina_s if l]] if any(l for *_, l in pagina_s) else []))
 
     @route("/welkom", methods=["post"])
     def post_welkom(req, nickname: str = ""):
@@ -440,15 +357,13 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         sp, inv = wie(req)
         m = spel.match_van(db, sp["id"])
         mag = ({h["qid"] for h in m["top3"]} | set(m["afgewezen"])) if m else set()
-        if qid not in per_qid or (qid not in mag and not leiding(req)):
+        if qid not in per_qid or (qid not in mag and not is_leiding(req.headers)):
             return Response("Niet gevonden.", status_code=404)
         terug = "/mijn" if m and m["gekozen"] else "/quiz"
         return pagina(per_qid[qid].naam, *info(per_qid[qid]), A("Terug", href=terug, cls="knop"))
 
     @route("/beheer")
     def beheer(req):
-        if not leiding(req):
-            return Response("Alleen voor begeleiders.", status_code=403)
         rijen = spel.overzicht(db)
         return pagina("Overzicht", P(f"{sum(r['stap'] == 'klaar' for r in rijen)} van {len(rijen)} klaar."),
             Table(Tr(Th("Bijnaam"), Th("Account"), Th("Stap"), Th("Uitleg door"), Th("Markering")),
@@ -462,24 +377,17 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
 
     @route("/beheer/export")
     def beheer_export(req):
-        if not leiding(req):
-            return Response("Alleen voor begeleiders.", status_code=403)
         return Response(json.dumps(spel.exporteer(db), ensure_ascii=False, indent=1), media_type="application/json",
                         headers={"content-disposition": 'attachment; filename="durfheilig-export.json"'})
 
     @route("/beheer/verwijder", methods=["post"])
     def beheer_verwijder(req, bevestig: str = ""):
-        if not leiding(req):
-            return Response("Alleen voor begeleiders.", status_code=403)
-        # Own CSRF defence: a browser marks requests started by another site.
-        if req.headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none"):
-            return Response("Niet toegestaan.", status_code=403)
         if bevestig.strip() != "VERWIJDER":
             return pagina("Niets gewist", P("Typ VERWIJDER, precies zo, om alles te wissen."), A("Terug", href="/beheer", cls="knop"))
         spel.verwijder_alles(db)
         return naar("/beheer")
 
-    raadspel.registreer(app, db, per_qid, leiding=leiding, wie=wie, pagina=pagina, naar=naar, afbeelding_url=afbeelding_url, rng=rng)
+    raadspel.registreer(app, db, per_qid, wie=wie, rng=rng)
     return app
 
 

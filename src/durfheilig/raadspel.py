@@ -12,13 +12,15 @@ import random
 from collections import Counter
 from collections.abc import Iterable, Sequence
 
-from fasthtml.common import A, Button, Div, Form, H1, H2, Img, Input, Label, Option, P, Response, Select, Small, Span, Table, Td, Th, Tr
+from fasthtml.common import A, Button, Div, Form, H1, H2, Img, Input, Label, Option, P, Response, Select, Small, Span
 
 from . import db as spel
 from .data import Heilige
+from .ui import afbeelding_url, naar, pagina
 
 FASES = ("overleg1", "uitslag1", "vragen", "overleg2", "uitslag2", "onthuld")
 STEMFASEN = {"overleg1": 1, "overleg2": 2}
+UITSLAGRONDE = {"uitslag1": 1, "vragen": 1, "uitslag2": 2, "onthuld": 2}   # whose votes the screens show in each phase
 MIN_SPELERS = 3
 
 KNOP_TEKST = {
@@ -49,7 +51,6 @@ RAAD_CSS = """
 .tegel .van{color:var(--accent);font-weight:700}.tegel.stem{border-color:var(--accent);border-width:4px}
 .tv .bord{grid-template-columns:repeat(auto-fill,minmax(11rem,1fr))}.tv{font-size:1.2rem}.tv h1{font-size:2.2rem}
 form.tegelknop{margin:0}form.tegelknop button{padding:.5rem;margin:0;text-align:center;font-weight:400;font-size:.85rem}
-@media print{.geen-print,#laden{display:none!important}body{background:#fff}.tegel{break-inside:avoid}}
 """
 
 
@@ -96,19 +97,19 @@ def volgorde_rondes(speler_ids: Sequence[int], eerste: int | None, rng: random.R
 
 # ---------------------------------------------------------------- de schermen
 
-def registreer(app, db, per_qid: dict[str, Heilige], *, leiding, wie, pagina, naar, afbeelding_url, rng=None) -> None:
+def live(url: str, inhoud, **kw):
+    """A block that asks for a fresh copy of itself every 2 seconds."""
+    return Div(inhoud, hx_get=url, hx_trigger="every 2s", hx_target="this", hx_swap="innerHTML", **kw)
+
+
+def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
+    """Hang the game's routes on `app`. Who may open /beheer/... and what a POST may do is decided once, in the app's login check."""
     rng = rng or random.Random()
     route = app.route
 
-    def klaar_spelers():
-        return spel.spelers_klaar(db)
-
     def tegel(h: Heilige, *, aantal=None, juist=False, van=None, stem=False, formulier=False):
-        inhoud = [Img(src=afbeelding_url(h), alt=h.naam), Span(h.naam, cls="naam"), Small(h.record.get("wat_voor_mens", ""))]
-        if aantal is not None:
-            inhoud.insert(0, Span(f"{aantal}×", cls="aantal"))
-        if van:
-            inhoud.append(Span(f"✔ {van}", cls="van"))
+        inhoud = [*([Span(f"{aantal}×", cls="aantal")] if aantal is not None else []), Img(src=afbeelding_url(h), alt=h.naam),
+                  Span(h.naam, cls="naam"), Small(h.record.get("wat_voor_mens", "")), *([Span(f"✔ {van}", cls="van")] if van else [])]
         klassen = "tegel" + (" juist" if juist else "") + (" stem" if stem else "")
         if formulier:
             return Form(Div(*inhoud, cls=klassen), Input(type="hidden", name="qid", value=h.qid),
@@ -124,55 +125,62 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, leiding, wie, pagina, na
         huidige = next((x for x in r if x["id"] == st["huidige_ronde"]), None)
         # The players are those fixed at the start (they have a round), not whoever finished the quiz since.
         meedoen = {x["speler_id"] for x in r}
-        spelers = {s["id"]: s for s in klaar_spelers() if s["id"] in meedoen}
+        spelers = {s["id"]: s for s in spel.spelers_klaar(db) if s["id"] in meedoen}
         bord = [b for b in spel.bord_rijen(db) if b["qid"] in per_qid]   # a saint removed from the data never breaks a screen
         return {"status": st["status"], "ronde": huidige, "rondes": r, "bord": bord, "spelers": spelers}
 
     def stemmers(sd, ronde):
         """Wie mag stemmen: iedereen in het spel, behalve de deelnemer van deze ronde en wie diens uitleg las."""
-        uit = set(spel.lezers(db, ronde["speler_id"]))
+        uit = spel.lezers(db, ronde["speler_id"])
         return [sid for sid, s in sd["spelers"].items() if sid != ronde["speler_id"] and s["gebruikersnaam"] not in uit]
+
+    def stemvoortgang(sd, ronde) -> tuple[int, int]:
+        """(already voted, may vote) in the voting phase of this round."""
+        return len(spel.stemmen(db, ronde["id"], STEMFASEN[ronde["fase"]])), len(stemmers(sd, ronde))
+
+    def juist_van(sd, ronde) -> str:
+        return sd["spelers"][ronde["speler_id"]]["gekozen"]
 
     def token(sd) -> str:
         """Names the exact step the leader's button belongs to, so a second tap on the same step does nothing."""
         r = sd["ronde"]
         return f"{sd['status']}:{r['id'] if r else 0}:{r['fase'] if r else ''}"
 
-    def eindscore(sd):
+    def eindscore(sd) -> int:
         return sum(x["punten"] or 0 for x in sd["rondes"])
 
     # -------- telefoon van de deelnemer
 
     def kind_inhoud(req):
-        sp, _ = wie(req)
+        sp = spel.speler_voor(db, req.scope["gebruiker"])
         sd = stand()
+        blok = lambda *x: Div(*x, id="spel")
         if not sd:
-            return Div(P("Het spel begint straks. Wacht tot de begeleider het start."), id="spel")
+            return blok(P("Het spel begint straks. Wacht tot de begeleider het start."))
         if sp["id"] not in sd["spelers"]:
-            return Div(P("Je doet niet mee aan het spel, want je quiz was nog niet klaar. Kijk gerust mee op de tv."), id="spel")
+            return blok(P("Je doet niet mee aan het spel, want je quiz was nog niet klaar. Kijk gerust mee op de tv."))
         if sd["status"] == "bord":
-            return Div(H2("Het bord"), P("Kijk naar de tv: de heiligen op het bord. Zo meteen begint de eerste ronde."), id="spel")
+            return blok(H2("Het bord"), P("Kijk naar de tv: de heiligen op het bord. Zo meteen begint de eerste ronde."))
         if sd["status"] == "plaat":
-            return Div(H2("De groepsplaat"), P("Kijk naar de tv."), id="spel")
+            return blok(H2("De groepsplaat"), P("Kijk naar de tv."))
         if sd["status"] == "einde":
-            return Div(H2("Bedankt voor het spelen!"), P("Kijk naar de tv voor de groepsscore."), id="spel")
+            return blok(H2("Bedankt voor het spelen!"), P("Kijk naar de tv voor de groepsscore."))
         ronde = sd["ronde"]
         nick = ronde["nickname"]
         if ronde["speler_id"] == sp["id"]:
-            return Div(H2("Deze ronde gaat over jou"), P("Jij stemt niet. Blijf in de kamer en houd je heilige geheim."), id="spel")
+            return blok(H2("Deze ronde gaat over jou"), P("Jij stemt niet. Blijf in de kamer en houd je heilige geheim."))
         if ronde["fase"] not in STEMFASEN:
-            return Div(H2(FASE_TEKST[ronde["fase"]]), P("Kijk naar de tv."), id="spel")
+            return blok(H2(FASE_TEKST[ronde["fase"]]), P("Kijk naar de tv."))
         if sp["id"] not in stemmers(sd, ronde):
-            return Div(H2(f"Ronde over {nick}"), P(f"Je hebt de uitleg van {nick} gelezen, dus je stemt deze ronde niet mee. Kijk gerust mee."), id="spel")
-        stemronde = STEMFASEN[ronde["fase"]]
-        mijn = next((x["qid"] for x in spel.stemmen(db, ronde["id"], stemronde) if x["speler_id"] == sp["id"]), None)
-        return Div(H2(f"Bij welke heilige hoort {nick}?"), P("Tik op een heilige om te stemmen. Je mag je keuze nog veranderen."),
-                   *([P(f"Jouw stem: {per_qid[mijn].naam}", cls="klein")] if mijn else []),
-                   Div(*[tegel(per_qid[b["qid"]], stem=(b["qid"] == mijn), formulier=True) for b in sd["bord"]], cls="bord"), id="spel")
+            return blok(H2(f"Ronde over {nick}"), P(f"Je hebt de uitleg van {nick} gelezen, dus je stemt deze ronde niet mee. Kijk gerust mee."))
+        mijn = next((x["qid"] for x in spel.stemmen(db, ronde["id"], STEMFASEN[ronde["fase"]]) if x["speler_id"] == sp["id"]), None)
+        return blok(H2(f"Bij welke heilige hoort {nick}?"), P("Tik op een heilige om te stemmen. Je mag je keuze nog veranderen."),
+                    *([P(f"Jouw stem: {per_qid[mijn].naam}", cls="klein")] if mijn else []),
+                    Div(*[tegel(per_qid[b["qid"]], stem=(b["qid"] == mijn), formulier=True) for b in sd["bord"]], cls="bord"))
 
     @route("/spel")
     def spel_pagina(req):
-        return pagina("Het raadspel", Div(kind_inhoud(req), hx_get="/spel/inhoud", hx_trigger="every 2s", hx_target="this", hx_swap="innerHTML"))
+        return pagina("Het raadspel", live("/spel/inhoud", kind_inhoud(req)))
 
     @route("/spel/inhoud")
     def spel_inhoud(req):
@@ -180,9 +188,7 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, leiding, wie, pagina, na
 
     @route("/spel/stem", methods=["post"])
     def spel_stem(req, qid: str = ""):
-        if req.headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none"):
-            return Response("Niet toegestaan.", status_code=403)
-        sp, _ = wie(req)
+        sp = spel.speler_voor(db, req.scope["gebruiker"])
         sd = stand()
         if sd and sd["status"] == "ronde" and sd["ronde"]["fase"] in STEMFASEN and qid in {b["qid"] for b in sd["bord"]}:
             ronde = sd["ronde"]
@@ -196,103 +202,74 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, leiding, wie, pagina, na
         sd = stand()
         if not sd:
             return Div(H1("Het spel is nog niet gestart"), P("De begeleider start het spel vanaf zijn scherm."), id="tv")
-        host = req.headers.get("x-forwarded-host") or req.headers.get("host") or ""
-        schema = "http" if host.startswith(("127.0.0.1", "localhost")) else "https"
-        link = f"{schema}://{host}/spel"
-        onthuld = {sd["spelers"][r["speler_id"]]["gekozen"]: r["nickname"] for r in sd["rondes"] if r["fase"] == "onthuld" and r["speler_id"] in sd["spelers"]}
+        onthuld = {juist_van(sd, r): r["nickname"] for r in sd["rondes"] if r["fase"] == "onthuld" and r["speler_id"] in sd["spelers"]}
         if sd["status"] == "plaat":
             return Div(H1("De groepsplaat"), P("Dit zijn onze heiligen naast elkaar. Wat zegt dit over ons als groep?"),
                        Div(*[Div(tegel(per_qid[s["gekozen"]]), Span(s["nickname"], cls="van")) for s in sd["spelers"].values()], cls="bord"), id="tv")
         if sd["status"] == "einde":
-            n = len(sd["rondes"])
-            return Div(H1("Groepsscore"), P(f"{eindscore(sd)} van de {2 * n} punten", style="font-size:2.4rem;font-weight:700"),
+            return Div(H1("Groepsscore"), P(f"{eindscore(sd)} van de {2 * len(sd['rondes'])} punten", style="font-size:2.4rem;font-weight:700"),
                        P("Bedankt voor het spelen! In juni doen we het opnieuw en kijken we wat er veranderd is."), id="tv")
-        titel, regels, aantallen, toon_aantallen, juist = "Het bord", [], Counter(), False, None
+        titel, regels, aantallen, juist = "Het bord", [], None, None
         if sd["status"] == "bord":
+            host = req.headers.get("x-forwarded-host") or req.headers.get("host") or ""
+            link = f"{'http' if host.startswith(('127.0.0.1', 'localhost')) else 'https'}://{host}/spel"
             regels = [P(f"Doe mee op je telefoon: {link}", style="font-size:1.6rem;font-weight:700"), P("Kijk alvast naar de heiligen. Hun beschrijvingen staan erbij.")]
         else:
             r = sd["ronde"]
             titel = f"Ronde {r['volgorde'] + 1} van {len(sd['rondes'])}: wie hoort bij {r['nickname']}?"
             regels = [H2(FASE_TEKST[r["fase"]])]
             if r["fase"] in STEMFASEN:
-                kan = len(stemmers(sd, r))
-                gedaan = len(spel.stemmen(db, r["id"], STEMFASEN[r["fase"]]))
+                gedaan, kan = stemvoortgang(sd, r)
                 regels.append(P(f"{gedaan} van {kan} hebben gestemd"))
             else:
-                toon_aantallen = True
-                aantallen = Counter(x["qid"] for x in spel.stemmen(db, r["id"], 1 if r["fase"] in ("uitslag1", "vragen") else 2))
+                aantallen = Counter(x["qid"] for x in spel.stemmen(db, r["id"], UITSLAGRONDE[r["fase"]]))
             if r["fase"] == "onthuld":
-                juist = sd["spelers"][r["speler_id"]]["gekozen"]
-                onthuld[juist] = r["nickname"]
+                juist = juist_van(sd, r)
                 regels.append(P(f"{r['nickname']} had {per_qid[juist].naam}. De groep krijgt {r['punten'] or 0} punt{'en' if (r['punten'] or 0) != 1 else ''}.",
                                 style="font-size:1.6rem;font-weight:700"))
-            regels.append(P(f"Punten tot nu toe: {sum(x['punten'] or 0 for x in sd['rondes'])}", cls="klein"))
-        tegels = [tegel(per_qid[b["qid"]], aantal=aantallen[b["qid"]] if toon_aantallen else None,
-                        juist=(b["qid"] == juist), van=onthuld.get(b["qid"])) for b in sd["bord"]]
+            regels.append(P(f"Punten tot nu toe: {eindscore(sd)}", cls="klein"))
+        tegels = [tegel(per_qid[b["qid"]], aantal=None if aantallen is None else aantallen[b["qid"]], juist=(b["qid"] == juist), van=onthuld.get(b["qid"]))
+                  for b in sd["bord"]]
         return Div(H1(titel), *regels, Div(*tegels, cls="bord"), id="tv")
 
     @route("/beheer/tv")
     def tv_pagina(req):
-        if not leiding(req):
-            return Response("Alleen voor begeleiders.", status_code=403)
-        return pagina("Raadspel", Div(tv_inhoud(req), hx_get="/beheer/tv/inhoud", hx_trigger="every 2s", hx_target="this", hx_swap="innerHTML", cls="tv"), toon_menu=False)
+        return pagina("Raadspel", live("/beheer/tv/inhoud", tv_inhoud(req), cls="tv"), toon_menu=False)
 
     @route("/beheer/tv/inhoud")
     def tv_fragment(req):
-        if not leiding(req):
-            return Response("Alleen voor begeleiders.", status_code=403)
         return tv_inhoud(req)
 
     # -------- bediening door de begeleider
 
     def bediening(req):
         sd = stand()
-        klaar = klaar_spelers()
         if not sd:
-            opties = [Option(f"{s['nickname']}", value=str(s["id"])) for s in klaar if s["nickname"]]
+            klaar = spel.spelers_klaar(db)
+            opties = [Option(s["nickname"], value=str(s["id"])) for s in klaar if s["nickname"]]
             return Div(
                 H2("Spel starten"), P(f"{len(klaar)} deelnemers hebben hun quiz af."),
                 *([P(f"Minstens {MIN_SPELERS} deelnemers nodig.", style="color:#b00")] if len(klaar) < MIN_SPELERS else []),
                 Form(Label("Eerste ronde (kies iemand met een makkelijk te raden heilige)", Select(Option("Willekeurig", value=""), *opties, name="eerste")),
                      Button("Trek het bord en start", type="submit", cls="hoofd"), method="post", action="/beheer/spel/start"), id="bediening")
-        extra = []
-        label = None
-        if sd["status"] == "bord":
-            label = KNOP_TEKST["bord"]
-        elif sd["status"] == "ronde":
+        extra, label = [], KNOP_TEKST.get(sd["status"])
+        if sd["status"] == "ronde":
             r = sd["ronde"]
             extra = [H2(f"Ronde {r['volgorde'] + 1} van {len(sd['rondes'])}: {r['nickname']}"), P(FASE_TEKST[r["fase"]])]
             if r["fase"] in STEMFASEN:
-                kan = len(stemmers(sd, r))
-                gedaan = len(spel.stemmen(db, r["id"], STEMFASEN[r["fase"]]))
+                gedaan, kan = stemvoortgang(sd, r)
                 extra.append(P(f"{gedaan} van {kan} hebben gestemd" + ("" if gedaan >= kan else " (nog niet iedereen)")))
-            label = KNOP_TEKST[r["fase"]]
-            if r["fase"] == "onthuld" and r["volgorde"] + 1 >= len(sd["rondes"]):
-                label = "Naar de groepsplaat"
-        elif sd["status"] == "plaat":
-            label = KNOP_TEKST["plaat"]
-        else:
+            laatste = r["fase"] == "onthuld" and r["volgorde"] + 1 >= len(sd["rondes"])
+            label = "Naar de groepsplaat" if laatste else KNOP_TEKST[r["fase"]]
+        elif sd["status"] == "einde":
             extra = [H2("Het spel is afgelopen"), P(f"Groepsscore: {eindscore(sd)} van {2 * len(sd['rondes'])}")]
-        return Div(*extra, *([Form(Input(type="hidden", name="van", value=token(sd)), Button(label, type="submit", cls="hoofd"),
-                                   method="post", action="/beheer/spel/volgende")] if label else []),
-                   P(f"Punten tot nu toe: {eindscore(sd)}", cls="klein"), id="bediening")
-
-    def nee(req):
-        return None if leiding(req) else Response("Alleen voor begeleiders.", status_code=403)
-
-    def post_nee(req):
-        """Leader-only, and not started by another site. A browser that sends no marker (rare) is let through."""
-        if (r := nee(req)) is not None:
-            return r
-        if req.headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none"):
-            return Response("Niet toegestaan.", status_code=403)
-        return None
+        knop = Form(Input(type="hidden", name="van", value=token(sd)), Button(label, type="submit", cls="hoofd"),
+                    method="post", action="/beheer/spel/volgende") if label else ""
+        return Div(*extra, knop, P(f"Punten tot nu toe: {eindscore(sd)}", cls="klein"), id="bediening")
 
     @route("/beheer/spel")
     def bediening_pagina(req):
-        if (r := nee(req)) is not None:
-            return r
-        return pagina("Spel bedienen", Div(bediening(req), hx_get="/beheer/spel/inhoud", hx_trigger="every 2s", hx_target="this", hx_swap="innerHTML"),
+        return pagina("Spel bedienen", live("/beheer/spel/inhoud", bediening(req)),
                       A("Tv-scherm openen", href="/beheer/tv", cls="knop"), A("Printversie van het bord", href="/beheer/print", cls="knop"),
                       A("Terug naar het overzicht", href="/beheer", cls="knop"),
                       Form(Label("Typ OPNIEUW om het spel te wissen en opnieuw te beginnen (de antwoorden blijven)", Input(type="text", name="bevestig")),
@@ -300,15 +277,11 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, leiding, wie, pagina, na
 
     @route("/beheer/spel/inhoud")
     def bediening_fragment(req):
-        if (r := nee(req)) is not None:
-            return r
         return bediening(req)
 
     @route("/beheer/spel/start", methods=["post"])
     def spel_start(req, eerste: str = ""):
-        if (r := post_nee(req)) is not None:
-            return r
-        klaar = klaar_spelers()
+        klaar = spel.spelers_klaar(db)
         if spel.spel_status(db) or len(klaar) < MIN_SPELERS:
             return naar("/beheer/spel")
         bord = trek_bord([s["gekozen"] for s in klaar], per_qid, rng)
@@ -318,34 +291,29 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, leiding, wie, pagina, na
 
     @route("/beheer/spel/volgende", methods=["post"])
     def spel_volgende(req, van: str = ""):
-        if (r := post_nee(req)) is not None:
-            return r
         sd = stand()
         if not sd or van != token(sd):   # a second tap, or a stale screen: do nothing
             return naar("/beheer/spel")
         if sd["status"] == "bord":
-            eerste = sd["rondes"][0]
-            spel.zet_spelstatus(db, "ronde", eerste["id"])
+            spel.zet_spelstatus(db, "ronde", sd["rondes"][0]["id"])
         elif sd["status"] == "ronde":
-            ronde = sd["ronde"]
-            nieuw = volgende_fase(ronde["fase"])
+            r = sd["ronde"]
+            nieuw = volgende_fase(r["fase"])
             if nieuw:
+                score = None
                 if nieuw == "onthuld":
-                    juist = sd["spelers"][ronde["speler_id"]]["gekozen"]
-                    spel.zet_punten(db, ronde["id"], punten(juist, [x["qid"] for x in spel.stemmen(db, ronde["id"], 1)],
-                                                           [x["qid"] for x in spel.stemmen(db, ronde["id"], 2)]))
-                spel.zet_fase(db, ronde["id"], nieuw)
+                    score = punten(juist_van(sd, r), *[[x["qid"] for x in spel.stemmen(db, r["id"], n)] for n in (1, 2)])
+                spel.zet_fase(db, r["id"], nieuw, score)
+            elif r["volgorde"] + 1 < len(sd["rondes"]):
+                spel.zet_spelstatus(db, "ronde", sd["rondes"][r["volgorde"] + 1]["id"])
             else:
-                volgende = next((x for x in sd["rondes"] if x["volgorde"] == ronde["volgorde"] + 1), None)
-                spel.zet_spelstatus(db, "ronde", volgende["id"]) if volgende else spel.zet_spelstatus(db, "plaat")
+                spel.zet_spelstatus(db, "plaat")
         elif sd["status"] == "plaat":
             spel.zet_spelstatus(db, "einde")
         return naar("/beheer/spel")
 
     @route("/beheer/spel/reset", methods=["post"])
     def spel_reset(req, bevestig: str = ""):
-        if (r := post_nee(req)) is not None:
-            return r
         if bevestig.strip() == "OPNIEUW":
             spel.reset_spel(db)
         return naar("/beheer/spel")
@@ -354,8 +322,6 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, leiding, wie, pagina, na
 
     @route("/beheer/print")
     def print_pagina(req):
-        if (r := nee(req)) is not None:
-            return r
         sd = stand()
         if not sd:
             return pagina("Printversie", P("Het bord is er nog niet: start eerst het spel."), A("Terug", href="/beheer/spel", cls="knop"))
@@ -365,13 +331,11 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, leiding, wie, pagina, na
                       H2("Stembriefje"), P("Ronde over: ________   Eerste stem: ____   Tweede stem: ____"),
                       A("Terug", href="/beheer/spel", cls="knop geen-print"))
 
-    # -------- uitleg lezen en markeren, voor de regel "wie de uitleg las, stemt niet mee"
+    # -------- uitleg lezen, voor de regel "wie de uitleg las, stemt niet mee"
 
     @route("/beheer/speler/{sid}")
     def speler_uitleg(req, sid: int):
-        if (r := nee(req)) is not None:
-            return r
-        rij = next((x for x in spel.overzicht(db) if x["id"] == sid), None) if 0 < sid < 2**31 else None
+        rij = spel.speler_door_id(db, sid) if 0 < sid < 2**31 else None
         m = spel.match_van(db, sid) if rij else None
         if not rij or not m:
             return Response("Niet gevonden.", status_code=404)

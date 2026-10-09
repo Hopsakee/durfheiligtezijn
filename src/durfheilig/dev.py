@@ -65,14 +65,14 @@ class AlsGebruiker:
             return await RedirectResponse("/dev", status_code=303)(scope, receive, send)
         groepen = "durfte,durfte-leiding" if gebruiker.startswith("leiding") else "durfte"
         headers = [(k, v) for k, v in scope["headers"] if k not in (b"remote-user", b"remote-groups", b"remote-name", b"remote-email")]
-        headers = [(k, v) for k, v in headers if k != b"x-durfte-dev"]
-        headers += [(b"remote-user", gebruiker.encode()), (b"remote-groups", groepen.encode()), (b"x-durfte-dev", b"1")]
+        headers += [(b"remote-user", gebruiker.encode()), (b"remote-groups", groepen.encode())]
         await self.app({**scope, "headers": headers}, receive, send)
 
 
 def maak_dev_app(db=None, llm=None):
     return AlsGebruiker(maak_app(db or spel.open_db(Path(os.environ.get("DURFHEILIG_DEV_DB", "data/spel-dev.db"))),
-                                 laad_heiligen(), laad_vragen(), llm))
+                                 laad_heiligen(), laad_vragen(), llm,
+                                 extra_menu=[("/dev", "Wissel van persoon (alleen lokaal)")]))
 
 
 def laad_env(pad: str | Path = ".env", env=os.environ) -> list[str]:

@@ -547,3 +547,34 @@ def test_dev_link_in_het_menu_komt_alleen_uit_de_dev_laag():
     assert "/dev" in menu_hrefs(dev.get("/menu").text)
     _, app = maak()
     assert "/dev" not in menu_hrefs(kind(app).get("/menu").text)
+
+
+def test_de_polls_vragen_het_profiel_voor_het_menu_niet_op(monkeypatch):
+    db, app = maak(None)
+    c = kind(app)
+    speel(c, "Vos")
+    aanroepen = []
+    echt = spel.profiel_van
+    monkeypatch.setattr(spel, "profiel_van", lambda *a: aanroepen.append(1) or echt(*a))
+    c.get("/spel/inhoud", headers={"hx-request": "true"})
+    assert aanroepen == []                      # fragments have no menu, so no lookup
+    c.get("/menu")
+    assert len(aanroepen) == 1                  # a page with a menu looks the viewer up once, however often it asks
+
+
+def test_de_centrale_controle_in_de_login_dekt_elk_beheerpad_en_elke_post():
+    db, app = maak(None)
+    c = kind(app)
+    for pad in ("/beheer", "/beheer/export", "/beheer/spel/inhoud"):
+        assert c.get(pad).status_code == 403, pad
+    @app.route("/beheer/proef")                                              # a route added later is covered without any check of its own
+    def proef():
+        return "geheim"
+    assert c.get("/beheer/proef").status_code == 403 and "geheim" not in c.get("/beheer/proef").text
+    boss = kind(app, "boss"); boss.headers.update({"remote-groups": "durfte-leiding"})
+    assert boss.get("/beheer/proef").text == "geheim"
+    assert kind(app).get("/beheerx").status_code == 404                     # only the /beheer prefix is guarded
+    assert c.post("/welkom", data={"nickname": "Vos"}, headers={"sec-fetch-site": "cross-site"}).status_code == 403
+    assert c.post("/welkom", data={"nickname": "Vos"}, headers={"sec-fetch-site": "same-site"}).status_code == 403
+    assert c.post("/welkom", data={"nickname": "Vos"}, headers={"sec-fetch-site": "same-origin"}).status_code == 200
+    assert c.get("/quiz", headers={"sec-fetch-site": "cross-site"}).status_code == 200      # reading is not state-changing
