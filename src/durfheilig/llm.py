@@ -230,14 +230,14 @@ def llm_uit_omgeving(env: Mapping[str, str] = os.environ) -> Llm | None:
     (aanroepen wachten in de rij) en neemt de vaste tekst als het langer dan `LLM_MAX_WACHT` seconden (standaard 10) zou duren."""
     wacht = _getal(env.get("LLM_TIMEOUT") or env.get("GEMINI_TIMEOUT"), 30.0)
     tpm, rps = _getal(env.get("LLM_TOKENS_PER_MINUUT"), 0.0), _getal(env.get("LLM_VERZOEKEN_PER_SECONDE"), 0.0)
-    begrenzer = Begrenzer(tpm or None, rps or None, _getal(env.get("LLM_MAX_WACHT"), 10.0)) if (tpm or rps) else None
+    begrenzer = Begrenzer(tpm, rps, _getal(env.get("LLM_MAX_WACHT"), 10.0)) if (tpm or rps) else None
     aanbieder = (env.get("LLM_PROVIDER") or "").lower() or ("openai" if all(env.get(k) for k in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL")) else "gemini")
     if aanbieder == "gemini":
         vereist = {"GEMINI_API_KEY": env.get("GEMINI_API_KEY"), "GEMINI_MODEL": env.get("GEMINI_MODEL")}
     elif aanbieder == "openai" or aanbieder in AANBIEDERS:
         url, sleutel, model = _compat_instellingen(aanbieder, env)
-        vereist = {"LLM_BASE_URL": url, "LLM_API_KEY": sleutel, "LLM_MODEL": model} if aanbieder == "openai" else \
-                  {f"{aanbieder.upper()}_API_KEY": sleutel, "LLM_MODEL": model}
+        sleutelvar = "LLM_API_KEY" if aanbieder == "openai" else f"{aanbieder.upper()}_API_KEY"
+        vereist = {"LLM_BASE_URL": url, sleutelvar: sleutel, "LLM_MODEL": model}   # a named provider's url always has its default
     else:
         log.error("LLM_PROVIDER=%s is onbekend (kies gemini, mistral, scaleway of openai): de vaste terugval wordt gebruikt", aanbieder)
         return None
@@ -256,11 +256,17 @@ def llm_uit_omgeving(env: Mapping[str, str] = os.environ) -> Llm | None:
                          begrenzer=begrenzer)
 
 
-def lijst_modellen(aanbieder: str, env: Mapping[str, str] = os.environ, *, client: httpx.Client | None = None) -> list[str]:
-    """The model names this provider offers (`GET /models`), so a name never has to be guessed. Needs the provider's key, not a model."""
+def _url_en_sleutel(aanbieder: str, env: Mapping[str, str]) -> tuple[str, str]:
+    """Base url and key for the terminal tools, or LlmFout saying which variable to set."""
     url, sleutel, _ = _compat_instellingen(aanbieder, env)
     if not sleutel or not _https_ok(url):
         raise LlmFout(f"geen sleutel of geen https-adres voor {aanbieder}: zet {aanbieder.upper()}_API_KEY in .env")
+    return url, sleutel
+
+
+def lijst_modellen(aanbieder: str, env: Mapping[str, str] = os.environ, *, client: httpx.Client | None = None) -> list[str]:
+    """The model names this provider offers (`GET /models`), so a name never has to be guessed. Needs the provider's key, not a model."""
+    url, sleutel = _url_en_sleutel(aanbieder, env)
     try:
         r = (client or httpx.Client(timeout=15.0)).get(url.rstrip("/") + "/models", headers={"Authorization": f"Bearer {sleutel}"})
         r.raise_for_status()
@@ -272,9 +278,7 @@ def lijst_modellen(aanbieder: str, env: Mapping[str, str] = os.environ, *, clien
 def ping(aanbieder: str, model: str, env: Mapping[str, str] = os.environ, *, client: httpx.Client | None = None) -> dict:
     """One tiny question to the provider and everything a person needs to read a refusal: status, the limit-related headers and the
     provider's own message. Only for a person at a terminal: the question is a fixed "Zeg hallo", so nothing of a kid is in it."""
-    url, sleutel, _ = _compat_instellingen(aanbieder, env)
-    if not sleutel or not _https_ok(url):
-        raise LlmFout(f"geen sleutel of geen https-adres voor {aanbieder}: zet {aanbieder.upper()}_API_KEY in .env")
+    url, sleutel = _url_en_sleutel(aanbieder, env)
     begin = time.monotonic()
     try:
         r = (client or httpx.Client(timeout=30.0)).post(url.rstrip("/") + "/chat/completions", headers={"Authorization": f"Bearer {sleutel}"},

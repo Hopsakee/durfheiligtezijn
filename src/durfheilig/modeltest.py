@@ -17,7 +17,7 @@ import os
 import random
 import re
 import statistics
-import threading
+from concurrent.futures import ThreadPoolExecutor
 import time
 from dataclasses import dataclass, field
 from datetime import date
@@ -55,6 +55,10 @@ def zinnen(tekst: str) -> int:
     return len([z for z in re.split(r"(?<=[.!?])\s+", tekst.strip()) if z])
 
 
+def _engels(tekst: str) -> bool:
+    return len(ENGELS & set(re.findall(r"[a-z']+", tekst.lower()))) >= 3
+
+
 def controleer_uitleg(uitleg: str, h: Heilige, open_antwoorden: list[str]) -> list[str]:
     """Rough checks on one personal explanation: what a reader would notice at once."""
     p = []
@@ -62,7 +66,7 @@ def controleer_uitleg(uitleg: str, h: Heilige, open_antwoorden: list[str]) -> li
         p.append(f"{zinnen(uitleg)} zinnen (bedoeld 2 of 3)")
     if re.search(r"\b(u|uw|uzelf)\b", uitleg, re.I):
         p.append("u-vorm")
-    if len(ENGELS & set(re.findall(r"[a-z']+", uitleg.lower()))) >= 3:
+    if _engels(uitleg):
         p.append("Engels")
     if re.search(r"(\*\*|^#|`|^\s*[-*] )", uitleg, re.M):
         p.append("markdown")
@@ -84,7 +88,7 @@ def controleer_vraag(v: Vervolgvraag) -> list[str]:
     p = []
     if not v.vraag.rstrip().endswith("?"):
         p.append("vraag eindigt niet op ?")
-    if len(ENGELS & set(re.findall(r"[a-z']+", f"{v.vraag} {v.min} {v.plus}".lower()))) >= 3:
+    if _engels(f"{v.vraag} {v.min} {v.plus}"):
         p.append("Engels")
     if len(v.min) < 3 or len(v.plus) < 3:
         p.append("antwoord te kort")
@@ -130,8 +134,7 @@ def draai_deelnemer(llm: Llm, i: int, seed: int, heiligen, vragen) -> tuple[list
 
 
 def percentiel(waarden: list[float], q: float) -> float:
-    waarden = sorted(waarden)
-    return waarden[min(len(waarden) - 1, round(q * (len(waarden) - 1)))] if waarden else float("nan")
+    return sorted(waarden)[round(q * (len(waarden) - 1))]
 
 
 def samenvatting(naam: str, per_deelnemer: list[list[Meting]], gelijktijdig: list[float] | None = None) -> str:
@@ -165,16 +168,13 @@ def draai_model(llm: Llm, n: int, seed: int, gelijktijdig: int = 0, heiligen=Non
         per.append(ms), ctx.append(c)
     duren = []
     if gelijktijdig:
-        slot = threading.Lock()
-
         def een(i):
             antw, p, interesses, open_, top = verzonnen_deelnemer(i, seed, heiligen, vragen)
             begin = time.monotonic()
             finale(llm, p, interesses, open_, top, [], {})
-            with slot:
-                duren.append(time.monotonic() - begin)
-        draden = [threading.Thread(target=een, args=(i,)) for i in range(gelijktijdig)]
-        [d.start() for d in draden], [d.join() for d in draden]
+            return time.monotonic() - begin
+        with ThreadPoolExecutor(gelijktijdig) as pool:
+            duren = list(pool.map(een, range(gelijktijdig)))
     return per, ctx, duren
 
 
@@ -192,6 +192,13 @@ def omgeving_voor(spec: str, basis: dict) -> tuple[dict, str]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        return _main(argv)
+    except LlmFout as e:
+        raise SystemExit(str(e))
+
+
+def _main(argv: list[str] | None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--model", action="append", default=[], help="modelnaam, of aanbieder:modelnaam; mag vaker")
     ap.add_argument("--ping", metavar="AANBIEDER:MODEL", help="stel één kleine vraag en toon status, limietkoppen en de melding van de aanbieder")
@@ -206,19 +213,13 @@ def main(argv: list[str] | None = None) -> int:
     if a.ping:
         env, model = omgeving_voor(a.ping, dict(os.environ))
         aanbieder = env.get("LLM_PROVIDER") or "openai"
-        try:
-            u = ping(aanbieder, model, env)
-        except LlmFout as e:
-            raise SystemExit(str(e))
+        u = ping(aanbieder, model, env)
         print(f"{aanbieder}, model {model}: HTTP {u['status']} na {u['duur']:.1f} s")
         print("limietkoppen:", u["limietkoppen"] or "(geen)")
         print("antwoord:", u["tekst"])
         return 0
     if a.modellen:
-        try:
-            print("\n".join(lijst_modellen(a.modellen, os.environ)))
-        except LlmFout as e:
-            raise SystemExit(str(e))
+        print("\n".join(lijst_modellen(a.modellen, os.environ)))
         return 0
     if not a.model:
         raise SystemExit("Geef minstens één --model, of --modellen <aanbieder> om te zien wat er is")
