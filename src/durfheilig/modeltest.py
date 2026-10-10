@@ -1,0 +1,210 @@
+"""Probeer een taalmodel uit met de echte prompts van de app, op verzonnen deelnemers.
+
+    uv run python -m durfheilig.modeltest --model mistral-small-3.2-24b-instruct-2506 --model gemma-4-26b-a4b-it
+    uv run python -m durfheilig.modeltest --model X --n 8 --gelijktijdig 12
+
+Leest de aanbieder uit `.env` zoals de app (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_PROVIDER`, of de Gemini-variabelen) en vervangt alleen het
+model door elk `--model`. Er gaan alleen verzonnen antwoorden naar het model, nooit gegevens van kinderen. Het rapport komt in `modeltest/`
+(genegeerd door git) en bevat de volledige teksten, want of een uitleg warm en kloppend klinkt, beoordeel je door te lezen. De controles ervoor
+zijn grof: ze vangen het ergste (ongeldige JSON, Engels, markdown, verzonnen jaartallen, een uitleg zonder verwijzing naar het kind).
+"""
+
+import argparse
+import logging
+import os
+import random
+import re
+import statistics
+import threading
+import time
+from dataclasses import dataclass, field
+from datetime import date
+from pathlib import Path
+
+from .data import Heilige, Vragenbank, laad_heiligen, laad_vragen
+from .dev import laad_env
+from .llm import Llm, Uitslag, Vervolgvraag, beschrijving, finale, llm_uit_omgeving, vervolgvragen
+from .scoring import kies_vragen, profiel, rangschik
+
+OPEN_ANTWOORDEN = [
+    ("Ik ben goed in tekenen", "Ik word boos als iemand wordt buitengesloten"),
+    ("Voetballen en mensen aan het lachen maken", "Oneerlijke scheidsrechters"),
+    ("Ik kan goed luisteren naar vrienden", "Als dieren slecht worden behandeld"),
+    ("Gamen en dingen uitzoeken hoe ze werken", "Dat sommige mensen niks hebben terwijl anderen veel hebben"),
+    ("Zingen en gitaar spelen", "Pesten op school"),
+    ("Koken en bakken voor mijn familie", "Dat niemand naar elkaar luistert"),
+    ("", ""),
+    ("Sporten en doorzetten als het zwaar is", "Wanneer mensen liegen"),
+]
+ENGELS = {"the", "and", "you", "your", "with", "this", "that", "because", "who", "was", "were", "his", "her"}
+RAAD = r"(als ai|taalmodel|als een ai|artificial)"
+
+
+@dataclass
+class Meting:
+    soort: str                      # "vervolg" or "finale"
+    duur: float
+    door_llm: bool
+    problemen: list[str] = field(default_factory=list)
+    tekst: str = ""
+
+
+def zinnen(tekst: str) -> int:
+    return len([z for z in re.split(r"(?<=[.!?])\s+", tekst.strip()) if z])
+
+
+def controleer_uitleg(uitleg: str, h: Heilige, open_antwoorden: list[str]) -> list[str]:
+    """Rough checks on one personal explanation: what a reader would notice at once."""
+    p = []
+    if not 2 <= zinnen(uitleg) <= 4:
+        p.append(f"{zinnen(uitleg)} zinnen (bedoeld 2 of 3)")
+    if re.search(r"\b(u|uw|uzelf)\b", uitleg, re.I):
+        p.append("u-vorm")
+    if len(ENGELS & set(re.findall(r"[a-z']+", uitleg.lower()))) >= 3:
+        p.append("Engels")
+    if re.search(r"(\*\*|^#|`|^\s*[-*] )", uitleg, re.M):
+        p.append("markdown")
+    if re.search(RAAD, uitleg, re.I):
+        p.append("praat over zichzelf als AI")
+    bron = " ".join(str(v) for v in h.record.values() if isinstance(v, (str, list, dict)))
+    onbekend = {j for j in re.findall(r"\b(1[0-9]{3}|20[0-9]{2})\b", uitleg) if j not in bron}
+    if onbekend:
+        p.append(f"jaartal niet in het record: {', '.join(sorted(onbekend))}")
+    return p
+
+
+def verwijst_naar_kind(uitleg: str, open_antwoorden: list[str]) -> bool:
+    woorden = {w for t in open_antwoorden for w in re.findall(r"[a-zà-ÿ]{5,}", t.lower())}
+    return bool(woorden) and any(w[:5] in uitleg.lower() for w in woorden)
+
+
+def controleer_vraag(v: Vervolgvraag) -> list[str]:
+    p = []
+    if not v.vraag.rstrip().endswith("?"):
+        p.append("vraag eindigt niet op ?")
+    if len(ENGELS & set(re.findall(r"[a-z']+", f"{v.vraag} {v.min} {v.plus}".lower()))) >= 3:
+        p.append("Engels")
+    if len(v.min) < 3 or len(v.plus) < 3:
+        p.append("antwoord te kort")
+    return p
+
+
+def verzonnen_deelnemer(i: int, seed: int, heiligen: list[Heilige], vragen: Vragenbank):
+    rng = random.Random(seed * 1000 + i)
+    antw = {q.id: rng.choice(("min", "plus")) for q in kies_vragen(vragen, rng)}
+    p = profiel(antw, vragen)
+    interesses = rng.sample(vragen.interesses, rng.choice((2, 3)))
+    open_ = [t for t in OPEN_ANTWOORDEN[i % len(OPEN_ANTWOORDEN)] if t]
+    top = [h for h, _ in rangschik(p, interesses, heiligen, rng.choice(("man", "vrouw", "maakt niet uit")), n=12, interesse_lijst=vragen.interesses)]
+    return antw, p, interesses, open_, top
+
+
+def draai_deelnemer(llm: Llm, i: int, seed: int, heiligen, vragen) -> tuple[list[Meting], dict]:
+    antw, p, interesses, open_, top = verzonnen_deelnemer(i, seed, heiligen, vragen)
+    metingen = []
+    begin = time.monotonic()
+    vq, door = vervolgvragen(llm, p, interesses, open_, top, vragen, set(antw))
+    problemen = [x for v in vq for x in controleer_vraag(v)] if door else []
+    metingen.append(Meting("vervolg", time.monotonic() - begin, door, problemen,
+                           "\n".join(f"- {v.vraag}  [{v.min} / {v.plus}]" for v in vq)))
+    kies = {v.id: ("min" if k % 2 else "plus") for k, v in enumerate(vq)}
+    begin = time.monotonic()
+    uit: Uitslag = finale(llm, p, interesses, open_, top, vq, kies)
+    duur = time.monotonic() - begin
+    per_qid = {h.qid: h for h in top}
+    problemen, regels, verwijst = [], [], False
+    for k in uit.keuzes:
+        h = per_qid[k.qid]
+        if uit.door_llm:
+            problemen += [f"{h.naam}: {x}" for x in controleer_uitleg(k.uitleg, h, open_)]
+            verwijst = verwijst or verwijst_naar_kind(k.uitleg, open_)
+        regels.append(f"**{h.naam}**: {k.uitleg}")
+    if uit.door_llm and open_ and not verwijst:
+        problemen.append("geen enkele uitleg verwijst naar wat het kind schreef")
+    if uit.markering:
+        regels.append(f"_markering: {uit.markering}_")
+    metingen.append(Meting("finale", duur, uit.door_llm, problemen, "\n\n".join(regels)))
+    return metingen, {"open": open_, "interesses": interesses}
+
+
+def percentiel(waarden: list[float], q: float) -> float:
+    waarden = sorted(waarden)
+    return waarden[min(len(waarden) - 1, round(q * (len(waarden) - 1)))] if waarden else float("nan")
+
+
+def samenvatting(naam: str, per_deelnemer: list[list[Meting]], gelijktijdig: list[float] | None = None) -> str:
+    alle = [m for ms in per_deelnemer for m in ms]
+    regels = [f"### {naam}", ""]
+    for soort in ("vervolg", "finale"):
+        ms = [m for m in alle if m.soort == soort]
+        duur = [m.duur for m in ms]
+        regels.append(f"- **{soort}**: {sum(m.door_llm for m in ms)} van {len(ms)} bruikbaar (de rest viel terug op vaste tekst), "
+                      f"mediaan {statistics.median(duur):.1f} s, traagste {max(duur):.1f} s, {sum(len(m.problemen) for m in ms)} opvallende punten")
+    if gelijktijdig:
+        regels.append(f"- **{len(gelijktijdig)} tegelijk** (finale): mediaan {statistics.median(gelijktijdig):.1f} s, p95 {percentiel(gelijktijdig, .95):.1f} s, traagste {max(gelijktijdig):.1f} s")
+    return "\n".join(regels)
+
+
+def rapport(naam: str, per_deelnemer, context, gelijktijdig=None) -> str:
+    uit = [f"# Modeltest: {naam}", "", f"Datum {date.today().isoformat()}. Verzonnen deelnemers, echte prompts.", "", samenvatting(naam, per_deelnemer, gelijktijdig), ""]
+    for i, (ms, c) in enumerate(zip(per_deelnemer, context), 1):
+        uit += [f"## Deelnemer {i}", f"Interesses: {', '.join(c['interesses'])}. Eigen woorden: {' | '.join(c['open']) or '(niets ingevuld)'}", ""]
+        for m in ms:
+            uit += [f"**{m.soort}** ({m.duur:.1f} s, {'LLM' if m.door_llm else 'vaste tekst'})", "", m.tekst, ""]
+            uit += [f"> let op: {p}" for p in m.problemen] + ([""] if m.problemen else [])
+    return "\n".join(uit)
+
+
+def draai_model(llm: Llm, n: int, seed: int, gelijktijdig: int = 0, heiligen=None, vragen=None):
+    heiligen, vragen = heiligen or laad_heiligen(), vragen or laad_vragen()
+    per, ctx = [], []
+    for i in range(n):
+        ms, c = draai_deelnemer(llm, i, seed, heiligen, vragen)
+        per.append(ms), ctx.append(c)
+    duren = []
+    if gelijktijdig:
+        slot = threading.Lock()
+
+        def een(i):
+            antw, p, interesses, open_, top = verzonnen_deelnemer(i, seed, heiligen, vragen)
+            begin = time.monotonic()
+            finale(llm, p, interesses, open_, top, [], {})
+            with slot:
+                duren.append(time.monotonic() - begin)
+        draden = [threading.Thread(target=een, args=(i,)) for i in range(gelijktijdig)]
+        [d.start() for d in draden], [d.join() for d in draden]
+    return per, ctx, duren
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--model", action="append", required=True, help="modelnaam bij de aanbieder; mag vaker")
+    ap.add_argument("--n", type=int, default=6, help="aantal verzonnen deelnemers per model")
+    ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--gelijktijdig", type=int, default=0, help="speel daarna zoveel finales tegelijk, om te zien hoe het onder druk gaat")
+    ap.add_argument("--uit", type=Path, default=Path("modeltest"))
+    a = ap.parse_args(argv)
+    laad_env()
+    logging.basicConfig(level=logging.WARNING, format="%(message)s")
+    samenvattingen = []
+    for model in a.model:
+        env = dict(os.environ)
+        env["LLM_MODEL" if env.get("LLM_PROVIDER", "").lower() == "openai" or env.get("LLM_BASE_URL") else "GEMINI_MODEL"] = model
+        llm = llm_uit_omgeving(env)
+        if llm is None:
+            raise SystemExit("Geen aanbieder ingesteld: zet LLM_BASE_URL, LLM_API_KEY (of de Gemini-variabelen) in .env, zie .env.example")
+        print(f"\n== {model} ({beschrijving(llm)}) ==", flush=True)
+        per, ctx, duren = draai_model(llm, a.n, a.seed, a.gelijktijdig)
+        tekst = rapport(model, per, ctx, duren)
+        a.uit.mkdir(parents=True, exist_ok=True)
+        pad = a.uit / f"{date.today().isoformat()}-{re.sub(r'[^A-Za-z0-9._-]+', '_', model)}.md"
+        pad.write_text(tekst, encoding="utf-8")
+        s = samenvatting(model, per, duren)
+        samenvattingen.append(s)
+        print(s, f"\n  rapport: {pad}", flush=True)
+    print("\n" + "\n\n".join(samenvattingen))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
