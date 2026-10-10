@@ -102,6 +102,13 @@ def _lan_ip() -> str:
             return "<jouw-ip>"
 
 
+def wis_dev_db(pad: Path) -> None:
+    """Remove the dev database with its SQLite side files. The -wal and -shm files belong to the database: deleting only the main file leaves
+    them behind and the next start fails with "disk I/O error"."""
+    for suffix in ("", "-wal", "-shm", "-journal"):
+        Path(f"{pad}{suffix}").unlink(missing_ok=True)
+
+
 def firewall_regels(ip: str, poort: int) -> tuple[str, str]:
     """The ufw commands that open the port for this network only, and close it again. Printed for the person running the app, never run by it:
     changing a firewall needs sudo and is the administrator's call. Assumes a /24 network, which is what home routers use."""
@@ -120,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--schoon", action="store_true", help="begin met een lege lokale database (alleen het dev-bestand)")
     a = ap.parse_args(argv)
     if a.schoon:
-        Path(os.environ.get("DURFHEILIG_DEV_DB", "data/spel-dev.db")).unlink(missing_ok=True)
+        wis_dev_db(Path(os.environ.get("DURFHEILIG_DEV_DB", "data/spel-dev.db")))
     gezet = laad_env()
     if gezet:
         print(".env gelezen:", ", ".join(gezet))

@@ -170,3 +170,15 @@ def test_lan_toont_de_firewallopdracht_bij_start_en_bij_stoppen(tmp_path, monkey
     assert uit.count("sudo ufw delete allow from 10.1.2.0/24 to any port 8123 proto tcp") == 2     # at start and again when stopping
     dev.main([])
     assert "ufw" not in capsys.readouterr().out                      # without --lan nothing about a firewall
+
+
+def test_schoon_wist_ook_de_sqlite_zijbestanden_en_de_database_start_daarna_weer(tmp_path, monkeypatch):
+    """--schoon once left the -wal/-shm files behind, and the next start died with "disk I/O error"."""
+    import durfheilig.dev as dev
+    pad = tmp_path / "spel-dev.db"
+    for suffix in ("", "-wal", "-shm", "-journal"):
+        Path(f"{pad}{suffix}").write_bytes(b"rommel")
+    dev.wis_dev_db(pad)
+    assert list(tmp_path.iterdir()) == []
+    dev.wis_dev_db(pad)                                              # nothing there: no error
+    spel.open_db(pad)                                                # and a fresh database opens
