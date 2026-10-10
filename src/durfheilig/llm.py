@@ -30,6 +30,7 @@ AANTAL_VERVOLGVRAGEN = 3
 MAX_TEKST = 140
 MAX_UITLEG = 700
 POGINGEN = 2
+MAX_WACHT_TE_DRUK = 5.0   # never keep a kid waiting longer than this for a "too many requests" pause
 
 
 log = logging.getLogger("durfheilig.llm")
@@ -37,6 +38,14 @@ log = logging.getLogger("durfheilig.llm")
 
 class LlmFout(Exception):
     pass
+
+
+class LlmTeDruk(LlmFout):
+    """The provider says "too many requests" (HTTP 429). `wacht` is how long it asked us to wait, in seconds (0 if it did not say)."""
+
+    def __init__(self, bericht: str, wacht: float = 0.0):
+        super().__init__(bericht)
+        self.wacht = wacht
 
 
 class LlmTimeout(LlmFout):
@@ -82,8 +91,11 @@ def gemini(api_key: str, model: str, *, timeout: float = 30.0, denkbudget: int |
 def _aanroepfout(naam: str, model: str, begin: float, e: Exception) -> LlmFout:
     """The error for a failed call: what went wrong, how long it took, which model. Never the key, never the prompt."""
     status = f" (HTTP {e.response.status_code})" if isinstance(e, httpx.HTTPStatusError) else ""
-    fout = LlmTimeout if isinstance(e, httpx.TimeoutException) else LlmFout
-    return fout(f"{naam}-aanroep mislukt: {type(e).__name__}{status} na {time.monotonic() - begin:.1f} s met model {model}")
+    basis = f"{naam}-aanroep mislukt: {type(e).__name__}{status} na {time.monotonic() - begin:.1f} s met model {model}"
+    if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 429:
+        wacht = _getal(e.response.headers.get("retry-after"), 0.0)   # a number of seconds; a date form is ignored
+        return LlmTeDruk(basis + (f", wacht {wacht:g} s gevraagd" if wacht else ""), wacht)
+    return (LlmTimeout if isinstance(e, httpx.TimeoutException) else LlmFout)(basis)
 
 
 def _alleen_json(tekst: str) -> str:
@@ -368,6 +380,8 @@ def _probeer(llm: Llm | None, systeem: str, gegevens: str, valideer):
             log.warning("LLM-poging %d van %d mislukt: %s", poging, POGINGEN, e)
             if isinstance(e, LlmTimeout):
                 break
+            if isinstance(e, LlmTeDruk) and poging < POGINGEN:
+                time.sleep(min(e.wacht or 1.0, MAX_WACHT_TE_DRUK))   # asking again at once only earns the same refusal
     log.warning("De LLM gaf geen bruikbaar antwoord: de vaste terugval wordt gebruikt")
     return None
 

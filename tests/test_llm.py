@@ -442,3 +442,38 @@ def test_de_modellenlijst_leest_de_namen_van_de_aanbieder_en_noemt_nooit_de_sleu
     assert "HTTP 401" in str(e.value) and "GEHEIMESLEUTEL" not in str(e.value)
     with pytest.raises(LlmFout, match="MISTRAL_API_KEY"):
         lijst_modellen("mistral", {})
+
+
+def test_te_veel_verzoeken_wacht_zoals_gevraagd_en_probeert_dan_opnieuw(situatie, monkeypatch, caplog):
+    import logging
+    from durfheilig import llm as llm_module
+    p, i, _, top = situatie
+    slaapt = []
+    monkeypatch.setattr(llm_module.time, "sleep", lambda s: slaapt.append(s))
+    antwoorden = [httpx.Response(429, headers={"retry-after": "2"}), httpx.Response(200, json={"choices": [{"message": {"content": goede_finale(top)}}]})]
+    llm = _compat(lambda r: antwoorden.pop(0))
+    with caplog.at_level(logging.INFO, logger="durfheilig.llm"):
+        uit = finale(llm, p, i, [], top, [], {})
+    assert uit.door_llm and slaapt == [2.0]
+    assert "HTTP 429" in caplog.text and "wacht 2 s gevraagd" in caplog.text and "GEHEIMESLEUTEL" not in caplog.text
+
+
+def test_de_pauze_bij_te_veel_verzoeken_is_begrensd_en_zonder_aanwijzing_kort(situatie, monkeypatch):
+    from durfheilig import llm as llm_module
+    p, i, _, top = situatie
+    slaapt = []
+    monkeypatch.setattr(llm_module.time, "sleep", lambda s: slaapt.append(s))
+    for header, verwacht in (({"retry-after": "120"}, 5.0), ({}, 1.0)):
+        slaapt.clear()
+        uit = finale(_compat(lambda r, h=header: httpx.Response(429, headers=h)), p, i, [], top, [], {})
+        assert not uit.door_llm and slaapt == [verwacht]          # one pause between the two attempts, none after the last
+
+
+def test_een_429_wordt_een_llmtedruk_met_de_gevraagde_wachttijd():
+    from durfheilig.llm import LlmTeDruk
+    with pytest.raises(LlmTeDruk) as e:
+        _compat(lambda r: httpx.Response(429, headers={"retry-after": "3"}))("s", "d")
+    assert e.value.wacht == 3.0
+    with pytest.raises(LlmFout) as e2:
+        _compat(lambda r: httpx.Response(500))("s", "d")
+    assert not isinstance(e2.value, LlmTeDruk)
