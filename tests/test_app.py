@@ -899,3 +899,32 @@ def test_een_trage_eindstap_schrijft_geen_top3_over_een_quiz_die_intussen_opnieu
     ids = list(dict.fromkeys(re.findall(r'name="(v\d)"', r.text)))
     c.post("/vervolg", data={i: "min" for i in ids})
     assert spel.invulling(db, houder["sid"])["stap"] == "welkom" and spel.match_van(db, houder["sid"]) is None
+
+
+def test_dubbel_indrukken_van_vervolg_betaalt_de_llm_niet_twee_keer():
+    """A second submit while the first one waits for the model must not start a second model call (it would eat the minute's token budget)."""
+    stand = {"aantal": 0, "binnen": False, "tijdens": None}
+    c = None
+
+    def llm(systeem, gegevens):
+        stand["aantal"] += 1
+        if not stand["binnen"]:
+            stand["binnen"] = True
+            voor = stand["aantal"]
+            c.post("/vervolg", data={})                       # the second tap, while the first call is still running
+            stand["tijdens"] = stand["aantal"] - voor
+        return "geen json"
+
+    db, app = maak(llm)
+    c = kind(app, "dubbel")
+    c.post("/welkom", data={"nickname": "Dub"}); c.post("/voorkeur", data={"voorkeur": "man"})
+    for _ in range(12):
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
+        c.post("/vraag", data={"vid": vid, "kant": "plus"})
+    c.post("/interesses", data={"interesse": V.interesses[:2]})
+    stand.update(binnen=True)                                # follow-up call on /open is not under test
+    r = c.post("/open", data={"a1": "x"})
+    stand.update(binnen=False, aantal=0)
+    ids = list(dict.fromkeys(re.findall(r'name="(v\d)"', r.text)))
+    c.post("/vervolg", data={i: "min" for i in ids})
+    assert stand["tijdens"] == 0 and stand["aantal"] >= 1

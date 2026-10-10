@@ -593,3 +593,36 @@ def test_de_limieten_komen_uit_de_omgeving_en_beschermen_beide_aanbieders():
 def test_de_begroting_telt_wat_we_sturen_en_wat_we_terug_verwachten():
     from durfheilig.llm import TEKENS_PER_TOKEN, UITVOER_SCHATTING, _begroot
     assert _begroot("a" * 300, "b" * 300) == 600 // TEKENS_PER_TOKEN + UITVOER_SCHATTING
+
+
+def test_antwoord_zonder_tekst_is_een_llmfout_geen_500():
+    """A 200 whose content is null (filtered or tool-call finish) must fall back, not crash the request."""
+    from durfheilig.llm import openai_compat
+    for inhoud in (None, ["a"]):
+        client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"choices": [{"message": {"content": inhoud}}]})))
+        with pytest.raises(LlmFout):
+            openai_compat("https://x/v1", "k", "m", client=client)("s", "g")
+
+
+def test_getal_weigt_nan_oneindig_en_negatief_af():
+    from durfheilig.llm import _getal
+    for slecht in ("nan", "inf", "-1", "abc"):
+        assert _getal(slecht, 7.0) == 7.0
+    assert _getal("-1", 0, ondergrens=-1) == -1 and _getal("2.5", 7.0) == 2.5
+
+
+def test_begrenzer_te_groot_verzoek_vult_het_venster_niet():
+    from durfheilig.llm import Begrenzer
+    t = [0.0]
+    b = Begrenzer(1000, None, 10.0, klok=lambda: t[0], slaap=lambda s: None)
+    assert b.wacht_voor(5000) and b.wacht_voor(900)        # the oversized call does not starve the small one
+
+
+def test_retry_after_nan_of_negatief_laat_de_aanroep_terugvallen(monkeypatch):
+    from durfheilig.llm import _probeer, openai_compat
+    slaap = []
+    monkeypatch.setattr("durfheilig.llm.time.sleep", slaap.append)
+    for kop in ("nan", "-3"):
+        client = httpx.Client(transport=httpx.MockTransport(lambda r, k=kop: httpx.Response(429, headers={"retry-after": k})))
+        assert _probeer(openai_compat("https://x/v1", "k", "m", client=client), "s", "g", lambda t: t) is None
+    assert all(0 < s <= 5 for s in slaap)

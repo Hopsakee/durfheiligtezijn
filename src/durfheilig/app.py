@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import random
+import threading
 from urllib.parse import urlparse
 
 from starlette.concurrency import run_in_threadpool
@@ -107,6 +108,19 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
             weg = spel.gekozen_heiligen(db, behalve_speler=sp["id"])
             top = rangschik(p, inv["interesses"], heiligen, inv["voorkeur"], uitsluiten=weg, n=12, interesse_lijst=vragen.interesses)
         return [h for h, _ in top]
+
+    bezig, bezig_slot = set(), threading.Lock()   # players whose LLM call is running: a double tap or a second tab must not pay for it twice
+
+    def eenmaal(speler_id: int, werk) -> None:
+        with bezig_slot:
+            if speler_id in bezig:
+                return
+            bezig.add(speler_id)
+        try:
+            werk()
+        finally:
+            with bezig_slot:
+                bezig.discard(speler_id)
 
     def maak_vervolg(sp: dict, inv: dict, afgewezen=()) -> None:
         kand = kandidaten_voor(sp, inv, afgewezen)
@@ -328,7 +342,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         if inv["stap"] != "open":
             return naar()
         spel.bewaar(db, sp["id"], open_antwoorden=[t.strip()[:MAX_OPEN] for t in (a1, a2) if t.strip()])
-        maak_vervolg(sp, spel.invulling(db, sp["id"]))
+        eenmaal(sp["id"], lambda: maak_vervolg(sp, spel.invulling(db, sp["id"])))
         return naar()
 
     @route("/vervolg", methods=["post"])
@@ -339,7 +353,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         form = await req.form()
         antw = {v["id"]: form.get(v["id"]) for v in inv["vervolg"] if form.get(v["id"]) in ("min", "plus")}
         spel.bewaar(db, sp["id"], vervolg_antwoorden=antw)
-        await run_in_threadpool(maak_match, sp, spel.invulling(db, sp["id"]))   # waits for Gemini: not on the event loop
+        await run_in_threadpool(eenmaal, sp["id"], lambda: maak_match(sp, spel.invulling(db, sp["id"])))   # waits for Gemini: not on the event loop
         return naar()
 
     @route("/keuze", methods=["post"])

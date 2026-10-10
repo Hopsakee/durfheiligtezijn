@@ -11,6 +11,7 @@ kandidaten), dan antwoordt de deterministische terugval, zodat het spel nooit va
 
 import json
 import logging
+import math
 import os
 import statistics
 import threading
@@ -91,7 +92,8 @@ class Begrenzer:
                 return False
             moment = nu + wacht
             self._laatste = moment
-            self._venster.append((moment, tokens))        # reserved now, so the next caller queues behind this one
+            if not self.tokens or tokens <= self.tokens:  # an oversized call is let through but must not fill the window and starve small ones
+                self._venster.append((moment, tokens))    # reserved now, so the next caller queues behind this one
         if wacht:
             self.slaap(wacht)
         return True
@@ -133,6 +135,8 @@ def gemini(api_key: str, model: str, *, timeout: float = 30.0, denkbudget: int |
             r.raise_for_status()
             antwoord = r.json()
             tekst = antwoord["candidates"][0]["content"]["parts"][0]["text"]
+            if not isinstance(tekst, str):
+                raise ValueError("antwoord zonder tekst")
             tokens = antwoord.get("usageMetadata", {})   # numbers only: how much was read, thought and written
             log.info("Gemini %s antwoordde in %.1f s (%d tekens verstuurd, tokens: in %s, denken %s, uit %s)", model, time.monotonic() - begin,
                      len(systeem) + len(gegevens), tokens.get("promptTokenCount"), tokens.get("thoughtsTokenCount"), tokens.get("candidatesTokenCount"))
@@ -184,6 +188,8 @@ def openai_compat(base_url: str, api_key: str, model: str, *, timeout: float = 3
             r.raise_for_status()
             antwoord = r.json()
             tekst = antwoord["choices"][0]["message"]["content"]
+            if not isinstance(tekst, str):   # null on a filtered or tool-call finish
+                raise ValueError("antwoord zonder tekst")
             gebruik = antwoord.get("usage", {})   # numbers only
             log.info("LLM %s antwoordde in %.1f s (%d tekens verstuurd, tokens: in %s, uit %s)", model, time.monotonic() - begin,
                      len(systeem) + len(gegevens), gebruik.get("prompt_tokens"), gebruik.get("completion_tokens"))
@@ -195,11 +201,13 @@ def openai_compat(base_url: str, api_key: str, model: str, *, timeout: float = 3
     return roep
 
 
-def _getal(waarde: str | None, standaard: float) -> float:
+def _getal(waarde: str | None, standaard: float, ondergrens: float = 0.0) -> float:
+    """A finite number from an env value or header, else the default: nan, inf, junk and values below `ondergrens` never get through."""
     try:
-        return float(waarde) if waarde else standaard
+        w = float(waarde) if waarde else standaard
     except ValueError:
         return standaard
+    return w if math.isfinite(w) and w >= ondergrens else standaard
 
 
 # Providers with an OpenAI-compatible API and a known address; each has its own key variable, `<NAAM>_API_KEY`, so several keys can sit in one `.env`.
@@ -216,7 +224,10 @@ def _compat_instellingen(aanbieder: str, env: Mapping[str, str]) -> tuple[str, s
     """(base url, key, model) for `openai` (all three in LLM_*) or a named provider (its own address and `<NAAM>_API_KEY`, falling back on LLM_*)."""
     if aanbieder == "openai":
         return env.get("LLM_BASE_URL", ""), env.get("LLM_API_KEY", ""), env.get("LLM_MODEL", "")
-    return env.get("LLM_BASE_URL") or AANBIEDERS[aanbieder], env.get(f"{aanbieder.upper()}_API_KEY") or env.get("LLM_API_KEY", ""), env.get("LLM_MODEL", "")
+    url = env.get("LLM_BASE_URL") or AANBIEDERS[aanbieder]
+    if url != AANBIEDERS[aanbieder]:   # a leftover from an earlier `openai` setup would send this provider's key to another host
+        log.warning("LLM_BASE_URL staat op een ander adres dan het vaste adres van %s: de sleutel van %s gaat daarheen", aanbieder, aanbieder)
+    return url, env.get(f"{aanbieder.upper()}_API_KEY") or env.get("LLM_API_KEY", ""), env.get("LLM_MODEL", "")
 
 
 def llm_uit_omgeving(env: Mapping[str, str] = os.environ) -> Llm | None:
@@ -247,7 +258,7 @@ def llm_uit_omgeving(env: Mapping[str, str] = os.environ) -> Llm | None:
             log.error("%s ingesteld maar %s ontbreekt: de vaste terugval wordt gebruikt", aanbieder, ", ".join(ontbreekt))
         return None
     if aanbieder == "gemini":
-        denk = int(_getal(env.get("GEMINI_THINKING_BUDGET"), 0))
+        denk = int(_getal(env.get("GEMINI_THINKING_BUDGET"), 0, ondergrens=-1))
         return gemini(env["GEMINI_API_KEY"], env["GEMINI_MODEL"], timeout=wacht, denkbudget=None if denk < 0 else denk, begrenzer=begrenzer)
     if not _https_ok(url):
         log.error("LLM_BASE_URL moet een https-adres zijn (de sleutel gaat mee): de vaste terugval wordt gebruikt")
