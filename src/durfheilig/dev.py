@@ -18,7 +18,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 from . import db as spel
 from .app import maak_app
 from .data import laad_heiligen, laad_vragen
-from .llm import llm_uit_omgeving
+from .llm import beschrijving, llm_uit_omgeving
 
 NAAM = re.compile(r"^[a-z0-9_-]{1,30}$")
 VOORBEELDEN = ["kind1", "kind2", "kind3", "kind4"]
@@ -100,7 +100,7 @@ def main() -> int:
     if gezet:
         print(".env gelezen:", ", ".join(gezet))
     llm = llm_uit_omgeving()
-    print("LLM:", "Gemini" if llm else "geen sleutel, de vaste terugval (vul GEMINI_API_KEY en GEMINI_MODEL in `.env` in, zie `.env.example`)")
+    print("LLM:", beschrijving(llm))
     poort = int(os.environ.get("PORT", "8000"))
     print(f"Open http://127.0.0.1:{poort}/dev")
     uvicorn.run(maak_dev_app(llm=llm), host="127.0.0.1", port=poort)

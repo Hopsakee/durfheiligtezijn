@@ -308,3 +308,104 @@ def test_de_vervolgvragen_krijgen_korte_kandidaten_en_de_uitleg_de_volledige(sit
     assert "levensverhaal" not in kort and "haakjes" not in kort and "wat_voor_mens" in kort
     assert "levensverhaal" in lang and "haakjes" in lang
     assert len(kort) < len(lang) / 2
+
+
+def _compat(handler, **kw):
+    from durfheilig.llm import openai_compat
+    return openai_compat("https://api.example.test/v1/", "GEHEIMESLEUTEL", "model-y", client=httpx.Client(transport=httpx.MockTransport(handler)), **kw)
+
+
+def test_openai_compat_stuurt_sleutel_in_de_header_en_leest_het_antwoord():
+    gezien = {}
+
+    def handler(request):
+        gezien.update(url=str(request.url), kop=request.headers.get("authorization"), body=json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"a": 1}'}}], "usage": {"prompt_tokens": 10, "completion_tokens": 3}})
+    assert _compat(handler)("systeem", "gegevens") == '{"a": 1}'
+    assert gezien["url"] == "https://api.example.test/v1/chat/completions" and gezien["kop"] == "Bearer GEHEIMESLEUTEL"
+    assert "GEHEIMESLEUTEL" not in gezien["url"] and gezien["body"]["model"] == "model-y"
+    assert [m["role"] for m in gezien["body"]["messages"]] == ["system", "user"] and gezien["body"]["response_format"] == {"type": "json_object"}
+
+
+def test_openai_compat_json_modus_kan_uit_voor_een_model_dat_het_weigert():
+    gezien = {}
+    _compat(lambda r: gezien.update(b=json.loads(r.content)) or httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}]}), json_modus=False)("s", "d")
+    assert "response_format" not in gezien["b"]
+
+
+@pytest.mark.parametrize("ruw", ['<think>eerst denken</think>{"keuzes": []}', '```json\n{"keuzes": []}\n```', '{"keuzes": []}'])
+def test_een_redeneerblok_of_codeblok_rond_het_json_wordt_bij_het_controleren_weggehaald_voor_elke_aanbieder(situatie, ruw):
+    from durfheilig.llm import _alleen_json
+    assert json.loads(_alleen_json(ruw)) == {"keuzes": []}
+    _, _, _, top = situatie
+    echt = json.dumps({"keuzes": [{"qid": h.qid, "uitleg": "ok"} for h in top[:3]]})
+    for verpakking in ("<think>eerst denken</think>{}", "```json\n{}\n```", "{}"):
+        assert valideer_finale(verpakking.format(echt), top, set()).door_llm
+        assert valideer_finale(verpakking.format(echt), top, set()).keuzes[0].qid == top[0].qid
+
+
+def test_openai_compat_geeft_de_ruwe_tekst_door_en_laat_het_schoonmaken_aan_de_controle():
+    llm = _compat(lambda r: httpx.Response(200, json={"choices": [{"message": {"content": "```json\n{}\n```"}}]}))
+    assert llm("s", "d") == "```json\n{}\n```"
+
+
+def test_openai_compat_fouten_noemen_status_duur_en_model_maar_nooit_de_sleutel():
+    from durfheilig.llm import LlmTimeout
+    with pytest.raises(LlmFout) as e:
+        _compat(lambda r: httpx.Response(401))("s", "d")
+    assert "HTTP 401" in str(e.value) and "model-y" in str(e.value) and "GEHEIMESLEUTEL" not in str(e.value)
+
+    def te_traag(request):
+        raise httpx.ReadTimeout("x", request=request)
+    with pytest.raises(LlmTimeout):
+        _compat(te_traag)("s", "d")
+    for lichaam in ({"choices": []}, {"choices": [{"message": None}]}, []):
+        with pytest.raises(LlmFout):
+            _compat(lambda r, l=lichaam: httpx.Response(200, json=l))("s", "d")
+
+
+def test_de_omgeving_kiest_de_openai_compatibele_aanbieder_boven_gemini():
+    from durfheilig.llm import llm_uit_omgeving
+    scw = {"LLM_BASE_URL": "https://x/v1", "LLM_API_KEY": "k", "LLM_MODEL": "m"}
+    gem = {"GEMINI_API_KEY": "k", "GEMINI_MODEL": "m"}
+    assert llm_uit_omgeving(scw) is not None and llm_uit_omgeving({**scw, **gem}) is not None and llm_uit_omgeving(gem) is not None
+    assert llm_uit_omgeving({"LLM_BASE_URL": "https://x/v1", "LLM_API_KEY": "k"}) is None        # incomplete: model missing
+    assert llm_uit_omgeving({}) is None
+
+
+def test_de_aanbieder_is_expliciet_te_kiezen_en_een_gat_staat_met_naam_in_de_log(caplog):
+    import logging
+    from durfheilig.llm import beschrijving, llm_uit_omgeving
+    scw = {"LLM_BASE_URL": "https://api.scaleway.test/v1", "LLM_API_KEY": "k", "LLM_MODEL": "mistral-x"}
+    gem = {"GEMINI_API_KEY": "k", "GEMINI_MODEL": "gem-y"}
+    assert "api.scaleway.test" in beschrijving(llm_uit_omgeving(scw)) and "mistral-x" in beschrijving(llm_uit_omgeving(scw))
+    assert beschrijving(llm_uit_omgeving(gem)) == "Gemini, model gem-y"
+    assert "gem-y" in beschrijving(llm_uit_omgeving({**scw, **gem, "LLM_PROVIDER": "gemini"}))          # explicit choice beats the autodetect
+    assert "mistral-x" in beschrijving(llm_uit_omgeving({**scw, **gem}))                                 # autodetect: openai wins when all three are set
+    with caplog.at_level(logging.ERROR, logger="durfheilig.llm"):
+        assert llm_uit_omgeving({"LLM_PROVIDER": "openai", "LLM_API_KEY": "k"}) is None
+        assert llm_uit_omgeving({"LLM_PROVIDER": "claude"}) is None
+        assert llm_uit_omgeving({"LLM_BASE_URL": "https://x/v1", "LLM_API_KEY": "k"}) is None
+    assert "LLM_BASE_URL, LLM_MODEL" in caplog.text and "onbekend" in caplog.text
+    caplog.clear()
+    assert llm_uit_omgeving({}) is None and caplog.text == ""                                          # nothing set at all is simply "no LLM"
+    assert "geen sleutel" in beschrijving(None)
+
+
+def test_een_http_adres_voor_de_aanbieder_wordt_geweigerd_behalve_lokaal(caplog):
+    import logging
+    from durfheilig.llm import llm_uit_omgeving
+    basis = {"LLM_API_KEY": "k", "LLM_MODEL": "m"}
+    with caplog.at_level(logging.ERROR, logger="durfheilig.llm"):
+        assert llm_uit_omgeving({**basis, "LLM_BASE_URL": "http://api.example.test/v1"}) is None
+        assert llm_uit_omgeving({**basis, "LLM_BASE_URL": "geen adres"}) is None
+    assert "https-adres" in caplog.text
+    assert llm_uit_omgeving({**basis, "LLM_BASE_URL": "https://api.example.test/v1"}) is not None
+    assert llm_uit_omgeving({**basis, "LLM_BASE_URL": "http://localhost:8080/v1"}) is not None
+
+
+def test_absurd_diep_geneste_uitvoer_van_het_model_geeft_de_terugval_in_plaats_van_een_fout(situatie):
+    p, i, _, top = situatie
+    diep = "[" * 100000 + "]" * 100000
+    uit = finale(Fake(diep, diep), p, i, [], top, [], {})
+    assert not uit.door_llm and len(uit.keuzes) == 3

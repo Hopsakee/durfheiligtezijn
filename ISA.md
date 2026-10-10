@@ -1,6 +1,6 @@
 ---
 phase: climbing
-progress: 33/35
+progress: 35/38
 principal_stated_goal: "I merged #6, please start phase 4."
 ---
 
@@ -62,6 +62,9 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - [x] ISC-33: The tv (`/beheer/tv`), the control page (`/beheer/spel`), the print version of the board (`/beheer/print`) and the explanation reader (`/beheer/speler/{id}`) are leader-only, as are all their POSTs; kids see only `/spel`.
 - [x] ISC-34: Group wipe and export cover the game tables; a leader can start the game over without losing the players' answers.
 - [x] ISC-35: Every page except the tv screen carries a menu (hamburger) with the pages the viewer may use, and `/menu` lists them with a line of explanation; leaders land on that page at `/`, kids land straight in their quiz; a kid's menu never contains a `/beheer` link, one visitor's menu never leaks into the next request, and looking around as a leader does not create a participant.
+- [x] ISC-36: A kid can undo the last answer, and fill the quiz in again until the game starts; the reset wipes answers and match (the chosen saint becomes free), keeps the nickname and who read the explanation, and is refused inside the same transaction once the game has started; a slow step that waited for the model never writes over a quiz restarted meanwhile; the game start reads, draws and writes in one transaction.
+- [x] ISC-37: The app can use any OpenAI-compatible provider (Scaleway and others) next to Gemini, chosen by `LLM_PROVIDER` or by which variables are set; the key goes over https only (plain http only for localhost); the log names provider-side failures by status, duration and model, never by response body, key or kid text; hostile model output (fences, reasoning blocks, absurd nesting) falls back instead of failing.
+- [ ] ISC-38: The quiz screens look good and are easy on a phone for 13-year-olds in the Netherlands: step dots and progress bar, large answer cards, tappable chips, readable in dark mode, a dark tv screen, a hamburger menu. Built from one stylesheet with design tokens; only structure and tokens are tested, nobody has looked at it in a real browser yet.
 
 ## Anti-claims
 
@@ -133,3 +136,6 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - [ ] [none] The tv shows the link to join as text; there is no QR code (no QR library in the offline wheel store).
 - [ ] [none] The game lives under `/beheer/...` (tv at `/beheer/tv`, not `/tv`) so the existing Authelia rule for `/beheer` already covers it.
 - [ ] [none] The printed fallback is a numbered copy of the board and a blank ballot line, not full voting slips per round.
+- [ ] [none] The reset overwrites in place. The June comparison needs the September choice to survive: keep "opnieuw invullen" a before-the-game correction and make `ronde` the key of `invulling` and `match` when phase 6 builds the comparison.
+- [ ] [none] Scaleway has not been tried: the base URL, the JSON mode and the model (deepseek or mistral-small) are Jelle's to decide once the account exists; the prompts were written for Claude and Gemini and need a test on the chosen model.
+- [ ] [none] The redesign has never been viewed on a phone; expect a round of corrections after the first look.
