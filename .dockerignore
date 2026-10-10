@@ -10,3 +10,4 @@ data/spel.db*
 *.db
 .env*
 src/durfheilig/dev.py
+src/durfheilig/dummies.py
