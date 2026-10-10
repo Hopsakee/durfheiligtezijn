@@ -18,7 +18,7 @@ from .env import laad_env  # noqa: F401  (also imported from here by tests)
 from starlette.responses import HTMLResponse, RedirectResponse
 
 from . import db as spel
-from .app import maak_app
+from .app import maak_app, stil_pollregels
 from .data import laad_heiligen, laad_vragen
 from .llm import beschrijving, llm_uit_omgeving
 
@@ -26,15 +26,15 @@ NAAM = re.compile(r"^[a-z0-9_-]{1,30}$")
 VOORBEELDEN = ["kind1", "kind2", "kind3", "kind4"]
 
 
-def _pagina(huidig: str | None) -> HTMLResponse:
-    kinderen = "".join(f'<li><a href="/dev/als/{n}">{n}</a></li>' for n in VOORBEELDEN)
+def _pagina(huidig: str | None, dummies: list[str] = ()) -> HTMLResponse:
+    kinderen = "".join(f'<li><a href="/dev/als/{n}">{n}</a></li>' for n in [*VOORBEELDEN, *dummies])
     return HTMLResponse(
         "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
         "<body style='font:18px system-ui;max-width:32rem;margin:2rem auto;padding:0 16px'>"
         "<h1>Lokaal testen</h1><p>Je bent nu: <b>" + (huidig or "niemand") + "</b></p>"
         f"<h2>Kind</h2><ul>{kinderen}</ul>"
         "<h2>Begeleider</h2><ul><li><a href='/dev/als/leiding1'>leiding1 (ziet /beheer)</a></li></ul>"
-        "<h2>Nepdeelnemers</h2><form method=post action='/dev/stem'><button style='font:inherit;padding:.6rem 1rem'>Laat de dummies stemmen</button></form>"
+        "<h2>Nepdeelnemers stemmen</h2><form method=post action='/dev/stem'><button style='font:inherit;padding:.6rem 1rem'>Laat de dummies stemmen</button></form>"
         "<p>Zo test je het raadspel zonder telefoons: de dummies stemmen in de ronde die nu loopt.</p>"
         "<p><a href='/'>Naar de app</a></p>")
 
@@ -42,8 +42,9 @@ def _pagina(huidig: str | None) -> HTMLResponse:
 class AlsGebruiker:
     """ASGI-laag: zet Remote-User en Remote-Groups uit het cookie `dev_user`. Wie `leiding…` heet is begeleider."""
 
-    def __init__(self, app, stem=None):
+    def __init__(self, app, stem=None, dummies: list[str] = ()):
         self.app = app
+        self.dummies = list(dummies)   # listed on /dev so a phone can tap one: to vote you must be a player, a leader is none
         self.stem = stem   # called by POST /dev/stem; returns how many dummies voted
 
     async def __call__(self, scope, receive, send):
@@ -71,7 +72,7 @@ class AlsGebruiker:
                 n = self.stem()
                 return await HTMLResponse(f"<meta charset=utf-8><body style='font:18px system-ui;margin:2rem'>{n} dummies hebben gestemd. "
                                           "<a href='/dev'>Terug</a>")(scope, receive, send)
-            return await _pagina(gebruiker)(scope, receive, send)
+            return await _pagina(gebruiker, self.dummies)(scope, receive, send)
         if gebruiker is None:
             return await RedirectResponse("/dev", status_code=303)(scope, receive, send)
         groepen = "durfte,durfte-leiding" if gebruiker.startswith("leiding") else "durfte"
@@ -87,7 +88,7 @@ def maak_dev_app(db=None, llm=None, dummies: list[str] | None = None):
     if dummies:
         from .dummies import laat_stemmen
         stem = lambda: laat_stemmen(app, db, dummies)   # noqa: E731
-    return AlsGebruiker(app, stem)
+    return AlsGebruiker(app, stem, dummies or [])
 
 
 def _lan_ip() -> str:
@@ -115,6 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     gezet = laad_env()
     if gezet:
         print(".env gelezen:", ", ".join(gezet))
+    stil_pollregels()
     llm = llm_uit_omgeving()
     print("LLM:", beschrijving(llm))
     db = spel.open_db(Path(os.environ.get("DURFHEILIG_DEV_DB", "data/spel-dev.db")))
