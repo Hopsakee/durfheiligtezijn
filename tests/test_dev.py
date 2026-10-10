@@ -1,3 +1,4 @@
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -92,3 +93,40 @@ def test_dummies_spelen_de_hele_quiz_en_kiezen_elk_een_andere_heilige():
 def test_de_app_importeert_dummies_nooit():
     import durfheilig.app as app
     assert "dummies" not in open(app.__file__).read().replace("# ", "")  # same rule as dev.py: not part of the image
+
+
+def test_dummies_stemmen_alleen_in_een_stemfase_en_de_knop_werkt_alleen_met_post():
+    import random
+    from starlette.testclient import TestClient
+    from durfheilig import db as spel
+    from durfheilig.app import maak_app
+    from durfheilig.data import laad_heiligen, laad_vragen
+    from durfheilig.dummies import laat_stemmen, maak_dummies
+    db = spel.open_db()
+    kern = maak_app(db, laad_heiligen(), laad_vragen(), None, random.Random(1))
+    namen = maak_dummies(kern, laad_vragen(), 6)
+    assert laat_stemmen(kern, db, namen) == 0                       # no game yet: nothing to vote in
+    boss = TestClient(kern, headers={"remote-user": "leiding1", "remote-groups": "durfte,durfte-leiding"}, follow_redirects=True)
+    boss.post("/beheer/spel/start", data={"eerste": ""})
+    html = boss.get("/beheer/spel/inhoud", headers={"hx-request": "true"}).text
+    boss.post("/beheer/spel/volgende", data={"van": re.search(r'name="van" value="([^"]*)"', html).group(1)})   # board -> first round
+    assert laat_stemmen(kern, db, namen, seed=1) in range(1, 6)     # everyone but the round's subject (and readers) may vote
+    dev = TestClient(maak_dev_app(db=db, dummies=namen), follow_redirects=True)
+    assert dev.get("/dev/stem").status_code == 403                  # GET changes nothing
+    assert dev.post("/dev/stem", headers={"sec-fetch-site": "cross-site"}).status_code == 403   # nor can another site press it
+    r = dev.post("/dev/stem")
+    assert r.status_code == 200 and "dummies hebben gestemd" in r.text
+
+
+def test_main_vindt_de_dummies_terug_in_de_database(tmp_path, monkeypatch):
+    """main() reads the dummy names from the database (rows are tuples); a crash here once stopped the launcher before it started."""
+    import durfheilig.dev as dev
+    monkeypatch.setenv("DURFHEILIG_DEV_DB", str(tmp_path / "d.db"))
+    gestart = {}
+    monkeypatch.setattr("uvicorn.run", lambda app, host, port: gestart.update(host=host, port=port, stem=app.stem))
+    monkeypatch.setattr(dev, "laad_env", lambda *a, **k: [])
+    monkeypatch.setattr(dev, "llm_uit_omgeving", lambda *a, **k: None)
+    assert dev.main(["--dummies", "3", "--lan"]) == 0
+    assert gestart["host"] == "0.0.0.0" and gestart["stem"] is not None
+    gestart.clear()
+    assert dev.main([]) == 0 and gestart["host"] == "127.0.0.1"      # without --lan only this computer can reach it

@@ -37,3 +37,23 @@ def maak_dummies(app, vragen: Vragenbank, n: int, seed: int = 1) -> list[str]:
         c.post("/keuze", data={"gekozen": rng.choice(kandidaten), "want": "dummy"})
         namen.append(naam)
     return namen
+
+
+def laat_stemmen(app, db, namen: list[str], kans_juist: float = 0.7, seed: int | None = None) -> int:
+    """In the current voting phase every dummy that may vote does: for the right saint with chance `kans_juist`, else a random one on the board.
+    Returns how many votes the app accepted. Outside a voting phase nothing is accepted, so it is safe to call at any time."""
+    from . import db as spel
+    rng = random.Random(seed)
+    status = spel.spel_status(db)
+    ronde = next((r for r in spel.rondes(db) if r["id"] == status["huidige_ronde"]), None) if status and status["huidige_ronde"] else None
+    if not ronde:
+        return 0
+    juist = {s["id"]: s["gekozen"] for s in spel.spelers_klaar(db)}.get(ronde["speler_id"])
+    bord = [b["qid"] for b in spel.bord_rijen(db)]
+    gedaan = 0
+    for naam in namen:
+        vorig = len(spel.stemmen(db, ronde["id"], 1)) + len(spel.stemmen(db, ronde["id"], 2))
+        c = TestClient(app, headers={"remote-user": naam}, follow_redirects=True)
+        c.post("/spel/stem", data={"qid": juist if juist and rng.random() < kans_juist else rng.choice(bord)})
+        gedaan += (len(spel.stemmen(db, ronde["id"], 1)) + len(spel.stemmen(db, ronde["id"], 2))) > vorig
+    return gedaan

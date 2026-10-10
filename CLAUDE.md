@@ -13,7 +13,7 @@ uv run pytest -q tests/test_scoring.py::test_matchformule_met_de_hand_berekend  
 uv run python -m durfheilig.speel                  # play the quiz in the terminal, no web
 uv run python -m durfheilig.simulatie              # regenerates docs/simulatie/rapport.md (seeded, reproducible)
 uv run python -m durfheilig.dev                    # web app on 127.0.0.1:8000/dev, pick a kid or leader; reads .env
-uv run python -m durfheilig.dev --dummies 12       # same, after 12 fake players played the quiz (no LLM); --schoon starts from an empty dev database
+uv run python -m durfheilig.dev --dummies 12       # same, after 12 fake players played the quiz (no LLM); --schoon starts from an empty dev database; --lan also listens on the network (phones/tv) and /dev has a button that makes the dummies vote
 python pipeline/merge_aanvulling.py FILE.json      # merge a saint supplement into data/heiligen.json
 ```
 
