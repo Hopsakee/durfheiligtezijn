@@ -498,3 +498,98 @@ def test_de_ping_opdracht_drukt_het_resultaat_af(monkeypatch, capsys):
     assert modeltest.main(["--ping", "mistral:mistral-small-2603"]) == 0
     uit = capsys.readouterr().out
     assert "mistral, model mistral-small-2603: HTTP 429" in uit and "retry-after" in uit and "Rate limit" in uit
+
+
+class Klok:
+    """A clock the test moves by hand; sleeping just moves it."""
+
+    def __init__(self):
+        self.nu = 1000.0
+
+    def __call__(self):
+        return self.nu
+
+    def slaap(self, s):
+        self.nu += s
+
+
+def _begrenzer(tpm=20000, rps=1.0, max_wacht=10.0):
+    from durfheilig.llm import Begrenzer
+    klok = Klok()
+    return Begrenzer(tpm, rps, max_wacht, klok=klok, slaap=klok.slaap), klok
+
+
+def test_een_verzoek_per_seconde_laat_de_tweede_aanroep_een_seconde_wachten():
+    b, klok = _begrenzer(tpm=None)
+    begin = klok.nu
+    assert b.wacht_voor(100) and klok.nu == begin                 # the first goes at once
+    assert b.wacht_voor(100) and klok.nu == begin + 1.0           # the second waits one second
+    assert b.wacht_voor(100) and klok.nu == begin + 2.0
+
+
+def test_het_tokenbudget_per_minuut_houdt_aanroepen_tegen_en_geeft_ruimte_als_het_venster_verloopt():
+    b, klok = _begrenzer(rps=None, max_wacht=100)
+    assert b.wacht_voor(7000) and b.wacht_voor(7000)              # 14000 of 20000 used
+    begin = klok.nu
+    assert b.wacht_voor(7000)                                     # 21000 would be too much: waits until the first call leaves the window
+    assert klok.nu - begin == 60.0
+    klok.nu += 61
+    assert b.wacht_voor(20000) and klok.nu == begin + 60.0 + 61   # a fresh minute: the whole budget is free again
+
+
+def test_wat_te_lang_zou_wachten_wordt_afgewezen_zonder_iets_te_reserveren():
+    b, klok = _begrenzer(rps=None, max_wacht=10.0)
+    assert b.wacht_voor(15000)
+    begin = klok.nu
+    assert b.wacht_voor(15000) is False and klok.nu == begin      # would have to wait ~60 s: refused at once, nothing slept
+    assert b.wacht_voor(5000) and klok.nu == begin                # and nothing was reserved by the refusal: this still fits
+
+
+def test_een_aanroep_groter_dan_het_hele_minuutbudget_wordt_toegelaten_in_plaats_van_eeuwig_te_wachten():
+    b, klok = _begrenzer(rps=None)
+    assert b.wacht_voor(50000)
+
+
+def test_zonder_limieten_wacht_niets_en_meerdere_threads_komen_in_de_rij():
+    import threading
+    import time
+    from durfheilig.llm import Begrenzer
+    leeg = Begrenzer()
+    assert all(leeg.wacht_voor(10**6) for _ in range(5))
+    echt = Begrenzer(None, 20.0, 5.0)                             # 20 per second: 0.05 s apart, queueing in arrival order
+    klaar = []
+    begin = time.monotonic()
+    draden = [threading.Thread(target=lambda: klaar.append(echt.wacht_voor(10))) for _ in range(5)]
+    [d.start() for d in draden], [d.join() for d in draden]
+    assert all(klaar) and time.monotonic() - begin >= 0.19
+
+
+def test_een_aanroep_die_niet_past_doet_geen_verzoek_en_valt_meteen_terug(situatie, caplog):
+    import logging
+    from durfheilig.llm import LlmVol, openai_compat
+    p, i, _, top = situatie
+    b, _ = _begrenzer(tpm=8000, rps=None, max_wacht=1.0)          # 7500 of 8000 tokens already used this minute: the next call would wait about a minute
+    b.wacht_voor(7500)
+    verzoeken = []
+    llm = openai_compat("https://api.example.test/v1", "GEHEIMESLEUTEL", "m", begrenzer=b,
+                        client=httpx.Client(transport=httpx.MockTransport(lambda r: verzoeken.append(1) or httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}]}))))
+    with pytest.raises(LlmVol):
+        llm("s" * 9000, "d")
+    with caplog.at_level(logging.INFO, logger="durfheilig.llm"):
+        uit = finale(llm, p, i, [], top, [], {})
+    assert verzoeken == [] and not uit.door_llm and "vaste terugval" in caplog.text and "geen aanroep toe" in caplog.text
+    assert caplog.text.count("poging") == 1                       # no second attempt after a refusal
+
+
+def test_de_limieten_komen_uit_de_omgeving_en_beschermen_beide_aanbieders():
+    from durfheilig.llm import llm_uit_omgeving
+    mi = {"LLM_PROVIDER": "mistral", "MISTRAL_API_KEY": "k", "LLM_MODEL": "m", "LLM_TOKENS_PER_MINUUT": "20000", "LLM_VERZOEKEN_PER_SECONDE": "1", "LLM_MAX_WACHT": "8"}
+    assert llm_uit_omgeving(mi) is not None
+    assert llm_uit_omgeving({**mi, "LLM_TOKENS_PER_MINUUT": "onzin", "LLM_VERZOEKEN_PER_SECONDE": ""}) is not None     # bad numbers: no limiter, no crash
+    gem = {"GEMINI_API_KEY": "k", "GEMINI_MODEL": "m", "LLM_TOKENS_PER_MINUUT": "20000"}
+    assert llm_uit_omgeving(gem) is not None
+
+
+def test_de_begroting_telt_wat_we_sturen_en_wat_we_terug_verwachten():
+    from durfheilig.llm import TEKENS_PER_TOKEN, UITVOER_SCHATTING, _begroot
+    assert _begroot("a" * 300, "b" * 300) == 600 // TEKENS_PER_TOKEN + UITVOER_SCHATTING

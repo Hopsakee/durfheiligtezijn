@@ -13,7 +13,9 @@ import json
 import logging
 import os
 import statistics
+import threading
 import time
+from collections import deque
 from urllib.parse import urlparse
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
@@ -48,11 +50,64 @@ class LlmTeDruk(LlmFout):
         self.wacht = wacht
 
 
+class LlmVol(LlmFout):
+    """Our own limiter says the provider's limits leave no room for this call soon enough. No call was made; asking again would not help."""
+
+
 class LlmTimeout(LlmFout):
     """The provider did not answer in time. Asking again would wait just as long, so the caller does not retry."""
 
 
-def gemini(api_key: str, model: str, *, timeout: float = 30.0, denkbudget: int | None = 0, client: httpx.Client | None = None) -> Llm:
+UITVOER_SCHATTING = 700    # tokens a typical answer costs, added to what we send when budgeting
+TEKENS_PER_TOKEN = 3       # Dutch with accents and JSON: about 3 characters per token, on the safe side
+
+
+class Begrenzer:
+    """Keeps our calls inside the provider's limits: tokens per minute (a sliding window of 60 s) and requests per second.
+
+    Calls queue in the order they arrive. `wacht_voor` blocks until the call fits and says True, or says False at once when that would take
+    longer than `max_wacht` seconds: a kid is better served by the fixed text now than by the model in half a minute. A call that is itself
+    bigger than the whole minute budget is let through, since waiting would never help."""
+
+    def __init__(self, tokens_per_minuut: float | None = None, verzoeken_per_seconde: float | None = None, max_wacht: float = 10.0,
+                 klok=time.monotonic, slaap=time.sleep):
+        self.tokens, self.interval = tokens_per_minuut, (1.0 / verzoeken_per_seconde if verzoeken_per_seconde else 0.0)
+        self.max_wacht, self.klok, self.slaap = max_wacht, klok, slaap
+        self._lock, self._venster, self._laatste = threading.Lock(), deque(), float("-inf")
+
+    def wacht_voor(self, tokens: int) -> bool:
+        with self._lock:
+            nu = self.klok()
+            while self._venster and self._venster[0][0] <= nu - 60:
+                self._venster.popleft()
+            wacht = max(0.0, self._laatste + self.interval - nu)
+            if self.tokens and tokens <= self.tokens:
+                over = sum(t for _, t in self._venster) + tokens - self.tokens
+                for tijd, t in self._venster:             # oldest first: when has enough of the window expired?
+                    if over <= 0:
+                        break
+                    wacht, over = max(wacht, tijd + 60 - nu), over - t
+            if wacht > self.max_wacht:
+                return False
+            moment = nu + wacht
+            self._laatste = moment
+            self._venster.append((moment, tokens))        # reserved now, so the next caller queues behind this one
+        if wacht:
+            self.slaap(wacht)
+        return True
+
+
+def _begroot(systeem: str, gegevens: str) -> int:
+    return (len(systeem) + len(gegevens)) // TEKENS_PER_TOKEN + UITVOER_SCHATTING
+
+
+def _krijg_ruimte(begrenzer: Begrenzer | None, systeem: str, gegevens: str, naam: str, model: str) -> None:
+    if begrenzer and not begrenzer.wacht_voor(_begroot(systeem, gegevens)):
+        raise LlmVol(f"{naam}-aanroep overgeslagen: de limiet van de aanbieder laat nu geen aanroep toe binnen {begrenzer.max_wacht:g} s (model {model})")
+
+
+def gemini(api_key: str, model: str, *, timeout: float = 30.0, denkbudget: int | None = 0, begrenzer: Begrenzer | None = None,
+           client: httpx.Client | None = None) -> Llm:
     """Gemini via de REST-API. De sleutel gaat in een header, nooit in de URL. Elke aanroep logt hoe lang hij duurde.
 
     `denkbudget` is het aantal tokens dat het model mag "denken" voor het antwoordt; 0 zet het uit en maakt het snel (gemeten op de server: een
@@ -63,6 +118,7 @@ def gemini(api_key: str, model: str, *, timeout: float = 30.0, denkbudget: int |
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
     def roep(systeem: str, gegevens: str) -> str:
+        _krijg_ruimte(begrenzer, systeem, gegevens, "Gemini", model)
         begin = time.monotonic()
         try:
             r = http.post(
@@ -107,7 +163,7 @@ def _alleen_json(tekst: str) -> str:
 
 
 def openai_compat(base_url: str, api_key: str, model: str, *, timeout: float = 30.0, json_modus: bool = True,
-                  naam: str = "openai", client: httpx.Client | None = None) -> Llm:
+                  naam: str = "openai", begrenzer: Begrenzer | None = None, client: httpx.Client | None = None) -> Llm:
     """Any provider with an OpenAI-compatible chat API (Scaleway, OVHcloud, Mistral, Hugging Face routers, ...).
 
     The key travels in the Authorization header only. `json_modus` asks for a JSON object; turn it off for a model that rejects it
@@ -117,6 +173,7 @@ def openai_compat(base_url: str, api_key: str, model: str, *, timeout: float = 3
     url = base_url.rstrip("/") + "/chat/completions"
 
     def roep(systeem: str, gegevens: str) -> str:
+        _krijg_ruimte(begrenzer, systeem, gegevens, "LLM", model)
         begin = time.monotonic()
         try:
             r = http.post(url, headers={"Authorization": f"Bearer {api_key}"}, json={
@@ -168,8 +225,12 @@ def llm_uit_omgeving(env: Mapping[str, str] = os.environ) -> Llm | None:
     `LLM_PROVIDER` is `gemini`, `mistral`, `scaleway` of `openai` (elke andere OpenAI-compatibele aanbieder, met `LLM_BASE_URL`). Mistral en
     Scaleway kennen hun adres en zoeken de sleutel in `MISTRAL_API_KEY` of `SCALEWAY_API_KEY`. Staat `LLM_PROVIDER` er niet, dan wint
     `openai` als `LLM_BASE_URL`, `LLM_API_KEY` en `LLM_MODEL` alle drie ingevuld zijn, en anders `gemini`. Mist er iets voor de gekozen
-    aanbieder, dan staat in de log welke variabele. `LLM_TIMEOUT` (of `GEMINI_TIMEOUT`) is de wachttijd in seconden, standaard 30."""
+    aanbieder, dan staat in de log welke variabele. `LLM_TIMEOUT` (of `GEMINI_TIMEOUT`) is de wachttijd in seconden, standaard 30.
+    `LLM_TOKENS_PER_MINUUT` en `LLM_VERZOEKEN_PER_SECONDE` zijn de limieten van jouw account bij de aanbieder; de app blijft er zelf binnen
+    (aanroepen wachten in de rij) en neemt de vaste tekst als het langer dan `LLM_MAX_WACHT` seconden (standaard 10) zou duren."""
     wacht = _getal(env.get("LLM_TIMEOUT") or env.get("GEMINI_TIMEOUT"), 30.0)
+    tpm, rps = _getal(env.get("LLM_TOKENS_PER_MINUUT"), 0.0), _getal(env.get("LLM_VERZOEKEN_PER_SECONDE"), 0.0)
+    begrenzer = Begrenzer(tpm or None, rps or None, _getal(env.get("LLM_MAX_WACHT"), 10.0)) if (tpm or rps) else None
     aanbieder = (env.get("LLM_PROVIDER") or "").lower() or ("openai" if all(env.get(k) for k in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL")) else "gemini")
     if aanbieder == "gemini":
         vereist = {"GEMINI_API_KEY": env.get("GEMINI_API_KEY"), "GEMINI_MODEL": env.get("GEMINI_MODEL")}
@@ -187,11 +248,12 @@ def llm_uit_omgeving(env: Mapping[str, str] = os.environ) -> Llm | None:
         return None
     if aanbieder == "gemini":
         denk = int(_getal(env.get("GEMINI_THINKING_BUDGET"), 0))
-        return gemini(env["GEMINI_API_KEY"], env["GEMINI_MODEL"], timeout=wacht, denkbudget=None if denk < 0 else denk)
+        return gemini(env["GEMINI_API_KEY"], env["GEMINI_MODEL"], timeout=wacht, denkbudget=None if denk < 0 else denk, begrenzer=begrenzer)
     if not _https_ok(url):
         log.error("LLM_BASE_URL moet een https-adres zijn (de sleutel gaat mee): de vaste terugval wordt gebruikt")
         return None
-    return openai_compat(url, sleutel, model, timeout=wacht, json_modus=(env.get("LLM_JSON_MODUS", "aan").lower() != "uit"), naam=aanbieder)
+    return openai_compat(url, sleutel, model, timeout=wacht, json_modus=(env.get("LLM_JSON_MODUS", "aan").lower() != "uit"), naam=aanbieder,
+                         begrenzer=begrenzer)
 
 
 def lijst_modellen(aanbieder: str, env: Mapping[str, str] = os.environ, *, client: httpx.Client | None = None) -> list[str]:
@@ -394,7 +456,7 @@ def _probeer(llm: Llm | None, systeem: str, gegevens: str, valideer):
             return uit
         except LlmFout as e:   # the message names the failure, never the kid's text or the key
             log.warning("LLM-poging %d van %d mislukt: %s", poging, POGINGEN, e)
-            if isinstance(e, LlmTimeout):
+            if isinstance(e, (LlmTimeout, LlmVol)):
                 break
             if isinstance(e, LlmTeDruk) and poging < POGINGEN:
                 time.sleep(min(e.wacht or 1.0, MAX_WACHT_TE_DRUK))   # asking again at once only earns the same refusal
