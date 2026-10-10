@@ -13,7 +13,7 @@
     {"id": "sa1", "as": "samen_alleen", "vraag": "Na een drukke schooldag wil je…", "min": {"tekst": "even je eigen ding doen", "icoon": "🎧"}, "plus": {"tekst": "afspreken met vrienden", "icoon": "🍕"}},
     {"id": "sa2", "as": "samen_alleen", "vraag": "Op kamp ben jij…", "min": {"tekst": "met één of twee goede vrienden", "icoon": "🏕️"}, "plus": {"tekst": "midden in de groep", "icoon": "🔥"}},
     {"id": "sa3", "as": "samen_alleen", "vraag": "Je verjaardag vier je het liefst…", "min": {"tekst": "met een paar mensen die je echt goed kent", "icoon": "🎂"}, "plus": {"tekst": "met een groot feest", "icoon": "🎉"}},
-    {"id": "sa4", "as": "samen_alleen", "vraag": "Een groepsopdracht op school. Jij…", "min": {"tekst": "doet je eigen deel het liefst rustig zelf", "icoon": "📝"}, "plus": {"tekst": "werkt het liefst samen aan één tafel", "icoon": "👥"}},
+    {"id": "sa4", "as": "samen_alleen", "vraag": "Een opdracht op school. Jij…", "min": {"tekst": "doet het liefst een eigen opdracht", "icoon": "📝"}, "plus": {"tekst": "werkt het liefst samen aan een groepsopdracht", "icoon": "👥"}},
     {"id": "dd1", "as": "denken_doen", "vraag": "Een nieuwe kast in elkaar zetten:", "min": {"tekst": "eerst de handleiding", "icoon": "📖"}, "plus": {"tekst": "meteen beginnen", "icoon": "🔧"}},
     {"id": "dd2", "as": "denken_doen", "vraag": "Een nieuw spel. Jij…", "min": {"tekst": "leest eerst hoe het werkt", "icoon": "🧩"}, "plus": {"tekst": "probeert het gewoon uit", "icoon": "🎮"}},
     {"id": "dd3", "as": "denken_doen", "vraag": "Er is iets kapot. Jij…", "min": {"tekst": "zoekt eerst uit hoe het zit", "icoon": "🔍"}, "plus": {"tekst": "gaat er meteen mee aan de slag", "icoon": "🛠️"}},

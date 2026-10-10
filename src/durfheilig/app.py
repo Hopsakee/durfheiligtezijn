@@ -209,7 +209,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
                 Img(src=h["afbeelding"], alt=h["naam"]), Small(f"Foto: {h['credit']}", cls="klein"),
                 H2(h["naam"]), P(h["levensverhaal"]), Div(P(h["uitleg"]), cls="bubbel"),
                 A(f"Meer over {h['naam']}", href=f"/heilige/{h['qid']}", cls="knop sec"),
-                *([keuzekaart("radio", "gekozen", h["qid"], "Deze past bij mij", required=True),
+                *([keuzekaart("radio", "gekozen", h["qid"], "Deze past het best bij mij", required=True),
                    Details(Summary("Past niet? Zeg waarom (mag leeg)"), Input(type="text", name=f"niet_{h['qid']}", maxlength=MAX_OPEN))] if keuze else []),
                 cls="kaart gekozen" if gekozen else "kaart"))
         return out
