@@ -13,6 +13,8 @@ import re
 from http.cookies import SimpleCookie
 from pathlib import Path
 
+from .env import laad_env  # noqa: F401  (also imported from here by tests)
+
 from starlette.responses import HTMLResponse, RedirectResponse
 
 from . import db as spel
@@ -73,24 +75,6 @@ def maak_dev_app(db=None, llm=None):
     return AlsGebruiker(maak_app(db or spel.open_db(Path(os.environ.get("DURFHEILIG_DEV_DB", "data/spel-dev.db"))),
                                  laad_heiligen(), laad_vragen(), llm,
                                  extra_menu=[("/dev", "Wissel van persoon (alleen lokaal)")]))
-
-
-def laad_env(pad: str | Path = ".env", env=os.environ) -> list[str]:
-    """Lees KEY=waarde-regels uit een .env en zet ze in `env`, behalve wat al gezet is. Geeft de gezette namen terug."""
-    pad = Path(pad)
-    gezet = []
-    if not pad.is_file():
-        return gezet
-    for regel in pad.read_text(encoding="utf-8").splitlines():
-        regel = regel.strip()
-        if not regel or regel.startswith("#") or "=" not in regel:
-            continue
-        naam, waarde = (x.strip() for x in regel.split("=", 1))
-        waarde = waarde.strip("\"'")
-        if naam and waarde and naam not in env:
-            env[naam] = waarde
-            gezet.append(naam)
-    return gezet
 
 
 def main() -> int:

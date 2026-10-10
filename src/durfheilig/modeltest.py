@@ -24,7 +24,7 @@ from datetime import date
 from pathlib import Path
 
 from .data import Heilige, Vragenbank, laad_heiligen, laad_vragen
-from .dev import laad_env
+from .env import laad_env
 from .llm import AANBIEDERS, Llm, LlmFout, Uitslag, Vervolgvraag, beschrijving, finale, lijst_modellen, llm_uit_omgeving, ping, vervolgvragen
 from .scoring import kies_vragen, profiel, rangschik
 

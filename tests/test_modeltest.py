@@ -122,3 +122,14 @@ def test_de_modellenlijst_opdracht_toont_alleen_namen(monkeypatch, capsys):
     import pytest
     with pytest.raises(SystemExit, match="minstens"):
         modeltest.main([])
+
+
+def test_modeltest_draait_zonder_dev_module():
+    """The image leaves dev.py out on purpose; the model test must still start there (it did not, once)."""
+    import subprocess, sys, textwrap
+    code = textwrap.dedent("""
+        import sys
+        sys.modules['durfheilig.dev'] = None          # importing it raises ImportError, like in the image
+        import durfheilig.modeltest
+    """)
+    assert subprocess.run([sys.executable, "-c", code]).returncode == 0
