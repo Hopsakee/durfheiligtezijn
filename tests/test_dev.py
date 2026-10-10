@@ -73,3 +73,22 @@ def test_voorbeeld_env_bevat_geen_echte_waarden_en_wordt_niet_genegeerd_door_git
     assert regels == ["GEMINI_API_KEY=", "GEMINI_MODEL="]
     ignore = (root / ".gitignore").read_text().splitlines()
     assert ".env" in ignore and "!.env.example" in ignore
+
+
+def test_dummies_spelen_de_hele_quiz_en_kiezen_elk_een_andere_heilige():
+    import random
+    from durfheilig import db as spel
+    from durfheilig.app import maak_app
+    from durfheilig.data import laad_heiligen, laad_vragen
+    from durfheilig.dummies import maak_dummies
+    db = spel.open_db()
+    app = maak_app(db, laad_heiligen(), laad_vragen(), None, random.Random(1))
+    namen = maak_dummies(app, laad_vragen(), 8)
+    assert namen == [f"dummy{i}" for i in range(1, 9)]
+    assert len(spel.gekozen_heiligen(db)) == 8                      # every dummy has a saint, and no saint twice
+    assert all(spel.invulling(db, spel.speler_voor(db, n)["id"])["stap"] == "klaar" for n in namen)
+
+
+def test_de_app_importeert_dummies_nooit():
+    import durfheilig.app as app
+    assert "dummies" not in open(app.__file__).read().replace("# ", "")  # same rule as dev.py: not part of the image

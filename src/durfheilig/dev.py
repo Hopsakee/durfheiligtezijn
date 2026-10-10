@@ -77,17 +77,31 @@ def maak_dev_app(db=None, llm=None):
                                  extra_menu=[("/dev", "Wissel van persoon (alleen lokaal)")]))
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    import argparse
     import uvicorn
 
+    ap = argparse.ArgumentParser(description="Lokaal proberen zonder Authelia")
+    ap.add_argument("--dummies", type=int, default=0, metavar="N", help="maak eerst N nepdeelnemers die de quiz doorlopen en een heilige kiezen")
+    ap.add_argument("--schoon", action="store_true", help="begin met een lege lokale database (alleen het dev-bestand)")
+    a = ap.parse_args(argv)
+    if a.schoon:
+        Path(os.environ.get("DURFHEILIG_DEV_DB", "data/spel-dev.db")).unlink(missing_ok=True)
     gezet = laad_env()
     if gezet:
         print(".env gelezen:", ", ".join(gezet))
     llm = llm_uit_omgeving()
     print("LLM:", beschrijving(llm))
+    db = spel.open_db(Path(os.environ.get("DURFHEILIG_DEV_DB", "data/spel-dev.db")))
+    if a.dummies:
+        from .dummies import maak_dummies
+        # Their own app on the same database and without an LLM: dummies cost nothing and never touch a provider.
+        namen = maak_dummies(maak_app(db, laad_heiligen(), laad_vragen(), None), laad_vragen(), a.dummies)
+        print(f"{len(namen)} nepdeelnemers gemaakt ({namen[0]} t/m {namen[-1]}); wissel met /dev/als/<naam>")
+    app = maak_dev_app(db=db, llm=llm)
     poort = int(os.environ.get("PORT", "8000"))
     print(f"Open http://127.0.0.1:{poort}/dev")
-    uvicorn.run(maak_dev_app(llm=llm), host="127.0.0.1", port=poort)
+    uvicorn.run(app, host="127.0.0.1", port=poort)
     return 0
 
 
