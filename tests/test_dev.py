@@ -130,3 +130,19 @@ def test_main_vindt_de_dummies_terug_in_de_database(tmp_path, monkeypatch):
     assert gestart["host"] == "0.0.0.0" and gestart["stem"] is not None
     gestart.clear()
     assert dev.main([]) == 0 and gestart["host"] == "127.0.0.1"      # without --lan only this computer can reach it
+
+
+def test_pollregels_verdwijnen_uit_het_log_maar_fouten_en_andere_paden_niet():
+    import logging
+    from durfheilig.app import _ZonderPolling
+    f = _ZonderPolling()
+    def regel(pad, status):
+        return logging.LogRecord("uvicorn.access", logging.INFO, "", 0, '%s - "%s %s HTTP/%s" %d', ("1.2.3.4:5", "GET", pad, "1.1", status), None)
+    assert not f.filter(regel("/spel/inhoud", 200)) and not f.filter(regel("/beheer/tv/inhoud?x=1", 200))
+    assert f.filter(regel("/spel/inhoud", 500)) and f.filter(regel("/spel/stem", 200)) and f.filter(regel("/", 200))
+
+
+def test_dev_pagina_toont_de_dummies_zodat_een_telefoon_ze_kan_kiezen():
+    dev = TestClient(maak_dev_app(db=spel.open_db(), dummies=["dummy1", "dummy2"]), follow_redirects=True)
+    t = dev.get("/dev").text
+    assert 'href="/dev/als/dummy1"' in t and 'href="/dev/als/dummy2"' in t
