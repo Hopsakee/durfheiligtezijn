@@ -497,3 +497,22 @@ def test_een_uitleg_openen_via_een_link_van_een_andere_site_telt_niet_als_lezen(
     assert spel.lezers(db, sid) == set() and r.status_code == 303 and r.headers["location"] == "/beheer"     # sent back, nothing shown
     boss.get(f"/beheer/speler/{sid}", headers={"sec-fetch-site": "same-origin"})
     assert spel.lezers(db, sid) == {"boss"}
+
+
+def test_stemtegel_is_zelf_de_knop_zonder_losse_stemknop_eronder():
+    """On a phone a separate "Stem op ..." button under each card overlapped the card: the card itself is the button now."""
+    db, app, clients = spel_met(["a", "b", "c"])
+    boss = leider(app)
+    boss.post("/beheer/spel/start", data={"eerste": ""})
+    volgende(boss)
+    stemmer = next(n for n, c in clients.items() if "tegelknop" in frag(c, "/spel/inhoud"))
+    c = clients[stemmer]
+    html = frag(c, "/spel/inhoud")
+    bord = spel.bord_rijen(db)
+    assert html.count("<button") == len(bord)                         # one button per saint, no extra "Stem op" button
+    assert "Stem op " not in html
+    assert all(re.search(r'<button[^>]*class="tegel"[^>]*>.*?<img', html, re.S) for _ in [0])   # the card (image and name) sits inside the button
+    qid = bord[0]["qid"]
+    c.post("/spel/stem", data={"qid": qid})
+    html = frag(c, "/spel/inhoud")
+    assert html.count('aria-pressed="true"') == 1 and "Jouw keuze" in html

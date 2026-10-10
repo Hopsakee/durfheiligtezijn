@@ -51,7 +51,9 @@ RAAD_CSS = """
 .tegel.juist{border:6px solid var(--accent);background:var(--accent-zacht)}
 .tegel .aantal{position:absolute;top:.4rem;right:.4rem;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:.1rem .7rem;font-weight:800;font-size:1rem}
 .tegel .van{color:var(--accent);font-weight:800;font-size:.95rem}.tegel.stem{border-color:var(--accent);border-width:4px;background:var(--accent-zacht)}
-form.tegelknop{margin:0}form.tegelknop button{min-height:2.8rem;padding:.5rem;margin:.3rem 0 0;justify-content:center;text-align:center;font-weight:700;font-size:.85rem;border-radius:14px}
+form.tegelknop{margin:0;height:100%}
+button.tegel{width:100%;margin:0;min-height:0;align-items:stretch;justify-content:flex-start;font-weight:400;cursor:pointer}
+button.tegel:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .tv{padding:1.2rem;border-radius:24px;font-size:1.25rem;background:var(--bg);color:var(--ink);""" + DONKER + """}
 .tv h1{font-size:2.4rem}.tv .bord{grid-template-columns:repeat(auto-fill,minmax(11rem,1fr));gap:1rem}.tv .tegel{font-size:1rem}.tv .tegel img{height:9rem}.tv .tegel .naam{font-size:1.15rem}
 body:has(.tv){background:#0b0c13}
@@ -115,9 +117,10 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
         inhoud = [*([Span(f"{aantal}×", cls="aantal")] if aantal is not None else []), Img(src=afbeelding_url(h), alt=h.naam),
                   Span(h.naam, cls="naam"), Small(h.record.get("wat_voor_mens", "")), *([Span(f"✔ {van}", cls="van")] if van else [])]
         klassen = "tegel" + (" juist" if juist else "") + (" stem" if stem else "")
-        if formulier:
-            return Form(Div(*inhoud, cls=klassen), Input(type="hidden", name="qid", value=h.qid),
-                        Button(f"Stem op {h.naam}", type="submit"), method="post", action="/spel/stem", cls="tegelknop")
+        if formulier:   # the whole card is the button: one tap on the saint votes, nothing underneath to overlap
+            return Form(Button(*inhoud, *([Span("✔ Jouw keuze", cls="van")] if stem else []), type="submit", cls=klassen,
+                               **{"aria-pressed": "true" if stem else "false"}),
+                        Input(type="hidden", name="qid", value=h.qid), method="post", action="/spel/stem", cls="tegelknop")
         return Div(*inhoud, cls=klassen)
 
     def stand():
