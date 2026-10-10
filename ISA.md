@@ -101,6 +101,7 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - Images come from `data/afbeeldingen/<bestand>` when present, otherwise from Wikimedia Commons by filename. The box cannot fetch them, so local copies are a host-side step.
 
 - Local testing uses `python -m durfheilig.dev`: an ASGI layer that turns a chosen cookie into `Remote-User`/`Remote-Groups`, bound to 127.0.0.1. The production entry and the Docker image never start or import it (tested).
+- Decided 2026-10-10 (Jelle): in a game round the board shows only saints of the gender the round's subject asked for, so the group can see that preference; no warning on the preference screen. Safety: the whole board is shown when the filtered one would hide the right saint or has fewer than `MIN_ZICHT` (6) saints, because a small board gives the answer away (3 players: 5.8% chance of a 1-card board).
 
 ## Verification
 
