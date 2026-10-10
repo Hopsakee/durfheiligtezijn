@@ -477,3 +477,24 @@ def test_een_429_wordt_een_llmtedruk_met_de_gevraagde_wachttijd():
     with pytest.raises(LlmFout) as e2:
         _compat(lambda r: httpx.Response(500))("s", "d")
     assert not isinstance(e2.value, LlmTeDruk)
+
+
+def test_ping_toont_status_limietkoppen_en_melding_maar_nooit_de_sleutel():
+    from durfheilig.llm import ping
+    handler = lambda r: httpx.Response(429, headers={"Retry-After": "7", "x-ratelimit-limit-req-minute": "1", "content-type": "application/json", "set-cookie": "geheim=1"},
+                                      json={"message": "Rate limit exceeded"})
+    u = ping("mistral", "mistral-small-2603", {"MISTRAL_API_KEY": "GEHEIMESLEUTEL"}, client=httpx.Client(transport=httpx.MockTransport(handler)))
+    assert u["status"] == 429 and "Rate limit exceeded" in u["tekst"]
+    assert set(k.lower() for k in u["limietkoppen"]) == {"retry-after", "x-ratelimit-limit-req-minute"}      # only the limit headers, nothing else
+    assert "GEHEIMESLEUTEL" not in str(u)
+    with pytest.raises(LlmFout, match="MISTRAL_API_KEY"):
+        ping("mistral", "m", {})
+
+
+def test_de_ping_opdracht_drukt_het_resultaat_af(monkeypatch, capsys):
+    from durfheilig import modeltest
+    monkeypatch.setattr(modeltest, "laad_env", lambda *a, **k: [])
+    monkeypatch.setattr(modeltest, "ping", lambda aanbieder, model, env: {"status": 429, "duur": 0.2, "limietkoppen": {"retry-after": "7"}, "tekst": "Rate limit"})
+    assert modeltest.main(["--ping", "mistral:mistral-small-2603"]) == 0
+    uit = capsys.readouterr().out
+    assert "mistral, model mistral-small-2603: HTTP 429" in uit and "retry-after" in uit and "Rate limit" in uit

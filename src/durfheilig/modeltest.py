@@ -1,6 +1,7 @@
 """Probeer een taalmodel uit met de echte prompts van de app, op verzonnen deelnemers.
 
     uv run python -m durfheilig.modeltest --modellen scaleway          welke modellen heeft deze aanbieder?
+    uv run python -m durfheilig.modeltest --ping mistral:mistral-small-2603     één kleine vraag: status, limietkoppen en de melding
     uv run python -m durfheilig.modeltest --model scaleway:mistral-small-3.2-24b-instruct-2506 --model mistral:mistral-small-latest
     uv run python -m durfheilig.modeltest --model scaleway:X --n 8 --gelijktijdig 12
 
@@ -24,7 +25,7 @@ from pathlib import Path
 
 from .data import Heilige, Vragenbank, laad_heiligen, laad_vragen
 from .dev import laad_env
-from .llm import AANBIEDERS, Llm, LlmFout, Uitslag, Vervolgvraag, beschrijving, finale, lijst_modellen, llm_uit_omgeving, vervolgvragen
+from .llm import AANBIEDERS, Llm, LlmFout, Uitslag, Vervolgvraag, beschrijving, finale, lijst_modellen, llm_uit_omgeving, ping, vervolgvragen
 from .scoring import kies_vragen, profiel, rangschik
 
 OPEN_ANTWOORDEN = [
@@ -193,6 +194,7 @@ def omgeving_voor(spec: str, basis: dict) -> tuple[dict, str]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--model", action="append", default=[], help="modelnaam, of aanbieder:modelnaam; mag vaker")
+    ap.add_argument("--ping", metavar="AANBIEDER:MODEL", help="stel één kleine vraag en toon status, limietkoppen en de melding van de aanbieder")
     ap.add_argument("--modellen", metavar="AANBIEDER", help="toon de modellen van deze aanbieder (mistral, scaleway, openai) en stop")
     ap.add_argument("--n", type=int, default=6, help="aantal verzonnen deelnemers per model")
     ap.add_argument("--seed", type=int, default=7)
@@ -201,6 +203,17 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     laad_env()
     logging.basicConfig(level=logging.WARNING, format="%(message)s")
+    if a.ping:
+        env, model = omgeving_voor(a.ping, dict(os.environ))
+        aanbieder = env.get("LLM_PROVIDER") or "openai"
+        try:
+            u = ping(aanbieder, model, env)
+        except LlmFout as e:
+            raise SystemExit(str(e))
+        print(f"{aanbieder}, model {model}: HTTP {u['status']} na {u['duur']:.1f} s")
+        print("limietkoppen:", u["limietkoppen"] or "(geen)")
+        print("antwoord:", u["tekst"])
+        return 0
     if a.modellen:
         try:
             print("\n".join(lijst_modellen(a.modellen, os.environ)))

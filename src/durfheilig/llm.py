@@ -207,6 +207,22 @@ def lijst_modellen(aanbieder: str, env: Mapping[str, str] = os.environ, *, clien
         raise _aanroepfout(aanbieder, "(modellenlijst)", time.monotonic(), e) from e
 
 
+def ping(aanbieder: str, model: str, env: Mapping[str, str] = os.environ, *, client: httpx.Client | None = None) -> dict:
+    """One tiny question to the provider and everything a person needs to read a refusal: status, the limit-related headers and the
+    provider's own message. Only for a person at a terminal: the question is a fixed "Zeg hallo", so nothing of a kid is in it."""
+    url, sleutel, _ = _compat_instellingen(aanbieder, env)
+    if not sleutel or not _https_ok(url):
+        raise LlmFout(f"geen sleutel of geen https-adres voor {aanbieder}: zet {aanbieder.upper()}_API_KEY in .env")
+    begin = time.monotonic()
+    try:
+        r = (client or httpx.Client(timeout=30.0)).post(url.rstrip("/") + "/chat/completions", headers={"Authorization": f"Bearer {sleutel}"},
+                                                         json={"model": model, "messages": [{"role": "user", "content": "Zeg hallo"}]})
+    except httpx.HTTPError as e:
+        raise LlmFout(f"{aanbieder} niet bereikt: {type(e).__name__} na {time.monotonic() - begin:.1f} s") from e
+    kopjes = {k: v for k, v in r.headers.items() if k.lower().startswith(("retry-after", "x-ratelimit", "ratelimit"))}
+    return {"status": r.status_code, "duur": time.monotonic() - begin, "limietkoppen": kopjes, "tekst": r.text[:600]}
+
+
 def beschrijving(llm: Llm | None) -> str:
     """For the startup line: which provider and model the app will use."""
     return getattr(llm, "beschrijving", "geen sleutel ingesteld, de vaste terugval") if llm else "geen sleutel ingesteld, de vaste terugval (zie .env.example)"
