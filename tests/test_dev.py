@@ -146,3 +146,27 @@ def test_dev_pagina_toont_de_dummies_zodat_een_telefoon_ze_kan_kiezen():
     dev = TestClient(maak_dev_app(db=spel.open_db(), dummies=["dummy1", "dummy2"]), follow_redirects=True)
     t = dev.get("/dev").text
     assert 'href="/dev/als/dummy1"' in t and 'href="/dev/als/dummy2"' in t
+
+
+def test_firewallregels_openen_en_sluiten_alleen_het_eigen_netwerk():
+    from durfheilig.dev import firewall_regels
+    open_, sluit = firewall_regels("192.168.50.99", 8000)
+    assert open_ == "sudo ufw allow from 192.168.50.0/24 to any port 8000 proto tcp"
+    assert sluit == "sudo ufw delete allow from 192.168.50.0/24 to any port 8000 proto tcp"
+    assert "Anywhere" not in open_ and "from any" not in open_
+
+
+def test_lan_toont_de_firewallopdracht_bij_start_en_bij_stoppen(tmp_path, monkeypatch, capsys):
+    import durfheilig.dev as dev
+    monkeypatch.setenv("DURFHEILIG_DEV_DB", str(tmp_path / "d.db"))
+    monkeypatch.setenv("PORT", "8123")
+    monkeypatch.setattr("uvicorn.run", lambda *a, **k: None)
+    monkeypatch.setattr(dev, "laad_env", lambda *a, **k: [])
+    monkeypatch.setattr(dev, "llm_uit_omgeving", lambda *a, **k: None)
+    monkeypatch.setattr(dev, "_lan_ip", lambda: "10.1.2.3")
+    dev.main(["--lan"])
+    uit = capsys.readouterr().out
+    assert uit.count("sudo ufw allow from 10.1.2.0/24 to any port 8123 proto tcp") == 1
+    assert uit.count("sudo ufw delete allow from 10.1.2.0/24 to any port 8123 proto tcp") == 2     # at start and again when stopping
+    dev.main([])
+    assert "ufw" not in capsys.readouterr().out                      # without --lan nothing about a firewall

@@ -34,6 +34,23 @@ uv run python -m durfheilig.dev
 
 De spelstatus staat in `data/spel-dev.db` (genegeerd door git). Weg ermee voor een schone start.
 
+### Het raadspel proberen met telefoons en een tv
+
+```bash
+uv run python -m durfheilig.dev --schoon --dummies 12 --lan
+```
+
+`--dummies 12` maakt 12 nepdeelnemers die de quiz al gedaan hebben (zonder taalmodel). `--lan` laat de app op je
+netwerk luisteren; de terminal toont het adres en de firewallopdrachten. Daarna:
+
+1. Leider en tv in je gewone browser: kies `leiding1`, start het spel op `/beheer/spel`, open `/beheer/tv` op de tv.
+2. Telefoon: open het adres uit de terminal, tik een `dummy…` aan (niet de deelnemer van de ronde) en stem door op een heilige te tikken.
+3. Zonder telefoon: de knop "Laat de dummies stemmen" op `/dev`.
+4. Time-out op de telefoon? Dan blokkeert de firewall van je computer de poort. Open hem tijdelijk (`sudo ufw allow from <netwerk>/24 to any port 8000 proto tcp`, de terminal toont de exacte regel) en sluit hem als je klaar bent (zelfde opdracht met `delete`).
+5. Alleen spelers stemmen: een leider is geen speler, en de deelnemer van de ronde stemt niet.
+
+Met `--lan` kan iedereen op het netwerk zich als elke persoon voordoen, ook als begeleider. Gebruik het alleen thuis.
+
 ## Een taalmodel kiezen
 
 ```bash

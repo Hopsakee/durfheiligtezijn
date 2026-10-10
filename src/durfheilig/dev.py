@@ -102,6 +102,14 @@ def _lan_ip() -> str:
             return "<jouw-ip>"
 
 
+def firewall_regels(ip: str, poort: int) -> tuple[str, str]:
+    """The ufw commands that open the port for this network only, and close it again. Printed for the person running the app, never run by it:
+    changing a firewall needs sudo and is the administrator's call. Assumes a /24 network, which is what home routers use."""
+    net = ".".join(ip.split(".")[:3]) + ".0/24"
+    regel = f"from {net} to any port {poort} proto tcp"
+    return f"sudo ufw allow {regel}", f"sudo ufw delete allow {regel}"
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
     import uvicorn
@@ -129,12 +137,23 @@ def main(argv: list[str] | None = None) -> int:
         alle = [r[0] for r in db.execute("select gebruikersnaam from speler where gebruikersnaam like 'dummy%'").fetchall()]
     app = maak_dev_app(db=db, llm=llm, dummies=alle)
     poort = int(os.environ.get("PORT", "8000"))
+    sluit = None
     if a.lan:
+        ip = _lan_ip()
+        open_, sluit = firewall_regels(ip, poort)
         print("LET OP: iedereen op dit netwerk kan zich nu als elke persoon voordoen, ook als begeleider. Gebruik dit alleen op een netwerk dat je vertrouwt.")
-        print(f"Open op de tv en de telefoons: http://{_lan_ip()}:{poort}/dev   (zelfde wifi, en je firewall moet poort {poort} toelaten)")
+        print(f"Open op de tv en de telefoons: http://{ip}:{poort}/dev   (zelfde wifi)")
+        print("Tijdelijk de firewall openen (alleen nodig als `sudo ufw status` aan staat; geeft een telefoon een time-out, dan is dit de oorzaak):")
+        print(f"    {open_}")
+        print(f"Daarna weer sluiten (dit wordt ook getoond als je stopt):\n    {sluit}")
+        print("Controleer het netwerk met `ip -4 addr show`: dit gaat uit van een /24-netwerk.")
     else:
         print(f"Open http://127.0.0.1:{poort}/dev")
-    uvicorn.run(app, host="0.0.0.0" if a.lan else "127.0.0.1", port=poort)
+    try:
+        uvicorn.run(app, host="0.0.0.0" if a.lan else "127.0.0.1", port=poort)
+    finally:
+        if sluit:
+            print(f"\nGestopt. Heb je de firewall geopend, sluit hem dan weer:\n    {sluit}")
     return 0
 
 
