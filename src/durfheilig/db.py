@@ -287,9 +287,9 @@ def verwijder_alles(db) -> None:
 # ---------------------------------------------------------------- het raadspel
 
 def spelers_klaar(db) -> list[dict]:
-    """Wie een heilige heeft gekozen en dus meedoet: id, bijnaam, account en gekozen qid."""
+    """Wie een heilige heeft gekozen en dus meedoet: id, bijnaam, account, gekozen qid en geslachtsvoorkeur."""
     return db.q(
-        "select s.id, s.nickname, s.gebruikersnaam, m.gekozen from speler s "
+        "select s.id, s.nickname, s.gebruikersnaam, m.gekozen, i.voorkeur from speler s "
         "join invulling i on i.speler_id = s.id join match m on m.invulling_id = i.id "
         "where i.stap = 'klaar' and m.gekozen is not null order by s.id")
 

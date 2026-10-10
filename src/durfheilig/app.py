@@ -13,7 +13,6 @@ import logging
 import os
 import random
 import threading
-from urllib.parse import urlparse
 
 from starlette.concurrency import run_in_threadpool
 from fasthtml.common import (A, Beforeware, Button, Details, Div, FastHTML, FileResponse, Form, H2, Img, Input, Label, Li, P, Response,
@@ -24,7 +23,7 @@ from . import raadspel, ui
 from .data import DATA_DIR, Heilige, Vragenbank, laad_heiligen, laad_vragen
 from .llm import Llm, Uitslag, beschrijving, finale, llm_uit_omgeving, vervolgvragen, Vervolgvraag
 from .scoring import VOORKEUR_GESLACHT, kies_vragen, profiel, rangschik
-from .ui import CHIPSSCRIPT, KIJKER, afbeelding_url, is_leiding, keuzekaart, naar, pagina, zichtbaar
+from .ui import CHIPSSCRIPT, info, KIJKER, afbeelding_url, is_leiding, keuzekaart, naar, pagina, zichtbaar
 
 MAX_OPEN = 200
 MAX_NICKNAME = 20
@@ -38,35 +37,6 @@ def knop_formulier(actie: str, *velden, tekst: str = "Verder", laad: str | None 
     extra = {"data-laad": laad} if laad else {}
     return Form(*velden, *[Input(type="hidden", name=k, value=v) for k, v in hidden.items()],
                 Button(tekst, cls=knopcls, type="submit"), method="post", action=actie, **extra)
-
-
-TOEGESTANE_LINKHOSTS = {"nl.wikipedia.org", "en.wikipedia.org", "commons.wikimedia.org"}
-
-
-def info(h: Heilige) -> list:
-    """Alles wat een jongere over deze heilige erbij mag lezen. Bewust zonder de notities voor de leiding."""
-    r = h.record
-    uit = []
-    if r.get("waarom_voorbeeld"):
-        uit += [H2("Waarom een voorbeeld?"), P(r["waarom_voorbeeld"])]
-    if r.get("waarom_heilig"):
-        uit += [H2("Waarom heilig?"), P(r["waarom_heilig"])]
-    if r.get("haakjes"):
-        uit.append(H2("Verhalen over deze heilige"))
-        for x in r["haakjes"]:
-            soort = {"feit": "feit", "legende": "legende"}.get(x.get("soort"), x.get("soort") or "")
-            label = [x["kort"], *([Span(f" ({soort})", cls="klein")] if soort else [])]
-            uit.append(Details(Summary(*label), P(x["meer"])) if x.get("meer") else P(*label))
-    if r.get("wat_er_nog_van_over_is"):
-        uit += [H2("Wat er nog van over is"), P(r["wat_er_nog_van_over_is"])]
-    if r.get("begrippen"):
-        uit.append(H2("Woorden uitgelegd"))
-        uit += [Details(Summary(b["term"]), P(b["uitleg"])) for b in r["begrippen"]]
-    links = [x for x in r.get("lees_zelf", []) if urlparse(x.get("url", "")).scheme == "https" and "\\" not in x["url"]
-             and urlparse(x["url"]).hostname in TOEGESTANE_LINKHOSTS]
-    if links:
-        uit += [H2("Zelf verder lezen"), *[P(A(x["titel"], href=x["url"], target="_blank", rel="noopener noreferrer")) for x in links]]
-    return uit
 
 
 def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, rng: random.Random | None = None,
