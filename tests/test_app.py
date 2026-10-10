@@ -490,7 +490,7 @@ def test_kind_landt_in_de_quiz_en_vindt_alles_via_het_menu_en_de_startpagina():
     start = c.get("/menu").text
     assert 'href="/quiz"' in start and 'href="/spel"' in start and "/beheer" not in start and "Je quiz is nog bezig" in start
     speel(c, "Vos")
-    assert menu_hrefs(c.get("/").text) == ["/menu", "/quiz", "/mijn", "/spel"]
+    assert menu_hrefs(c.get("/").text) == ["/menu", "/quiz", "/mijn", "/spel", "/quiz/opnieuw"]
     assert 'href="/mijn"' in c.get("/menu").text and "Je quiz is af" in c.get("/menu").text
 
 
@@ -578,3 +578,353 @@ def test_de_centrale_controle_in_de_login_dekt_elk_beheerpad_en_elke_post():
     assert c.post("/welkom", data={"nickname": "Vos"}, headers={"sec-fetch-site": "same-site"}).status_code == 403
     assert c.post("/welkom", data={"nickname": "Vos"}, headers={"sec-fetch-site": "same-origin"}).status_code == 200
     assert c.get("/quiz", headers={"sec-fetch-site": "cross-site"}).status_code == 200      # reading is not state-changing
+
+
+# ------------------------------------------------------------------ opnieuw invullen en een vraag terug
+
+def test_opnieuw_invullen_wist_antwoorden_en_gekozen_heilige_en_houdt_de_bijnaam():
+    db, app = maak(None)
+    a, b = kind(app, "a"), kind(app, "b")
+    _, gekozen_a, _ = speel(a, "Aap")
+    assert spel.gekozen_heiligen(db) == {gekozen_a}
+    r = a.post("/quiz/opnieuw")
+    inv = spel.invulling(db, spel.speler_voor(db, "a")["id"])
+    assert inv["stap"] == "welkom" and inv["antwoorden"] == {} and inv["vraag_ids"] == [] and inv["interesses"] == [] and inv["extra_ronde"] == 0
+    assert spel.match_van(db, inv["speler_id"]) is None and spel.gekozen_heiligen(db) == set()
+    assert 'value="Aap"' in r.text and "Welkom" in r.text                        # nickname stays, the quiz starts over
+    _, gekozen_b, _ = speel(b, "Beer")                                          # the same answers: b may now get a's old saint
+    assert gekozen_b == gekozen_a
+
+
+def test_opnieuw_invullen_kan_ook_halverwege_en_daarna_kan_de_quiz_gewoon_weer_af():
+    db, app = maak(None)
+    c = kind(app)
+    c.post("/welkom", data={"nickname": "Uil"}); c.post("/voorkeur", data={"voorkeur": "man"})
+    for _ in range(5):
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
+        c.post("/vraag", data={"vid": vid, "kant": "plus"})
+    c.post("/quiz/opnieuw")
+    assert "Welkom" in c.get("/quiz").text
+    r, gekozen, _ = speel(c, "Uil")
+    assert "Houd je heilige geheim" in r.text and spel.gekozen_heiligen(db) == {gekozen}
+
+
+def test_een_bezoek_aan_de_vraagpagina_wist_niets_en_een_andere_site_kan_het_niet_doen():
+    db, app = maak(None)
+    c = kind(app)
+    speel(c, "Vos")
+    assert "Ja, begin opnieuw" in c.get("/quiz/opnieuw").text
+    assert spel.invulling(db, spel.speler_voor(db, "kind1")["id"])["stap"] == "klaar"
+    assert c.post("/quiz/opnieuw", headers={"sec-fetch-site": "cross-site"}).status_code == 403
+    assert spel.invulling(db, spel.speler_voor(db, "kind1")["id"])["stap"] == "klaar"
+
+
+def test_opnieuw_invullen_kan_niet_meer_als_het_spel_loopt():
+    db, app = maak(None)
+    kids = [kind(app, n) for n in ("a", "b", "c")]
+    for i, k in enumerate(kids):
+        speel(k, f"Nick-{i}")
+    boss = kind(app, "boss"); boss.headers.update({"remote-groups": "durfte-leiding"})
+    boss.post("/beheer/spel/start", data={"eerste": ""})
+    r = kids[0].post("/quiz/opnieuw")
+    assert "al begonnen" in r.text and spel.invulling(db, spel.speler_voor(db, "a")["id"])["stap"] == "klaar"
+    assert "Ja, begin opnieuw" not in kids[0].get("/quiz/opnieuw").text
+
+
+def test_opnieuw_invullen_houdt_vast_wie_de_uitleg_las_zodat_de_stemregel_blijft_gelden():
+    db, app = maak(None)
+    a = kind(app, "a"); speel(a, "Aap")
+    sid = spel.speler_voor(db, "a")["id"]
+    boss = kind(app, "boss"); boss.headers.update({"remote-groups": "durfte-leiding"})
+    boss.get(f"/beheer/speler/{sid}")
+    assert spel.lezers(db, sid) == {"boss"}
+    a.post("/quiz/opnieuw")
+    assert spel.lezers(db, sid) == {"boss"}
+
+
+def test_het_menu_toont_opnieuw_invullen_pas_na_de_eerste_stap():
+    db, app = maak(None)
+    c = kind(app)
+    c.get("/quiz")
+    assert "/quiz/opnieuw" not in menu_hrefs(c.get("/menu").text)
+    c.post("/welkom", data={"nickname": "Uil"})
+    assert "/quiz/opnieuw" in menu_hrefs(c.get("/menu").text) and "Quiz opnieuw invullen" in c.get("/menu").text
+
+
+def test_een_vraag_terug_haalt_precies_het_laatste_antwoord_weg_en_toont_die_vraag_weer():
+    db, app = maak(None)
+    c = kind(app)
+    c.post("/welkom", data={"nickname": "Uil"}); c.post("/voorkeur", data={"voorkeur": "man"})
+    assert "Vorige vraag" not in c.get("/quiz").text                                # nothing to undo yet
+    gezien = []
+    for _ in range(3):
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
+        gezien.append(vid)
+        c.post("/vraag", data={"vid": vid, "kant": "plus"})
+    assert "Vorige vraag" in c.get("/quiz").text
+    c.post("/vraag/terug")
+    inv = spel.invulling(db, spel.speler_voor(db, "kind1")["id"])
+    assert list(inv["antwoorden"]) == gezien[:2]
+    assert f'name="vid" value="{gezien[2]}"' in c.get("/quiz").text and "Vraag 3 van 12" in c.get("/quiz").text
+
+
+def test_vanaf_de_interessestap_kun_je_terug_naar_de_laatste_vraag():
+    db, app = maak(None)
+    c = kind(app)
+    c.post("/welkom", data={"nickname": "Uil"}); c.post("/voorkeur", data={"voorkeur": "man"})
+    for _ in range(12):
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
+        c.post("/vraag", data={"vid": vid, "kant": "min"})
+    assert "Terug naar de vragen" in c.get("/quiz").text
+    c.post("/vraag/terug")
+    assert "Vraag 12 van 12" in c.get("/quiz").text
+    c.post("/vraag/terug")
+    assert "Vraag 11 van 12" in c.get("/quiz").text
+
+
+def test_een_vraag_terug_doet_niets_buiten_de_vragen_en_zonder_antwoorden():
+    db, app = maak(None)
+    c = kind(app)
+    c.post("/vraag/terug")
+    assert "Welkom" in c.get("/quiz").text
+    speel(c, "Vos")
+    c.post("/vraag/terug")
+    assert spel.invulling(db, spel.speler_voor(db, "kind1")["id"])["stap"] == "klaar"
+
+
+# ------------------------------------------------------------------ opmaak
+
+def test_de_quizschermen_tonen_stappen_voortgang_en_grote_keuzes():
+    db, app = maak(None)
+    c = kind(app)
+    start = c.get("/quiz").text
+    assert 'class="stappen"' in start and 'aria-label="Stap 1 van 5"' in start and "bijvoorbeeld Vos" in start
+    c.post("/welkom", data={"nickname": "Uil"})
+    voork = c.get("/quiz").text
+    assert "Een man" in voork and "Een vrouw" in voork and "Maakt niet uit" in voork
+    c.post("/voorkeur", data={"voorkeur": "man"})
+    breedtes = []
+    for _ in range(3):
+        html = c.get("/quiz").text
+        breedtes.append(int(re.search(r'class="balk">\s*<i style="width:(\d+)%', html).group(1)))
+        assert 'aria-label="Stap 2 van 5"' in html
+        vid = re.search(r'name="vid" value="(\w+)"', html).group(1)
+        c.post("/vraag", data={"vid": vid, "kant": "min"})
+    assert breedtes == sorted(breedtes) and breedtes[0] == 0 and breedtes[-1] > 0
+
+
+def test_interesses_zijn_tikbare_chips_met_een_teller_en_het_laatste_scherm_toont_de_uitleg_in_een_bubbel():
+    db, app = maak(None)
+    c = kind(app)
+    c.post("/welkom", data={"nickname": "Uil"}); c.post("/voorkeur", data={"voorkeur": "man"})
+    for _ in range(12):
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
+        c.post("/vraag", data={"vid": vid, "kant": "min"})
+    html = c.get("/quiz").text
+    assert 'class="chips"' in html and html.count('class="verborgen"') == len(V.interessevraag["opties"]) and 'id="telling"' in html
+    c.post("/interesses", data={"interesse": V.interesses[:2]}); r = c.post("/open", data={})
+    ids = list(dict.fromkeys(re.findall(r'name="(v\d)"', r.text)))
+    r = c.post("/vervolg", data={i: "min" for i in ids})
+    assert 'class="bubbel"' in r.text and "Past niet? Zeg waarom" in r.text and 'aria-label="Stap 5 van 5"' in r.text
+
+
+def test_de_stijl_is_gelijkmatig_alle_kleurvariabelen_bestaan_en_er_is_donkere_modus():
+    from durfheilig.app import CSS
+    assert CSS.count("{") == CSS.count("}")
+    gedefinieerd = set(re.findall(r"(--[a-z-]+):", CSS))
+    gebruikt = set(re.findall(r"var\((--[a-z-]+)\)", CSS))
+    assert gebruikt <= gedefinieerd, gebruikt - gedefinieerd
+    assert "prefers-color-scheme:dark" in CSS and "prefers-reduced-motion" in CSS and ":focus-visible" in CSS
+    assert "min-height:3.4rem" in CSS          # tap targets of a comfortable size on a phone
+
+
+def test_de_reset_zelf_weigert_zodra_het_spel_loopt_en_laat_dan_alles_staan():
+    db, app = maak(None)
+    kids = [kind(app, n) for n in ("a", "b", "c")]
+    for i, k in enumerate(kids):
+        speel(k, f"Nick-{i}")
+    sid = spel.speler_voor(db, "a")["id"]
+    boss = kind(app, "boss"); boss.headers.update({"remote-groups": "durfte-leiding"})
+    boss.post("/beheer/spel/start", data={"eerste": ""})
+    assert spel.reset_invulling(db, sid) is False                       # the rule sits in the same transaction as the wipe
+    assert spel.match_van(db, sid) is not None and spel.invulling(db, sid)["stap"] == "klaar"
+    assert "/quiz/opnieuw" not in menu_hrefs(kids[0].get("/menu").text)  # and the menu no longer offers it
+
+
+def test_een_nieuwe_invulling_en_de_reset_beginnen_met_dezelfde_waarden():
+    db = spel.open_db()
+    sid = spel.speler_voor(db, "a")["id"]
+    vers = spel.invulling(db, sid)
+    spel.bewaar(db, sid, stap="klaar", voorkeur="man", antwoorden={"x": "min"}, extra_ronde=1)
+    assert spel.reset_invulling(db, sid) is True
+    na = spel.invulling(db, sid)
+    for sleutel, waarde in spel.INVULLING_BEGIN.items():
+        assert vers[sleutel] == waarde == na[sleutel], sleutel          # SCHEMA defaults and the reset cannot drift apart
+
+
+def test_pagina_s_die_alleen_lezen_antwoorden_niet_op_een_post_en_andersom():
+    db, app = maak(None)
+    c = kind(app)
+    for pad in ("/menu", "/quiz", "/spel/inhoud", "/mijn"):
+        assert c.post(pad, data={}).status_code in (405, 303), pad       # a page is not an action
+    assert c.post("/menu", data={}).status_code == 405
+    boss = kind(app, "boss"); boss.headers.update({"remote-groups": "durfte-leiding"})
+    assert boss.post("/beheer/tv", data={}).status_code == 405 and boss.get("/beheer/spel/volgende").status_code == 405
+
+
+def test_de_interessechips_krijgen_hun_grenzen_uit_de_pagina_zelf():
+    db, app = maak(None)
+    c = kind(app)
+    c.post("/welkom", data={"nickname": "Uil"}); c.post("/voorkeur", data={"voorkeur": "man"})
+    for _ in range(12):
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
+        c.post("/vraag", data={"vid": vid, "kant": "min"})
+    html = c.get("/quiz").text
+    assert 'data-min="2"' in html and 'data-max="3"' in html and "wrap.dataset.max" in html
+
+
+def test_het_tv_scherm_en_de_donkere_modus_gebruiken_dezelfde_kleuren():
+    from durfheilig.ui import DONKER
+    assert CSS_TEKST().count(DONKER) == 2          # once in the dark-mode media query, once for the tv screen
+
+
+def CSS_TEKST():
+    from durfheilig.app import CSS
+    return CSS
+
+
+def test_een_foutmelding_staat_onder_de_titel():
+    db, app = maak(None)
+    c = kind(app)
+    assert 'class="fout"' in c.post("/welkom", data={"nickname": "x"}).text
+
+
+# ------------------------------------------------------------------ races rond de reset (security review)
+
+def test_een_reset_kan_niet_tussen_het_lezen_en_het_starten_van_het_spel_komen():
+    """The start reads the finished players, draws the board and writes it in one transaction; a reset has to wait for it."""
+    import threading
+    import time
+    from durfheilig import raadspel
+    db, app = maak(None)
+    kids = {n: kind(app, n) for n in ("a", "b", "c")}
+    for n, k in kids.items():
+        speel(k, f"Nick-{n}")
+    boss = kind(app, "boss"); boss.headers.update({"remote-groups": "durfte-leiding"})
+    uitkomst = {}
+    echt = raadspel.trek_bord
+
+    def trek_en_laat_een_reset_proberen(*a, **k):
+        t = threading.Thread(target=lambda: uitkomst.update(reset=spel.reset_invulling(db, spel.speler_voor(db, "a")["id"])))
+        t.start()
+        time.sleep(0.3)
+        uitkomst["wachtte"] = t.is_alive()             # the reset is blocked while the start holds the lock
+        uitkomst["thread"] = t
+        return echt(*a, **k)
+    raadspel.trek_bord = trek_en_laat_een_reset_proberen
+    try:
+        boss.post("/beheer/spel/start", data={"eerste": ""})
+    finally:
+        raadspel.trek_bord = echt
+    uitkomst["thread"].join(3)
+    assert uitkomst["wachtte"] is True and uitkomst["reset"] is False       # and then it is refused: the game has started
+    assert all(spel.match_van(db, s["id"]) for s in spel.spelers_klaar(db)) and len(spel.rondes(db)) == 3
+
+
+def test_een_tweede_start_op_hetzelfde_moment_geeft_geen_fout():
+    db, app = maak(None)
+    for n in ("a", "b", "c"):
+        speel(kind(app, n), f"Nick-{n}")
+    boss = kind(app, "boss"); boss.headers.update({"remote-groups": "durfte-leiding"})
+    assert boss.post("/beheer/spel/start", data={"eerste": ""}).status_code == 200
+    assert boss.post("/beheer/spel/start", data={"eerste": ""}).status_code == 200
+    assert len(spel.bord_rijen(db)) == 6
+
+
+def test_een_reset_tussen_het_lezen_en_het_bevestigen_van_de_keuze_laat_geen_klaar_zonder_match_achter(monkeypatch):
+    db, app = maak(None)
+    c = kind(app)
+    naar_keuze(c, "Uil")
+    sid = spel.speler_voor(db, "kind1")["id"]
+    qid = spel.match_van(db, sid)["top3"][0]["qid"]
+    echt = spel.kies
+
+    def kies_na_reset(*a, **k):
+        spel.reset_invulling(db, sid)
+        return echt(*a, **k)
+    monkeypatch.setattr(spel, "kies", kies_na_reset)
+    c.post("/keuze", data={"gekozen": qid, "want": "ja"})
+    assert spel.invulling(db, sid)["stap"] == "welkom" and spel.match_van(db, sid) is None and spel.spelers_klaar(db) == []
+
+
+def test_een_trage_stap_schrijft_niet_over_een_quiz_die_intussen_opnieuw_begon():
+    from durfheilig.llm import LlmFout
+    houder = {}
+
+    def llm(systeem, gegevens):
+        spel.reset_invulling(db, houder["sid"])                # the kid restarts while the model is thinking
+        raise LlmFout("uit")
+    db = spel.open_db()
+    app = maak_app(db, H, V, llm, random.Random(1))
+    c = kind(app)
+    c.post("/welkom", data={"nickname": "Uil"}); c.post("/voorkeur", data={"voorkeur": "man"})
+    houder["sid"] = spel.speler_voor(db, "kind1")["id"]
+    for _ in range(12):
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
+        c.post("/vraag", data={"vid": vid, "kant": "min"})
+    c.post("/interesses", data={"interesse": V.interesses[:2]})
+    c.post("/open", data={"a1": "x"})                          # call 1 runs while the reset happens
+    inv = spel.invulling(db, houder["sid"])
+    assert inv["stap"] == "welkom" and inv["vervolg"] == [] and inv["kandidaten"] == []
+
+
+def test_een_trage_eindstap_schrijft_geen_top3_over_een_quiz_die_intussen_opnieuw_begon():
+    from durfheilig.llm import LlmFout
+    houder = {}
+
+    def llm(systeem, gegevens):
+        if "Bedenk" not in systeem:                            # the final call: the kid restarts while it runs
+            spel.reset_invulling(db, houder["sid"])
+        raise LlmFout("uit")
+    db = spel.open_db()
+    app = maak_app(db, H, V, llm, random.Random(1))
+    c = kind(app)
+    c.post("/welkom", data={"nickname": "Uil"}); c.post("/voorkeur", data={"voorkeur": "man"})
+    houder["sid"] = spel.speler_voor(db, "kind1")["id"]
+    for _ in range(12):
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
+        c.post("/vraag", data={"vid": vid, "kant": "min"})
+    c.post("/interesses", data={"interesse": V.interesses[:2]})
+    r = c.post("/open", data={})
+    ids = list(dict.fromkeys(re.findall(r'name="(v\d)"', r.text)))
+    c.post("/vervolg", data={i: "min" for i in ids})
+    assert spel.invulling(db, houder["sid"])["stap"] == "welkom" and spel.match_van(db, houder["sid"]) is None
+
+
+def test_dubbel_indrukken_van_vervolg_betaalt_de_llm_niet_twee_keer():
+    """A second submit while the first one waits for the model must not start a second model call (it would eat the minute's token budget)."""
+    stand = {"aantal": 0, "binnen": False, "tijdens": None}
+    c = None
+
+    def llm(systeem, gegevens):
+        stand["aantal"] += 1
+        if not stand["binnen"]:
+            stand["binnen"] = True
+            voor = stand["aantal"]
+            c.post("/vervolg", data={})                       # the second tap, while the first call is still running
+            stand["tijdens"] = stand["aantal"] - voor
+        return "geen json"
+
+    db, app = maak(llm)
+    c = kind(app, "dubbel")
+    c.post("/welkom", data={"nickname": "Dub"}); c.post("/voorkeur", data={"voorkeur": "man"})
+    for _ in range(12):
+        vid = re.search(r'name="vid" value="(\w+)"', c.get("/quiz").text).group(1)
+        c.post("/vraag", data={"vid": vid, "kant": "plus"})
+    c.post("/interesses", data={"interesse": V.interesses[:2]})
+    stand.update(binnen=True)                                # follow-up call on /open is not under test
+    r = c.post("/open", data={"a1": "x"})
+    stand.update(binnen=False, aantal=0)
+    ids = list(dict.fromkeys(re.findall(r'name="(v\d)"', r.text)))
+    c.post("/vervolg", data={i: "min" for i in ids})
+    assert stand["tijdens"] == 0 and stand["aantal"] >= 1

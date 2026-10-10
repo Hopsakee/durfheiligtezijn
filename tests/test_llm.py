@@ -308,3 +308,321 @@ def test_de_vervolgvragen_krijgen_korte_kandidaten_en_de_uitleg_de_volledige(sit
     assert "levensverhaal" not in kort and "haakjes" not in kort and "wat_voor_mens" in kort
     assert "levensverhaal" in lang and "haakjes" in lang
     assert len(kort) < len(lang) / 2
+
+
+def _compat(handler, **kw):
+    from durfheilig.llm import openai_compat
+    return openai_compat("https://api.example.test/v1/", "GEHEIMESLEUTEL", "model-y", client=httpx.Client(transport=httpx.MockTransport(handler)), **kw)
+
+
+def test_openai_compat_stuurt_sleutel_in_de_header_en_leest_het_antwoord():
+    gezien = {}
+
+    def handler(request):
+        gezien.update(url=str(request.url), kop=request.headers.get("authorization"), body=json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"a": 1}'}}], "usage": {"prompt_tokens": 10, "completion_tokens": 3}})
+    assert _compat(handler)("systeem", "gegevens") == '{"a": 1}'
+    assert gezien["url"] == "https://api.example.test/v1/chat/completions" and gezien["kop"] == "Bearer GEHEIMESLEUTEL"
+    assert "GEHEIMESLEUTEL" not in gezien["url"] and gezien["body"]["model"] == "model-y"
+    assert [m["role"] for m in gezien["body"]["messages"]] == ["system", "user"] and gezien["body"]["response_format"] == {"type": "json_object"}
+
+
+def test_openai_compat_json_modus_kan_uit_voor_een_model_dat_het_weigert():
+    gezien = {}
+    _compat(lambda r: gezien.update(b=json.loads(r.content)) or httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}]}), json_modus=False)("s", "d")
+    assert "response_format" not in gezien["b"]
+
+
+@pytest.mark.parametrize("ruw", ['<think>eerst denken</think>{"keuzes": []}', '```json\n{"keuzes": []}\n```', '{"keuzes": []}'])
+def test_een_redeneerblok_of_codeblok_rond_het_json_wordt_bij_het_controleren_weggehaald_voor_elke_aanbieder(situatie, ruw):
+    from durfheilig.llm import _alleen_json
+    assert json.loads(_alleen_json(ruw)) == {"keuzes": []}
+    _, _, _, top = situatie
+    echt = json.dumps({"keuzes": [{"qid": h.qid, "uitleg": "ok"} for h in top[:3]]})
+    for verpakking in ("<think>eerst denken</think>{}", "```json\n{}\n```", "{}"):
+        assert valideer_finale(verpakking.format(echt), top, set()).door_llm
+        assert valideer_finale(verpakking.format(echt), top, set()).keuzes[0].qid == top[0].qid
+
+
+def test_openai_compat_geeft_de_ruwe_tekst_door_en_laat_het_schoonmaken_aan_de_controle():
+    llm = _compat(lambda r: httpx.Response(200, json={"choices": [{"message": {"content": "```json\n{}\n```"}}]}))
+    assert llm("s", "d") == "```json\n{}\n```"
+
+
+def test_openai_compat_fouten_noemen_status_duur_en_model_maar_nooit_de_sleutel():
+    from durfheilig.llm import LlmTimeout
+    with pytest.raises(LlmFout) as e:
+        _compat(lambda r: httpx.Response(401))("s", "d")
+    assert "HTTP 401" in str(e.value) and "model-y" in str(e.value) and "GEHEIMESLEUTEL" not in str(e.value)
+
+    def te_traag(request):
+        raise httpx.ReadTimeout("x", request=request)
+    with pytest.raises(LlmTimeout):
+        _compat(te_traag)("s", "d")
+    for lichaam in ({"choices": []}, {"choices": [{"message": None}]}, []):
+        with pytest.raises(LlmFout):
+            _compat(lambda r, l=lichaam: httpx.Response(200, json=l))("s", "d")
+
+
+def test_de_omgeving_kiest_de_openai_compatibele_aanbieder_boven_gemini():
+    from durfheilig.llm import llm_uit_omgeving
+    scw = {"LLM_BASE_URL": "https://x/v1", "LLM_API_KEY": "k", "LLM_MODEL": "m"}
+    gem = {"GEMINI_API_KEY": "k", "GEMINI_MODEL": "m"}
+    assert llm_uit_omgeving(scw) is not None and llm_uit_omgeving({**scw, **gem}) is not None and llm_uit_omgeving(gem) is not None
+    assert llm_uit_omgeving({"LLM_BASE_URL": "https://x/v1", "LLM_API_KEY": "k"}) is None        # incomplete: model missing
+    assert llm_uit_omgeving({}) is None
+
+
+def test_de_aanbieder_is_expliciet_te_kiezen_en_een_gat_staat_met_naam_in_de_log(caplog):
+    import logging
+    from durfheilig.llm import beschrijving, llm_uit_omgeving
+    scw = {"LLM_BASE_URL": "https://api.scaleway.test/v1", "LLM_API_KEY": "k", "LLM_MODEL": "mistral-x"}
+    gem = {"GEMINI_API_KEY": "k", "GEMINI_MODEL": "gem-y"}
+    assert "api.scaleway.test" in beschrijving(llm_uit_omgeving(scw)) and "mistral-x" in beschrijving(llm_uit_omgeving(scw))
+    assert beschrijving(llm_uit_omgeving(gem)) == "Gemini, model gem-y"
+    assert "gem-y" in beschrijving(llm_uit_omgeving({**scw, **gem, "LLM_PROVIDER": "gemini"}))          # explicit choice beats the autodetect
+    assert "mistral-x" in beschrijving(llm_uit_omgeving({**scw, **gem}))                                 # autodetect: openai wins when all three are set
+    with caplog.at_level(logging.ERROR, logger="durfheilig.llm"):
+        assert llm_uit_omgeving({"LLM_PROVIDER": "openai", "LLM_API_KEY": "k"}) is None
+        assert llm_uit_omgeving({"LLM_PROVIDER": "claude"}) is None
+        assert llm_uit_omgeving({"LLM_BASE_URL": "https://x/v1", "LLM_API_KEY": "k"}) is None
+    assert "LLM_BASE_URL, LLM_MODEL" in caplog.text and "onbekend" in caplog.text
+    caplog.clear()
+    assert llm_uit_omgeving({}) is None and caplog.text == ""                                          # nothing set at all is simply "no LLM"
+    assert "geen sleutel" in beschrijving(None)
+
+
+def test_een_http_adres_voor_de_aanbieder_wordt_geweigerd_behalve_lokaal(caplog):
+    import logging
+    from durfheilig.llm import llm_uit_omgeving
+    basis = {"LLM_API_KEY": "k", "LLM_MODEL": "m"}
+    with caplog.at_level(logging.ERROR, logger="durfheilig.llm"):
+        assert llm_uit_omgeving({**basis, "LLM_BASE_URL": "http://api.example.test/v1"}) is None
+        assert llm_uit_omgeving({**basis, "LLM_BASE_URL": "geen adres"}) is None
+    assert "https-adres" in caplog.text
+    assert llm_uit_omgeving({**basis, "LLM_BASE_URL": "https://api.example.test/v1"}) is not None
+    assert llm_uit_omgeving({**basis, "LLM_BASE_URL": "http://localhost:8080/v1"}) is not None
+
+
+def test_absurd_diep_geneste_uitvoer_van_het_model_geeft_de_terugval_in_plaats_van_een_fout(situatie):
+    p, i, _, top = situatie
+    diep = "[" * 100000 + "]" * 100000
+    uit = finale(Fake(diep, diep), p, i, [], top, [], {})
+    assert not uit.door_llm and len(uit.keuzes) == 3
+
+
+def test_mistral_en_scaleway_kennen_hun_adres_en_zoeken_hun_eigen_sleutel(caplog):
+    import logging
+    from durfheilig.llm import llm_uit_omgeving
+    sc = {"LLM_PROVIDER": "scaleway", "SCALEWAY_API_KEY": "k1", "LLM_MODEL": "mistral-small-3.2-24b-instruct-2506", "MISTRAL_API_KEY": "k2"}
+    assert "scaleway (api.scaleway.ai)" in llm_uit_omgeving(sc).beschrijving and "mistral-small-3.2" in llm_uit_omgeving(sc).beschrijving
+    mi = {"LLM_PROVIDER": "mistral", "MISTRAL_API_KEY": "k2", "LLM_MODEL": "mistral-small-latest", "SCALEWAY_API_KEY": "k1"}
+    assert "mistral (api.mistral.ai)" in llm_uit_omgeving(mi).beschrijving
+    assert llm_uit_omgeving({**mi, "LLM_BASE_URL": "https://eigen.test/v1", "LLM_PROVIDER": "mistral"}).beschrijving.startswith("mistral (eigen.test)")   # an address can still be overridden
+    assert llm_uit_omgeving({"LLM_PROVIDER": "mistral", "LLM_API_KEY": "algemeen", "LLM_MODEL": "m"}) is not None                                          # falls back on LLM_API_KEY
+    with caplog.at_level(logging.ERROR, logger="durfheilig.llm"):
+        assert llm_uit_omgeving({"LLM_PROVIDER": "mistral", "LLM_MODEL": "m"}) is None
+        assert llm_uit_omgeving({"LLM_PROVIDER": "scaleway", "SCALEWAY_API_KEY": "k"}) is None
+        assert llm_uit_omgeving({"LLM_PROVIDER": "scaleway", "SCALEWAY_API_KEY": "k", "LLM_MODEL": "m", "LLM_BASE_URL": "http://onveilig.test/v1"}) is None
+    assert "MISTRAL_API_KEY" in caplog.text and "LLM_MODEL" in caplog.text and "https-adres" in caplog.text
+
+
+def test_de_modellenlijst_leest_de_namen_van_de_aanbieder_en_noemt_nooit_de_sleutel():
+    from durfheilig.llm import lijst_modellen
+    gezien = {}
+
+    def handler(request):
+        gezien["url"], gezien["kop"] = str(request.url), request.headers.get("authorization")
+        return httpx.Response(200, json={"data": [{"id": "b-model"}, {"id": "a-model"}]})
+    env = {"SCALEWAY_API_KEY": "GEHEIMESLEUTEL"}
+    assert lijst_modellen("scaleway", env, client=httpx.Client(transport=httpx.MockTransport(handler))) == ["a-model", "b-model"]
+    assert gezien["url"] == "https://api.scaleway.ai/v1/models" and gezien["kop"] == "Bearer GEHEIMESLEUTEL"
+    with pytest.raises(LlmFout) as e:
+        lijst_modellen("scaleway", env, client=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(401))))
+    assert "HTTP 401" in str(e.value) and "GEHEIMESLEUTEL" not in str(e.value)
+    with pytest.raises(LlmFout, match="MISTRAL_API_KEY"):
+        lijst_modellen("mistral", {})
+
+
+def test_te_veel_verzoeken_wacht_zoals_gevraagd_en_probeert_dan_opnieuw(situatie, monkeypatch, caplog):
+    import logging
+    from durfheilig import llm as llm_module
+    p, i, _, top = situatie
+    slaapt = []
+    monkeypatch.setattr(llm_module.time, "sleep", lambda s: slaapt.append(s))
+    antwoorden = [httpx.Response(429, headers={"retry-after": "2"}), httpx.Response(200, json={"choices": [{"message": {"content": goede_finale(top)}}]})]
+    llm = _compat(lambda r: antwoorden.pop(0))
+    with caplog.at_level(logging.INFO, logger="durfheilig.llm"):
+        uit = finale(llm, p, i, [], top, [], {})
+    assert uit.door_llm and slaapt == [2.0]
+    assert "HTTP 429" in caplog.text and "wacht 2 s gevraagd" in caplog.text and "GEHEIMESLEUTEL" not in caplog.text
+
+
+def test_de_pauze_bij_te_veel_verzoeken_is_begrensd_en_zonder_aanwijzing_kort(situatie, monkeypatch):
+    from durfheilig import llm as llm_module
+    p, i, _, top = situatie
+    slaapt = []
+    monkeypatch.setattr(llm_module.time, "sleep", lambda s: slaapt.append(s))
+    for header, verwacht in (({"retry-after": "120"}, 5.0), ({}, 1.0)):
+        slaapt.clear()
+        uit = finale(_compat(lambda r, h=header: httpx.Response(429, headers=h)), p, i, [], top, [], {})
+        assert not uit.door_llm and slaapt == [verwacht]          # one pause between the two attempts, none after the last
+
+
+def test_een_429_wordt_een_llmtedruk_met_de_gevraagde_wachttijd():
+    from durfheilig.llm import LlmTeDruk
+    with pytest.raises(LlmTeDruk) as e:
+        _compat(lambda r: httpx.Response(429, headers={"retry-after": "3"}))("s", "d")
+    assert e.value.wacht == 3.0
+    with pytest.raises(LlmFout) as e2:
+        _compat(lambda r: httpx.Response(500))("s", "d")
+    assert not isinstance(e2.value, LlmTeDruk)
+
+
+def test_ping_toont_status_limietkoppen_en_melding_maar_nooit_de_sleutel():
+    from durfheilig.llm import ping
+    handler = lambda r: httpx.Response(429, headers={"Retry-After": "7", "x-ratelimit-limit-req-minute": "1", "content-type": "application/json", "set-cookie": "geheim=1"},
+                                      json={"message": "Rate limit exceeded"})
+    u = ping("mistral", "mistral-small-2603", {"MISTRAL_API_KEY": "GEHEIMESLEUTEL"}, client=httpx.Client(transport=httpx.MockTransport(handler)))
+    assert u["status"] == 429 and "Rate limit exceeded" in u["tekst"]
+    assert set(k.lower() for k in u["limietkoppen"]) == {"retry-after", "x-ratelimit-limit-req-minute"}      # only the limit headers, nothing else
+    assert "GEHEIMESLEUTEL" not in str(u)
+    with pytest.raises(LlmFout, match="MISTRAL_API_KEY"):
+        ping("mistral", "m", {})
+
+
+def test_de_ping_opdracht_drukt_het_resultaat_af(monkeypatch, capsys):
+    from durfheilig import modeltest
+    monkeypatch.setattr(modeltest, "laad_env", lambda *a, **k: [])
+    monkeypatch.setattr(modeltest, "ping", lambda aanbieder, model, env: {"status": 429, "duur": 0.2, "limietkoppen": {"retry-after": "7"}, "tekst": "Rate limit"})
+    assert modeltest.main(["--ping", "mistral:mistral-small-2603"]) == 0
+    uit = capsys.readouterr().out
+    assert "mistral, model mistral-small-2603: HTTP 429" in uit and "retry-after" in uit and "Rate limit" in uit
+
+
+class Klok:
+    """A clock the test moves by hand; sleeping just moves it."""
+
+    def __init__(self):
+        self.nu = 1000.0
+
+    def __call__(self):
+        return self.nu
+
+    def slaap(self, s):
+        self.nu += s
+
+
+def _begrenzer(tpm=20000, rps=1.0, max_wacht=10.0):
+    from durfheilig.llm import Begrenzer
+    klok = Klok()
+    return Begrenzer(tpm, rps, max_wacht, klok=klok, slaap=klok.slaap), klok
+
+
+def test_een_verzoek_per_seconde_laat_de_tweede_aanroep_een_seconde_wachten():
+    b, klok = _begrenzer(tpm=None)
+    begin = klok.nu
+    assert b.wacht_voor(100) and klok.nu == begin                 # the first goes at once
+    assert b.wacht_voor(100) and klok.nu == begin + 1.0           # the second waits one second
+    assert b.wacht_voor(100) and klok.nu == begin + 2.0
+
+
+def test_het_tokenbudget_per_minuut_houdt_aanroepen_tegen_en_geeft_ruimte_als_het_venster_verloopt():
+    b, klok = _begrenzer(rps=None, max_wacht=100)
+    assert b.wacht_voor(7000) and b.wacht_voor(7000)              # 14000 of 20000 used
+    begin = klok.nu
+    assert b.wacht_voor(7000)                                     # 21000 would be too much: waits until the first call leaves the window
+    assert klok.nu - begin == 60.0
+    klok.nu += 61
+    assert b.wacht_voor(20000) and klok.nu == begin + 60.0 + 61   # a fresh minute: the whole budget is free again
+
+
+def test_wat_te_lang_zou_wachten_wordt_afgewezen_zonder_iets_te_reserveren():
+    b, klok = _begrenzer(rps=None, max_wacht=10.0)
+    assert b.wacht_voor(15000)
+    begin = klok.nu
+    assert b.wacht_voor(15000) is False and klok.nu == begin      # would have to wait ~60 s: refused at once, nothing slept
+    assert b.wacht_voor(5000) and klok.nu == begin                # and nothing was reserved by the refusal: this still fits
+
+
+def test_een_aanroep_groter_dan_het_hele_minuutbudget_wordt_toegelaten_in_plaats_van_eeuwig_te_wachten():
+    b, klok = _begrenzer(rps=None)
+    assert b.wacht_voor(50000)
+
+
+def test_zonder_limieten_wacht_niets_en_meerdere_threads_komen_in_de_rij():
+    import threading
+    import time
+    from durfheilig.llm import Begrenzer
+    leeg = Begrenzer()
+    assert all(leeg.wacht_voor(10**6) for _ in range(5))
+    echt = Begrenzer(None, 20.0, 5.0)                             # 20 per second: 0.05 s apart, queueing in arrival order
+    klaar = []
+    begin = time.monotonic()
+    draden = [threading.Thread(target=lambda: klaar.append(echt.wacht_voor(10))) for _ in range(5)]
+    [d.start() for d in draden], [d.join() for d in draden]
+    assert all(klaar) and time.monotonic() - begin >= 0.19
+
+
+def test_een_aanroep_die_niet_past_doet_geen_verzoek_en_valt_meteen_terug(situatie, caplog):
+    import logging
+    from durfheilig.llm import LlmVol, openai_compat
+    p, i, _, top = situatie
+    b, _ = _begrenzer(tpm=8000, rps=None, max_wacht=1.0)          # 7500 of 8000 tokens already used this minute: the next call would wait about a minute
+    b.wacht_voor(7500)
+    verzoeken = []
+    llm = openai_compat("https://api.example.test/v1", "GEHEIMESLEUTEL", "m", begrenzer=b,
+                        client=httpx.Client(transport=httpx.MockTransport(lambda r: verzoeken.append(1) or httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}]}))))
+    with pytest.raises(LlmVol):
+        llm("s" * 9000, "d")
+    with caplog.at_level(logging.INFO, logger="durfheilig.llm"):
+        uit = finale(llm, p, i, [], top, [], {})
+    assert verzoeken == [] and not uit.door_llm and "vaste terugval" in caplog.text and "geen aanroep toe" in caplog.text
+    assert caplog.text.count("poging") == 1                       # no second attempt after a refusal
+
+
+def test_de_limieten_komen_uit_de_omgeving_en_beschermen_beide_aanbieders():
+    from durfheilig.llm import llm_uit_omgeving
+    mi = {"LLM_PROVIDER": "mistral", "MISTRAL_API_KEY": "k", "LLM_MODEL": "m", "LLM_TOKENS_PER_MINUUT": "20000", "LLM_VERZOEKEN_PER_SECONDE": "1", "LLM_MAX_WACHT": "8"}
+    assert llm_uit_omgeving(mi) is not None
+    assert llm_uit_omgeving({**mi, "LLM_TOKENS_PER_MINUUT": "onzin", "LLM_VERZOEKEN_PER_SECONDE": ""}) is not None     # bad numbers: no limiter, no crash
+    gem = {"GEMINI_API_KEY": "k", "GEMINI_MODEL": "m", "LLM_TOKENS_PER_MINUUT": "20000"}
+    assert llm_uit_omgeving(gem) is not None
+
+
+def test_de_begroting_telt_wat_we_sturen_en_wat_we_terug_verwachten():
+    from durfheilig.llm import TEKENS_PER_TOKEN, UITVOER_SCHATTING, _begroot
+    assert _begroot("a" * 300, "b" * 300) == 600 // TEKENS_PER_TOKEN + UITVOER_SCHATTING
+
+
+def test_antwoord_zonder_tekst_is_een_llmfout_geen_500():
+    """A 200 whose content is null (filtered or tool-call finish) must fall back, not crash the request."""
+    from durfheilig.llm import openai_compat
+    for inhoud in (None, ["a"]):
+        client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"choices": [{"message": {"content": inhoud}}]})))
+        with pytest.raises(LlmFout):
+            openai_compat("https://x/v1", "k", "m", client=client)("s", "g")
+
+
+def test_getal_weigt_nan_oneindig_en_negatief_af():
+    from durfheilig.llm import _getal
+    for slecht in ("nan", "inf", "-1", "abc"):
+        assert _getal(slecht, 7.0) == 7.0
+    assert _getal("-1", 0, ondergrens=-1) == -1 and _getal("2.5", 7.0) == 2.5
+
+
+def test_begrenzer_te_groot_verzoek_vult_het_venster_niet():
+    from durfheilig.llm import Begrenzer
+    t = [0.0]
+    b = Begrenzer(1000, None, 10.0, klok=lambda: t[0], slaap=lambda s: None)
+    assert b.wacht_voor(5000) and b.wacht_voor(900)        # the oversized call does not starve the small one
+
+
+def test_retry_after_nan_of_negatief_laat_de_aanroep_terugvallen(monkeypatch):
+    from durfheilig.llm import _probeer, openai_compat
+    slaap = []
+    monkeypatch.setattr("durfheilig.llm.time.sleep", slaap.append)
+    for kop in ("nan", "-3"):
+        client = httpx.Client(transport=httpx.MockTransport(lambda r, k=kop: httpx.Response(429, headers={"retry-after": k})))
+        assert _probeer(openai_compat("https://x/v1", "k", "m", client=client), "s", "g", lambda t: t) is None
+    assert all(0 < s <= 5 for s in slaap)

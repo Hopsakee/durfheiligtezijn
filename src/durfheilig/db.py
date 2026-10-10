@@ -92,6 +92,10 @@ class AlGekozen(Exception):
     """Een andere speler heeft deze heilige al."""
 
 
+class GeenMatch(Exception):
+    """De speler heeft geen match (meer) om uit te kiezen."""
+
+
 def nu() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -145,17 +149,23 @@ def invulling(db, speler_id: int) -> dict:
     return _uit(db.q("select * from invulling where speler_id = ?", [speler_id])[0])
 
 
-def bewaar(db, speler_id: int, **velden) -> None:
-    """Werk velden van de invulling bij; JSON-velden mogen Python-waarden zijn."""
+def bewaar(db, speler_id: int, *, alleen_bij_stap: str | None = None, **velden) -> bool:
+    """Werk velden van de invulling bij; JSON-velden mogen Python-waarden zijn.
+
+    Met `alleen_bij_stap` gebeurt het alleen als de speler nog in die stap staat. Zo schrijft een trage stap (die op Gemini wachtte)
+    niet over een quiz heen die de speler intussen opnieuw begon. Geeft terug of er iets bijgewerkt is."""
     if not velden:
-        return
+        return False
     onbekend = set(velden) - KOLOMMEN
     if onbekend:
         raise ValueError(f"onbekende kolom: {sorted(onbekend)}")
     kolommen = [k for k in velden]
     waarden = [_in(v) if k in JSON_VELDEN else v for k, v in velden.items()]
-    db.execute(f"update invulling set {', '.join(f'{k} = ?' for k in kolommen)}, bijgewerkt = ? where speler_id = ?",
-               [*waarden, nu(), speler_id])
+    with db.lock:
+        db.execute(f"update invulling set {', '.join(f'{k} = ?' for k in kolommen)}, bijgewerkt = ? where speler_id = ?"
+                   + (" and stap = ?" if alleen_bij_stap else ""),
+                   [*waarden, nu(), speler_id, *([alleen_bij_stap] if alleen_bij_stap else [])])
+        return db.conn.changes() > 0
 
 
 class NicknameBezet(Exception):
@@ -176,14 +186,24 @@ def gekozen_heiligen(db, behalve_speler: int | None = None) -> set[str]:
     return {r["gekozen"] for r in rijen}
 
 
-def bewaar_match(db, speler_id: int, top3: list[dict], via_llm: bool, markering: str | None, afgewezen: dict) -> None:
-    inv = db.q("select id from invulling where speler_id = ?", [speler_id])[0]["id"]
-    if db.q("select 1 from match where invulling_id = ?", [inv]):
-        db.execute("update match set top3 = ?, via_llm = ?, markering = coalesce(?, markering), afgewezen = ? where invulling_id = ?",
-                   [_in(top3), int(via_llm), markering, _in(afgewezen), inv])
-    else:
-        db.execute("insert into match(invulling_id, top3, via_llm, markering, afgewezen) values (?, ?, ?, ?, ?)",
-                   [inv, _in(top3), int(via_llm), markering, _in(afgewezen)])
+def bewaar_match(db, speler_id: int, top3: list[dict], via_llm: bool, markering: str | None, afgewezen: dict, *,
+                 verwacht_stap: str | None = None, stap_na: str | None = None) -> bool:
+    """Bewaar de top-3. Met `verwacht_stap` alleen als de speler nog in die stap staat (anders is hij intussen opnieuw begonnen);
+    `stap_na` zet de volgende stap in dezelfde transactie. Geeft terug of het bewaard is."""
+    with db.lock, db.conn:
+        rij = db.q("select id, stap from invulling where speler_id = ?", [speler_id])[0]
+        if verwacht_stap and rij["stap"] != verwacht_stap:
+            return False
+        inv = rij["id"]
+        if db.q("select 1 from match where invulling_id = ?", [inv]):
+            db.execute("update match set top3 = ?, via_llm = ?, markering = coalesce(?, markering), afgewezen = ? where invulling_id = ?",
+                       [_in(top3), int(via_llm), markering, _in(afgewezen), inv])
+        else:
+            db.execute("insert into match(invulling_id, top3, via_llm, markering, afgewezen) values (?, ?, ?, ?, ?)",
+                       [inv, _in(top3), int(via_llm), markering, _in(afgewezen)])
+        if stap_na:
+            db.execute("update invulling set stap = ?, bijgewerkt = ? where id = ?", [stap_na, nu(), inv])
+        return True
 
 
 def match_van(db, speler_id: int) -> dict | None:
@@ -192,21 +212,45 @@ def match_van(db, speler_id: int) -> dict | None:
 
 
 def kies(db, speler_id: int, qid: str, klopt_want: str, niet_want: dict[str, str]) -> None:
-    """Leg de gekozen heilige vast; AlGekozen als een ander hem eerder koos."""
-    try:
-        db.execute(
-            "update match set gekozen = ?, klopt_want = ?, niet_want = ? "
-            "where invulling_id = (select id from invulling where speler_id = ?)",
-            [qid, klopt_want, _in(niet_want), speler_id])
-    except apsw.ConstraintError as e:
-        raise AlGekozen(qid) from e
+    """Leg de gekozen heilige vast; AlGekozen als een ander hem eerder koos, GeenMatch als er geen match meer is (de speler begon opnieuw)."""
+    with db.lock:
+        try:
+            db.execute(
+                "update match set gekozen = ?, klopt_want = ?, niet_want = ? "
+                "where invulling_id = (select id from invulling where speler_id = ?)",
+                [qid, klopt_want, _in(niet_want), speler_id])
+        except apsw.ConstraintError as e:
+            raise AlGekozen(qid) from e
+        if db.conn.changes() == 0:
+            raise GeenMatch(speler_id)
 
 
 def profiel_van(db, gebruikersnaam: str) -> dict | None:
     """Zonder iets aan te maken: de stap van deze account en of er al een match is. None als de account nog niet bestaat."""
-    rij = db.q("select i.stap, (select count(*) from match m where m.invulling_id = i.id) as match from speler s "
-               "join invulling i on i.speler_id = s.id where s.gebruikersnaam = ?", [gebruikersnaam])
-    return {"stap": rij[0]["stap"], "heeft_match": bool(rij[0]["match"])} if rij else None
+    rij = db.q("select i.stap, (select count(*) from match m where m.invulling_id = i.id) as match, (select count(*) from spel) as gestart "
+               "from speler s join invulling i on i.speler_id = s.id where s.gebruikersnaam = ?", [gebruikersnaam])
+    return {"stap": rij[0]["stap"], "heeft_match": bool(rij[0]["match"]), "spel_gestart": bool(rij[0]["gestart"])} if rij else None
+
+
+# What a fresh `invulling` row holds (the same as the column defaults in SCHEMA; a test keeps the two equal).
+INVULLING_BEGIN = {"stap": "welkom", "voorkeur": None, "vraag_ids": [], "antwoorden": {}, "interesses": [], "open_antwoorden": [],
+                   "kandidaten": [], "vervolg": [], "vervolg_antwoorden": {}, "extra_ronde": 0}
+
+
+def reset_invulling(db, speler_id: int) -> bool:
+    """Fill in the quiz again: wipe the answers and the match (which frees the chosen saint). The nickname stays, and so does who read the
+    explanation: a leader who read it already knows the saint the kid is likely to get again, so that rule must not be reset away.
+
+    Not once the game has started: that is checked here, inside the same transaction as the wipe, so a start can never slip in between.
+    Returns whether it was done."""
+    with db.lock, db.conn:
+        if spel_status(db):
+            return False
+        db.execute("delete from match where invulling_id = (select id from invulling where speler_id = ?)", [speler_id])
+        kolommen = {**INVULLING_BEGIN, "bijgewerkt": nu()}
+        db.execute(f"update invulling set {', '.join(f'{k} = ?' for k in kolommen)} where speler_id = ?",
+                   [*[_in(v) if k in JSON_VELDEN else v for k, v in kolommen.items()], speler_id])
+        return True
 
 
 def overzicht(db) -> list[dict]:

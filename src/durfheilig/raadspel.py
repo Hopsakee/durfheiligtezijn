@@ -8,6 +8,7 @@ De regels staan in `docs/design/plan-heiligen-welkomstspel.md` (Draaiboek van de
 Alles wat de tv, de telefoons en de begeleider zien, komt uit de database; de pagina's vragen elke 2 seconden om een update.
 """
 
+import functools
 import random
 from collections import Counter
 from collections.abc import Iterable, Sequence
@@ -16,7 +17,7 @@ from fasthtml.common import A, Button, Div, Form, H1, H2, Img, Input, Label, Opt
 
 from . import db as spel
 from .data import Heilige
-from .ui import afbeelding_url, naar, pagina
+from .ui import DONKER, afbeelding_url, naar, pagina
 
 FASES = ("overleg1", "uitslag1", "vragen", "overleg2", "uitslag2", "onthuld")
 STEMFASEN = {"overleg1": 1, "overleg2": 2}
@@ -43,14 +44,17 @@ FASE_TEKST = {
 }
 
 RAAD_CSS = """
-.bord{display:grid;grid-template-columns:repeat(auto-fill,minmax(9rem,1fr));gap:.6rem}
-.tegel{position:relative;background:var(--kaart);border:2px solid var(--rand);border-radius:12px;padding:.5rem;text-align:center;font-size:.85rem}
-.tegel img{display:block;width:100%;height:7rem;object-fit:contain;background:#f1eadb;border-radius:8px}
-.tegel b{display:block;margin-top:.3rem}.tegel.juist{border:6px solid var(--accent);background:#fff4ee}
-.tegel .aantal{position:absolute;top:.3rem;right:.3rem;background:var(--accent);color:#fff;border-radius:999px;padding:.1rem .6rem;font-weight:700}
-.tegel .van{color:var(--accent);font-weight:700}.tegel.stem{border-color:var(--accent);border-width:4px}
-.tv .bord{grid-template-columns:repeat(auto-fill,minmax(11rem,1fr))}.tv{font-size:1.2rem}.tv h1{font-size:2.2rem}
-form.tegelknop{margin:0}form.tegelknop button{padding:.5rem;margin:0;text-align:center;font-weight:400;font-size:.85rem}
+.bord{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem}@media (min-width:34rem){.bord{grid-template-columns:repeat(3,1fr)}}
+.tegel{position:relative;display:flex;flex-direction:column;gap:.2rem;height:100%;background:var(--kaart);border:2px solid var(--rand);border-radius:18px;padding:.6rem;text-align:center;font-size:.8rem;color:var(--zacht);box-shadow:var(--schaduw)}
+.tegel img{display:block;width:100%;height:7.5rem;object-fit:contain;background:#f1eadb;border-radius:12px}
+.tegel .naam{display:block;margin-top:.3rem;font-weight:800;font-size:.95rem;color:var(--ink);line-height:1.2}
+.tegel.juist{border:6px solid var(--accent);background:var(--accent-zacht)}
+.tegel .aantal{position:absolute;top:.4rem;right:.4rem;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:.1rem .7rem;font-weight:800;font-size:1rem}
+.tegel .van{color:var(--accent);font-weight:800;font-size:.95rem}.tegel.stem{border-color:var(--accent);border-width:4px;background:var(--accent-zacht)}
+form.tegelknop{margin:0}form.tegelknop button{min-height:2.8rem;padding:.5rem;margin:.3rem 0 0;justify-content:center;text-align:center;font-weight:700;font-size:.85rem;border-radius:14px}
+.tv{padding:1.2rem;border-radius:24px;font-size:1.25rem;background:var(--bg);color:var(--ink);""" + DONKER + """}
+.tv h1{font-size:2.4rem}.tv .bord{grid-template-columns:repeat(auto-fill,minmax(11rem,1fr));gap:1rem}.tv .tegel{font-size:1rem}.tv .tegel img{height:9rem}.tv .tegel .naam{font-size:1.15rem}
+body:has(.tv){background:#0b0c13}
 """
 
 
@@ -105,7 +109,7 @@ def live(url: str, inhoud, **kw):
 def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
     """Hang the game's routes on `app`. Who may open /beheer/... and what a POST may do is decided once, in the app's login check."""
     rng = rng or random.Random()
-    route = app.route
+    route = functools.partial(app.route, methods=["get"])   # a route that changes something says methods=["post"]
 
     def tegel(h: Heilige, *, aantal=None, juist=False, van=None, stem=False, formulier=False):
         inhoud = [*([Span(f"{aantal}×", cls="aantal")] if aantal is not None else []), Img(src=afbeelding_url(h), alt=h.naam),
@@ -281,12 +285,13 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
 
     @route("/beheer/spel/start", methods=["post"])
     def spel_start(req, eerste: str = ""):
-        klaar = spel.spelers_klaar(db)
-        if spel.spel_status(db) or len(klaar) < MIN_SPELERS:
-            return naar("/beheer/spel")
-        bord = trek_bord([s["gekozen"] for s in klaar], per_qid, rng)
-        volgorde = volgorde_rondes([s["id"] for s in klaar], int(eerste) if eerste.isdigit() else None, rng)
-        spel.start_spel(db, bord, volgorde)
+        with db.lock, db.conn:   # read, draw and write in one go: a kid restarting the quiz (or a second tap) cannot slip in between
+            klaar = spel.spelers_klaar(db)
+            if spel.spel_status(db) or len(klaar) < MIN_SPELERS:
+                return naar("/beheer/spel")
+            bord = trek_bord([s["gekozen"] for s in klaar], per_qid, rng)
+            volgorde = volgorde_rondes([s["id"] for s in klaar], int(eerste) if eerste.isdigit() else None, rng)
+            spel.start_spel(db, bord, volgorde)
         return naar("/beheer/spel")
 
     @route("/beheer/spel/volgende", methods=["post"])

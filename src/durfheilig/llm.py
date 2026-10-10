@@ -11,9 +11,13 @@ kandidaten), dan antwoordt de deterministische terugval, zodat het spel nooit va
 
 import json
 import logging
+import math
 import os
 import statistics
+import threading
 import time
+from collections import deque
+from urllib.parse import urlparse
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -29,6 +33,7 @@ AANTAL_VERVOLGVRAGEN = 3
 MAX_TEKST = 140
 MAX_UITLEG = 700
 POGINGEN = 2
+MAX_WACHT_TE_DRUK = 5.0   # never keep a kid waiting longer than this for a "too many requests" pause
 
 
 log = logging.getLogger("durfheilig.llm")
@@ -38,11 +43,73 @@ class LlmFout(Exception):
     pass
 
 
+class LlmTeDruk(LlmFout):
+    """The provider says "too many requests" (HTTP 429). `wacht` is how long it asked us to wait, in seconds (0 if it did not say)."""
+
+    def __init__(self, bericht: str, wacht: float = 0.0):
+        super().__init__(bericht)
+        self.wacht = wacht
+
+
+class LlmVol(LlmFout):
+    """Our own limiter says the provider's limits leave no room for this call soon enough. No call was made; asking again would not help."""
+
+
 class LlmTimeout(LlmFout):
-    """Gemini did not answer in time. Asking again would wait just as long, so the caller does not retry."""
+    """The provider did not answer in time. Asking again would wait just as long, so the caller does not retry."""
 
 
-def gemini(api_key: str, model: str, *, timeout: float = 30.0, denkbudget: int | None = 0, client: httpx.Client | None = None) -> Llm:
+UITVOER_SCHATTING = 700    # tokens a typical answer costs, added to what we send when budgeting
+TEKENS_PER_TOKEN = 3       # Dutch with accents and JSON: about 3 characters per token, on the safe side
+
+
+class Begrenzer:
+    """Keeps our calls inside the provider's limits: tokens per minute (a sliding window of 60 s) and requests per second.
+
+    Calls queue in the order they arrive. `wacht_voor` blocks until the call fits and says True, or says False at once when that would take
+    longer than `max_wacht` seconds: a kid is better served by the fixed text now than by the model in half a minute. A call that is itself
+    bigger than the whole minute budget is let through, since waiting would never help."""
+
+    def __init__(self, tokens_per_minuut: float | None = None, verzoeken_per_seconde: float | None = None, max_wacht: float = 10.0,
+                 klok=time.monotonic, slaap=time.sleep):
+        self.tokens, self.interval = tokens_per_minuut, (1.0 / verzoeken_per_seconde if verzoeken_per_seconde else 0.0)
+        self.max_wacht, self.klok, self.slaap = max_wacht, klok, slaap
+        self._lock, self._venster, self._laatste = threading.Lock(), deque(), float("-inf")
+
+    def wacht_voor(self, tokens: int) -> bool:
+        with self._lock:
+            nu = self.klok()
+            while self._venster and self._venster[0][0] <= nu - 60:
+                self._venster.popleft()
+            wacht = max(0.0, self._laatste + self.interval - nu)
+            if self.tokens and tokens <= self.tokens:
+                over = sum(t for _, t in self._venster) + tokens - self.tokens
+                for tijd, t in self._venster:             # oldest first: when has enough of the window expired?
+                    if over <= 0:
+                        break
+                    wacht, over = max(wacht, tijd + 60 - nu), over - t
+            if wacht > self.max_wacht:
+                return False
+            moment = nu + wacht
+            self._laatste = moment
+            if not self.tokens or tokens <= self.tokens:  # an oversized call is let through but must not fill the window and starve small ones
+                self._venster.append((moment, tokens))    # reserved now, so the next caller queues behind this one
+        if wacht:
+            self.slaap(wacht)
+        return True
+
+
+def _begroot(systeem: str, gegevens: str) -> int:
+    return (len(systeem) + len(gegevens)) // TEKENS_PER_TOKEN + UITVOER_SCHATTING
+
+
+def _krijg_ruimte(begrenzer: Begrenzer | None, systeem: str, gegevens: str, naam: str, model: str) -> None:
+    if begrenzer and not begrenzer.wacht_voor(_begroot(systeem, gegevens)):
+        raise LlmVol(f"{naam}-aanroep overgeslagen: de limiet van de aanbieder laat nu geen aanroep toe binnen {begrenzer.max_wacht:g} s (model {model})")
+
+
+def gemini(api_key: str, model: str, *, timeout: float = 30.0, denkbudget: int | None = 0, begrenzer: Begrenzer | None = None,
+           client: httpx.Client | None = None) -> Llm:
     """Gemini via de REST-API. De sleutel gaat in een header, nooit in de URL. Elke aanroep logt hoe lang hij duurde.
 
     `denkbudget` is het aantal tokens dat het model mag "denken" voor het antwoordt; 0 zet het uit en maakt het snel (gemeten op de server: een
@@ -53,6 +120,7 @@ def gemini(api_key: str, model: str, *, timeout: float = 30.0, denkbudget: int |
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
     def roep(systeem: str, gegevens: str) -> str:
+        _krijg_ruimte(begrenzer, systeem, gegevens, "Gemini", model)
         begin = time.monotonic()
         try:
             r = http.post(
@@ -67,31 +135,174 @@ def gemini(api_key: str, model: str, *, timeout: float = 30.0, denkbudget: int |
             r.raise_for_status()
             antwoord = r.json()
             tekst = antwoord["candidates"][0]["content"]["parts"][0]["text"]
+            if not isinstance(tekst, str):
+                raise ValueError("antwoord zonder tekst")
             tokens = antwoord.get("usageMetadata", {})   # numbers only: how much was read, thought and written
             log.info("Gemini %s antwoordde in %.1f s (%d tekens verstuurd, tokens: in %s, denken %s, uit %s)", model, time.monotonic() - begin,
                      len(systeem) + len(gegevens), tokens.get("promptTokenCount"), tokens.get("thoughtsTokenCount"), tokens.get("candidatesTokenCount"))
             return tekst
         except Exception as e:   # any failure, incl. an odd 200 body: the caller falls back
-            status = f" (HTTP {e.response.status_code})" if isinstance(e, httpx.HTTPStatusError) else ""
-            duur = time.monotonic() - begin
-            fout = LlmTimeout if isinstance(e, httpx.TimeoutException) else LlmFout
-            raise fout(f"Gemini-aanroep mislukt: {type(e).__name__}{status} na {duur:.1f} s met model {model}") from e
+            raise _aanroepfout("Gemini", model, begin, e) from e
 
+    roep.beschrijving = f"Gemini, model {model}"
     return roep
 
 
+def _aanroepfout(naam: str, model: str, begin: float, e: Exception) -> LlmFout:
+    """The error for a failed call: what went wrong, how long it took, which model. Never the key, never the prompt."""
+    status = f" (HTTP {e.response.status_code})" if isinstance(e, httpx.HTTPStatusError) else ""
+    basis = f"{naam}-aanroep mislukt: {type(e).__name__}{status} na {time.monotonic() - begin:.1f} s met model {model}"
+    if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 429:
+        wacht = _getal(e.response.headers.get("retry-after"), 0.0)   # a number of seconds; a date form is ignored
+        return LlmTeDruk(basis + (f", wacht {wacht:g} s gevraagd" if wacht else ""), wacht)
+    return (LlmTimeout if isinstance(e, httpx.TimeoutException) else LlmFout)(basis)
+
+
+def _alleen_json(tekst: str) -> str:
+    """Some models wrap the JSON in a reasoning block or a code fence; keep only what follows and what is inside."""
+    tekst = tekst.split("</think>")[-1].strip()
+    if tekst.startswith("```"):
+        tekst = tekst.strip("`").removeprefix("json").strip()
+    return tekst
+
+
+def openai_compat(base_url: str, api_key: str, model: str, *, timeout: float = 30.0, json_modus: bool = True,
+                  naam: str = "openai", begrenzer: Begrenzer | None = None, client: httpx.Client | None = None) -> Llm:
+    """Any provider with an OpenAI-compatible chat API (Scaleway, OVHcloud, Mistral, Hugging Face routers, ...).
+
+    The key travels in the Authorization header only. `json_modus` asks for a JSON object; turn it off for a model that rejects it
+    (the log then shows the HTTP status; to read the provider's own message, repeat the call with curl: the log never holds a response body,
+    because an error body can echo what was sent). The answer is checked either way, so the game falls back as before."""
+    http = client or httpx.Client(timeout=httpx.Timeout(timeout, connect=5.0))
+    url = base_url.rstrip("/") + "/chat/completions"
+
+    def roep(systeem: str, gegevens: str) -> str:
+        _krijg_ruimte(begrenzer, systeem, gegevens, "LLM", model)
+        begin = time.monotonic()
+        try:
+            r = http.post(url, headers={"Authorization": f"Bearer {api_key}"}, json={
+                "model": model, "temperature": 0.7,
+                "messages": [{"role": "system", "content": systeem}, {"role": "user", "content": gegevens}],
+                **({"response_format": {"type": "json_object"}} if json_modus else {}),
+            })
+            r.raise_for_status()
+            antwoord = r.json()
+            tekst = antwoord["choices"][0]["message"]["content"]
+            if not isinstance(tekst, str):   # null on a filtered or tool-call finish
+                raise ValueError("antwoord zonder tekst")
+            gebruik = antwoord.get("usage", {})   # numbers only
+            log.info("LLM %s antwoordde in %.1f s (%d tekens verstuurd, tokens: in %s, uit %s)", model, time.monotonic() - begin,
+                     len(systeem) + len(gegevens), gebruik.get("prompt_tokens"), gebruik.get("completion_tokens"))
+            return tekst
+        except Exception as e:
+            raise _aanroepfout("LLM", model, begin, e) from e
+
+    roep.beschrijving = f"{naam} ({urlparse(base_url).hostname}), model {model}"
+    return roep
+
+
+def _getal(waarde: str | None, standaard: float, ondergrens: float = 0.0) -> float:
+    """A finite number from an env value or header, else the default: nan, inf, junk and values below `ondergrens` never get through."""
+    try:
+        w = float(waarde) if waarde else standaard
+    except ValueError:
+        return standaard
+    return w if math.isfinite(w) and w >= ondergrens else standaard
+
+
+# Providers with an OpenAI-compatible API and a known address; each has its own key variable, `<NAAM>_API_KEY`, so several keys can sit in one `.env`.
+AANBIEDERS = {"mistral": "https://api.mistral.ai/v1", "scaleway": "https://api.scaleway.ai/v1"}
+
+
+def _https_ok(url: str) -> bool:
+    """The key goes along with every call: only https (or a local test server)."""
+    adres = urlparse(url)
+    return bool(adres.hostname) and (adres.scheme == "https" or adres.hostname in ("localhost", "127.0.0.1"))
+
+
+def _compat_instellingen(aanbieder: str, env: Mapping[str, str]) -> tuple[str, str, str]:
+    """(base url, key, model) for `openai` (all three in LLM_*) or a named provider (its own address and `<NAAM>_API_KEY`, falling back on LLM_*)."""
+    if aanbieder == "openai":
+        return env.get("LLM_BASE_URL", ""), env.get("LLM_API_KEY", ""), env.get("LLM_MODEL", "")
+    url = env.get("LLM_BASE_URL") or AANBIEDERS[aanbieder]
+    if url != AANBIEDERS[aanbieder]:   # a leftover from an earlier `openai` setup would send this provider's key to another host
+        log.warning("LLM_BASE_URL staat op een ander adres dan het vaste adres van %s: de sleutel van %s gaat daarheen", aanbieder, aanbieder)
+    return url, env.get(f"{aanbieder.upper()}_API_KEY") or env.get("LLM_API_KEY", ""), env.get("LLM_MODEL", "")
+
+
 def llm_uit_omgeving(env: Mapping[str, str] = os.environ) -> Llm | None:
-    """None als er geen sleutel is: de app draait dan op de terugval."""
-    sleutel, model = env.get("GEMINI_API_KEY"), env.get("GEMINI_MODEL")
+    """None als er geen (volledige) instelling is: de app draait dan op de terugval.
+
+    `LLM_PROVIDER` is `gemini`, `mistral`, `scaleway` of `openai` (elke andere OpenAI-compatibele aanbieder, met `LLM_BASE_URL`). Mistral en
+    Scaleway kennen hun adres en zoeken de sleutel in `MISTRAL_API_KEY` of `SCALEWAY_API_KEY`. Staat `LLM_PROVIDER` er niet, dan wint
+    `openai` als `LLM_BASE_URL`, `LLM_API_KEY` en `LLM_MODEL` alle drie ingevuld zijn, en anders `gemini`. Mist er iets voor de gekozen
+    aanbieder, dan staat in de log welke variabele. `LLM_TIMEOUT` (of `GEMINI_TIMEOUT`) is de wachttijd in seconden, standaard 30.
+    `LLM_TOKENS_PER_MINUUT` en `LLM_VERZOEKEN_PER_SECONDE` zijn de limieten van jouw account bij de aanbieder; de app blijft er zelf binnen
+    (aanroepen wachten in de rij) en neemt de vaste tekst als het langer dan `LLM_MAX_WACHT` seconden (standaard 10) zou duren."""
+    wacht = _getal(env.get("LLM_TIMEOUT") or env.get("GEMINI_TIMEOUT"), 30.0)
+    tpm, rps = _getal(env.get("LLM_TOKENS_PER_MINUUT"), 0.0), _getal(env.get("LLM_VERZOEKEN_PER_SECONDE"), 0.0)
+    begrenzer = Begrenzer(tpm, rps, _getal(env.get("LLM_MAX_WACHT"), 10.0)) if (tpm or rps) else None
+    aanbieder = (env.get("LLM_PROVIDER") or "").lower() or ("openai" if all(env.get(k) for k in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL")) else "gemini")
+    if aanbieder == "gemini":
+        vereist = {"GEMINI_API_KEY": env.get("GEMINI_API_KEY"), "GEMINI_MODEL": env.get("GEMINI_MODEL")}
+    elif aanbieder == "openai" or aanbieder in AANBIEDERS:
+        url, sleutel, model = _compat_instellingen(aanbieder, env)
+        sleutelvar = "LLM_API_KEY" if aanbieder == "openai" else f"{aanbieder.upper()}_API_KEY"
+        vereist = {"LLM_BASE_URL": url, sleutelvar: sleutel, "LLM_MODEL": model}   # a named provider's url always has its default
+    else:
+        log.error("LLM_PROVIDER=%s is onbekend (kies gemini, mistral, scaleway of openai): de vaste terugval wordt gebruikt", aanbieder)
+        return None
+    ontbreekt = [k for k, v in vereist.items() if not v]
+    if ontbreekt:
+        if env.get("LLM_PROVIDER") or aanbieder == "openai":   # an explicit choice with a gap is worth a loud line; nothing set at all is just "no LLM"
+            log.error("%s ingesteld maar %s ontbreekt: de vaste terugval wordt gebruikt", aanbieder, ", ".join(ontbreekt))
+        return None
+    if aanbieder == "gemini":
+        denk = int(_getal(env.get("GEMINI_THINKING_BUDGET"), 0, ondergrens=-1))
+        return gemini(env["GEMINI_API_KEY"], env["GEMINI_MODEL"], timeout=wacht, denkbudget=None if denk < 0 else denk, begrenzer=begrenzer)
+    if not _https_ok(url):
+        log.error("LLM_BASE_URL moet een https-adres zijn (de sleutel gaat mee): de vaste terugval wordt gebruikt")
+        return None
+    return openai_compat(url, sleutel, model, timeout=wacht, json_modus=(env.get("LLM_JSON_MODUS", "aan").lower() != "uit"), naam=aanbieder,
+                         begrenzer=begrenzer)
+
+
+def _url_en_sleutel(aanbieder: str, env: Mapping[str, str]) -> tuple[str, str]:
+    """Base url and key for the terminal tools, or LlmFout saying which variable to set."""
+    url, sleutel, _ = _compat_instellingen(aanbieder, env)
+    if not sleutel or not _https_ok(url):
+        raise LlmFout(f"geen sleutel of geen https-adres voor {aanbieder}: zet {aanbieder.upper()}_API_KEY in .env")
+    return url, sleutel
+
+
+def lijst_modellen(aanbieder: str, env: Mapping[str, str] = os.environ, *, client: httpx.Client | None = None) -> list[str]:
+    """The model names this provider offers (`GET /models`), so a name never has to be guessed. Needs the provider's key, not a model."""
+    url, sleutel = _url_en_sleutel(aanbieder, env)
     try:
-        wacht = float(env.get("GEMINI_TIMEOUT") or 30.0)
-    except ValueError:
-        wacht = 30.0
+        r = (client or httpx.Client(timeout=15.0)).get(url.rstrip("/") + "/models", headers={"Authorization": f"Bearer {sleutel}"})
+        r.raise_for_status()
+        return sorted(m["id"] for m in r.json()["data"])
+    except Exception as e:
+        raise _aanroepfout(aanbieder, "(modellenlijst)", time.monotonic(), e) from e
+
+
+def ping(aanbieder: str, model: str, env: Mapping[str, str] = os.environ, *, client: httpx.Client | None = None) -> dict:
+    """One tiny question to the provider and everything a person needs to read a refusal: status, the limit-related headers and the
+    provider's own message. Only for a person at a terminal: the question is a fixed "Zeg hallo", so nothing of a kid is in it."""
+    url, sleutel = _url_en_sleutel(aanbieder, env)
+    begin = time.monotonic()
     try:
-        denk = int(env.get("GEMINI_THINKING_BUDGET", "0"))
-    except ValueError:
-        denk = 0
-    return gemini(sleutel, model, timeout=wacht, denkbudget=None if denk < 0 else denk) if sleutel and model else None
+        r = (client or httpx.Client(timeout=30.0)).post(url.rstrip("/") + "/chat/completions", headers={"Authorization": f"Bearer {sleutel}"},
+                                                         json={"model": model, "messages": [{"role": "user", "content": "Zeg hallo"}]})
+    except httpx.HTTPError as e:
+        raise LlmFout(f"{aanbieder} niet bereikt: {type(e).__name__} na {time.monotonic() - begin:.1f} s") from e
+    kopjes = {k: v for k, v in r.headers.items() if k.lower().startswith(("retry-after", "x-ratelimit", "ratelimit"))}
+    return {"status": r.status_code, "duur": time.monotonic() - begin, "limietkoppen": kopjes, "tekst": r.text[:600]}
+
+
+def beschrijving(llm: Llm | None) -> str:
+    """For the startup line: which provider and model the app will use."""
+    return getattr(llm, "beschrijving", "geen sleutel ingesteld, de vaste terugval") if llm else "geen sleutel ingesteld, de vaste terugval (zie .env.example)"
 
 
 # ---------------------------------------------------------------- gegevens voor de prompt
@@ -211,9 +422,9 @@ def _qids(x, toegestaan: set[str], wat: str) -> tuple[str, ...]:
 
 def valideer_vervolgvragen(tekst: str, kandidaten: Sequence[Heilige]) -> list[Vervolgvraag]:
     try:
-        data = json.loads(tekst)
+        data = json.loads(_alleen_json(tekst))
         rijen = data["vragen"]
-    except (ValueError, KeyError, TypeError) as e:
+    except (ValueError, KeyError, TypeError, RecursionError) as e:   # RecursionError: absurdly nested output
         raise LlmFout("geen geldige JSON met `vragen`") from e
     if not isinstance(rijen, list) or len(rijen) != AANTAL_VERVOLGVRAGEN:
         raise LlmFout(f"verwacht {AANTAL_VERVOLGVRAGEN} vragen")
@@ -256,13 +467,15 @@ def _probeer(llm: Llm | None, systeem: str, gegevens: str, valideer):
     for poging in range(1, POGINGEN + 1):
         try:
             uit = valideer(llm(systeem, gegevens))
-            log.info("Gemini-antwoord gebruikt (poging %d)", poging)
+            log.info("LLM-antwoord gebruikt (poging %d)", poging)
             return uit
         except LlmFout as e:   # the message names the failure, never the kid's text or the key
-            log.warning("Gemini-poging %d van %d mislukt: %s", poging, POGINGEN, e)
-            if isinstance(e, LlmTimeout):
+            log.warning("LLM-poging %d van %d mislukt: %s", poging, POGINGEN, e)
+            if isinstance(e, (LlmTimeout, LlmVol)):
                 break
-    log.warning("Gemini gaf geen bruikbaar antwoord: de vaste terugval wordt gebruikt")
+            if isinstance(e, LlmTeDruk) and poging < POGINGEN:
+                time.sleep(min(e.wacht or 1.0, MAX_WACHT_TE_DRUK))   # asking again at once only earns the same refusal
+    log.warning("De LLM gaf geen bruikbaar antwoord: de vaste terugval wordt gebruikt")
     return None
 
 
@@ -303,9 +516,9 @@ class Uitslag:
 
 def valideer_finale(tekst: str, kandidaten: Sequence[Heilige], afgewezen: set[str]) -> Uitslag:
     try:
-        data = json.loads(tekst)
+        data = json.loads(_alleen_json(tekst))
         rijen = data["keuzes"]
-    except (ValueError, KeyError, TypeError) as e:
+    except (ValueError, KeyError, TypeError, RecursionError) as e:
         raise LlmFout("geen geldige JSON met `keuzes`") from e
     if not isinstance(rijen, list) or len(rijen) != 3 or not all(isinstance(r, dict) for r in rijen):
         raise LlmFout("verwacht precies 3 keuzes")

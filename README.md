@@ -33,3 +33,13 @@ uv run python -m durfheilig.dev
 ```
 
 De spelstatus staat in `data/spel-dev.db` (genegeerd door git). Weg ermee voor een schone start.
+
+## Een taalmodel kiezen
+
+```bash
+uv run python -m durfheilig.modeltest --model <modelnaam> --model <nog een> --n 6 --gelijktijdig 12
+```
+
+Speelt de echte prompts op verzonnen deelnemers (geen kinderen), meet de snelheid en controleert het grofste (ongeldige JSON, Engels,
+markdown, verzonnen jaartallen). De aanbieder komt uit `.env` (zie `.env.example`). De volledige teksten komen in `modeltest/`; lees ze,
+want warm en kloppend klinken beoordeel je met je ogen.

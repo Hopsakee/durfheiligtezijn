@@ -11,30 +11,32 @@ import hashlib
 import json
 import os
 import random
+import threading
 from urllib.parse import urlparse
 
 from starlette.concurrency import run_in_threadpool
-from fasthtml.common import (A, Beforeware, Button, Details, Div, FastHTML, FileResponse, Form, H1, H2, Img, Input, Label, P, Response,
-                             Small, Span, Style, Summary, Table, Td, Th, Tr, Textarea)
+from fasthtml.common import (A, Beforeware, Button, Details, Div, FastHTML, FileResponse, Form, H2, Img, Input, Label, Li, P, Response,
+                             B, Script, Small, Span, Ul, Style, Summary, Table, Td, Th, Tr, Textarea)
 
 from . import db as spel
 from . import raadspel, ui
 from .data import DATA_DIR, Heilige, Vragenbank, laad_heiligen, laad_vragen
-from .llm import Llm, Uitslag, finale, llm_uit_omgeving, vervolgvragen, Vervolgvraag
+from .llm import Llm, Uitslag, beschrijving, finale, llm_uit_omgeving, vervolgvragen, Vervolgvraag
 from .scoring import VOORKEUR_GESLACHT, kies_vragen, profiel, rangschik
-from .ui import KIJKER, afbeelding_url, is_leiding, naar, pagina
+from .ui import CHIPSSCRIPT, KIJKER, afbeelding_url, is_leiding, keuzekaart, naar, pagina, zichtbaar
 
 MAX_OPEN = 200
 MAX_NICKNAME = 20
+VOORKEUR_LABEL = {"man": ("👨", "Een man"), "vrouw": ("👩", "Een vrouw"), "maakt niet uit": ("🤷", "Maakt niet uit")}
 STAPPEN = ("welkom", "voorkeur", "vragen", "interesses", "open", "vervolg", "keuze", "klaar")
 
 CSS = ui.CSS + raadspel.RAAD_CSS
 
 
-def knop_formulier(actie: str, *velden, tekst: str = "Verder", laad: str | None = None, **hidden):
+def knop_formulier(actie: str, *velden, tekst: str = "Verder", laad: str | None = None, knopcls: str = "hoofd", **hidden):
     extra = {"data-laad": laad} if laad else {}
     return Form(*velden, *[Input(type="hidden", name=k, value=v) for k, v in hidden.items()],
-                Button(tekst, cls="hoofd", type="submit"), method="post", action=actie, **extra)
+                Button(tekst, cls=knopcls, type="submit"), method="post", action=actie, **extra)
 
 
 TOEGESTANE_LINKHOSTS = {"nl.wikipedia.org", "en.wikipedia.org", "commons.wikimedia.org"}
@@ -92,7 +94,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
 
     app = FastHTML(before=Beforeware(auth, skip=[r"/health", r"/img/.*"]), hdrs=(Style(CSS),), secret_key=os.urandom(16).hex(),
                    pico=False)
-    route = app.route
+    route = functools.partial(app.route, methods=["get"])   # FastHTML answers GET and POST by default; a route that changes something says methods=["post"]
 
     def wie(req) -> tuple[dict, dict]:
         sp = spel.speler_voor(db, req.scope["gebruiker"])
@@ -107,12 +109,25 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
             top = rangschik(p, inv["interesses"], heiligen, inv["voorkeur"], uitsluiten=weg, n=12, interesse_lijst=vragen.interesses)
         return [h for h, _ in top]
 
+    bezig, bezig_slot = set(), threading.Lock()   # players whose LLM call is running: a double tap or a second tab must not pay for it twice
+
+    def eenmaal(speler_id: int, werk) -> None:
+        with bezig_slot:
+            if speler_id in bezig:
+                return
+            bezig.add(speler_id)
+        try:
+            werk()
+        finally:
+            with bezig_slot:
+                bezig.discard(speler_id)
+
     def maak_vervolg(sp: dict, inv: dict, afgewezen=()) -> None:
         kand = kandidaten_voor(sp, inv, afgewezen)
         p = profiel(inv["antwoorden"], vragen)
         uit, _ = vervolgvragen(llm, p, inv["interesses"], inv["open_antwoorden"], kand, vragen, set(inv["antwoorden"]))
         spel.bewaar(db, sp["id"], kandidaten=[h.qid for h in kand], vervolg=[v.__dict__ for v in uit],
-                    vervolg_antwoorden={}, stap="vervolg")
+                    vervolg_antwoorden={}, stap="vervolg", alleen_bij_stap=inv["stap"])   # not over a quiz the kid restarted meanwhile
 
     def maak_match(sp: dict, inv: dict) -> None:
         m = spel.match_van(db, sp["id"])
@@ -128,24 +143,27 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
             top3.append({"qid": h.qid, "naam": h.naam, "uitleg": k.uitleg, "levensverhaal": h.record.get("levensverhaal", ""),
                          "afbeelding": afbeelding_url(h),
                          "credit": f"{h.record['afbeelding'].get('maker', '')}, {h.record['afbeelding'].get('licentie', '')}"})
-        spel.bewaar_match(db, sp["id"], top3, uit.door_llm, uit.markering, afgewezen)
-        spel.bewaar(db, sp["id"], stap="keuze")
+        spel.bewaar_match(db, sp["id"], top3, uit.door_llm, uit.markering, afgewezen, verwacht_stap=inv["stap"], stap_na="keuze")
 
     # ------------------------------------------------------------------ schermen
 
     def scherm_welkom(sp, inv, fout=""):
+        punt = lambda icoon, tekst: Li(Span(icoon, cls="icoon"), Span(tekst))
         return pagina("Welkom!",
-            P("Je gaat een heilige zoeken die bij jou past. Het duurt ongeveer 5 tot 7 minuten."),
-            P("Spelregels: je gebruikt een bijnaam, je vertelt alleen wat je ook aan de groep zou vertellen, en op de middag gaan we raden wie welke heilige heeft."),
-            P(fout, style="color:#b00") if fout else "",
+            Div(Div("😇", cls="groot"), P("Zullen we jouw heilige zoeken? Je doet een korte quiz en kiest daarna uit drie heiligen die bij jou passen."), cls="hero"),
+            Ul(punt("⏱️", "Het duurt 5 tot 7 minuten."), punt("🎭", "Je gebruikt een bijnaam, geen echte naam."),
+               punt("🤫", "Vertel alleen wat je ook aan de groep zou vertellen."), punt("🎲", "Op de middag raden we wie welke heilige heeft."), cls="lijst"),
             knop_formulier("/welkom", Label("Kies een bijnaam", Input(type="text", name="nickname", maxlength=MAX_NICKNAME, required=True,
-                                                                         value=sp["nickname"] or "")), tekst="Beginnen"))
+                                                                         value=sp["nickname"] or "", placeholder="bijvoorbeeld Vos", autocomplete="off"), cls="veld"),
+                           tekst="Beginnen"), stap=1, fout=fout)
 
     def scherm_voorkeur(sp, inv):
-        return pagina("Jouw heilige",
-            P("Mag je heilige een man, een vrouw, of maakt het niet uit?"),
-            *[Form(Input(type="hidden", name="voorkeur", value=v), Button(v.capitalize(), type="submit"), method="post", action="/voorkeur")
-              for v in VOORKEUR_GESLACHT])
+        return pagina("Jouw heilige", P("Mag je heilige een man of een vrouw zijn, of maakt het niet uit?"),
+            *[Form(Input(type="hidden", name="voorkeur", value=v), Button(Span(icoon, cls="icoon"), tekst, type="submit"), method="post", action="/voorkeur")
+              for v, (icoon, tekst) in VOORKEUR_LABEL.items()], stap=1)
+
+    def terug_knop(tekst="← Vorige vraag"):
+        return knop_formulier("/vraag/terug", tekst=tekst, knopcls="sec")
 
     def scherm_vraag(sp, inv):
         klaar = len(inv["antwoorden"])
@@ -154,33 +172,32 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         kanten = [("min", v.min), ("plus", v.plus)]
         if int(hashlib.sha256(f"{sp['id']}{vid}".encode()).hexdigest(), 16) % 2:
             kanten.reverse()
-        return pagina(v.vraag, voortgang=f"Vraag {klaar + 1} van {len(inv['vraag_ids'])}", *[
+        return pagina(v.vraag, stap=2, vraag=(klaar, len(inv["vraag_ids"])), *[
             Form(Input(type="hidden", name="vid", value=vid), Input(type="hidden", name="kant", value=k),
                  Button(Span(a["icoon"], cls="icoon"), a["tekst"], type="submit"), method="post", action="/vraag")
-            for k, a in kanten])
+            for k, a in kanten], *([terug_knop()] if klaar else []))
 
     def scherm_interesses(sp, inv, fout=""):
         iv = vragen.interessevraag
-        return pagina(iv["vraag"], P(f"Kies {iv['min_keuzes']} of {iv['max_keuzes']}."), P(fout, style="color:#b00") if fout else "",
-            knop_formulier("/interesses", *[
-                Label(Input(type="checkbox", name="interesse", value=o["interesse"]), f" {o['icoon']} {o['interesse']}", cls="optie")
-                for o in iv["opties"]]))
+        return pagina(iv["vraag"], P(f"Kies {iv['min_keuzes']} of {iv['max_keuzes']}.", id="telling", cls="voortgang"),
+            knop_formulier("/interesses", Div(*[keuzekaart("checkbox", "interesse", o["interesse"], f"{o['icoon']} {o['interesse']}") for o in iv["opties"]],
+                                              cls="chips", data_min=iv["min_keuzes"], data_max=iv["max_keuzes"])),
+            terug_knop("← Terug naar de vragen"), Script(CHIPSSCRIPT), stap=3, fout=fout)
 
     def scherm_open(sp, inv):
-        return pagina("Nog twee dingen over jou",
-            P("Een zin is genoeg. Je mag ook overslaan."),
+        return pagina("Nog twee dingen over jou", P("Een zin is genoeg. Je mag ook overslaan."),
             knop_formulier("/open",
-                Label("Waar ben je stiekem goed in?", Textarea(name="a1", maxlength=MAX_OPEN, rows=2)),
-                Label("Waar kun je je echt over opwinden?", Textarea(name="a2", maxlength=MAX_OPEN, rows=2)),
-                laad="We bedenken drie vragen speciaal voor jou…"))
+                Label("Waar ben je stiekem goed in?", Textarea(name="a1", maxlength=MAX_OPEN, rows=2, placeholder="Bijvoorbeeld: tekenen, mensen aan het lachen maken…"), cls="veld"),
+                Label("Waar kun je je echt over opwinden?", Textarea(name="a2", maxlength=MAX_OPEN, rows=2, placeholder="Bijvoorbeeld: oneerlijkheid, voetbal, dieren…"), cls="veld"),
+                laad="We bedenken drie vragen speciaal voor jou…"), stap=4)
 
     def scherm_vervolg(sp, inv):
         return pagina("Nog drie vragen", P("Zo vinden we jouw heilige nog beter."),
             Form(*[Div(H2(v["vraag"]),
-                       *[Label(Input(type="radio", name=v["id"], value=k, required=True), f" {v[k]}", cls="optie") for k in ("min", "plus")])
+                       *[keuzekaart("radio", v["id"], k, v[k], required=True) for k in ("min", "plus")])
                    for v in inv["vervolg"]],
                  Button("Verder", cls="hoofd", type="submit"), method="post", action="/vervolg",
-                 **{"data-laad": "We zoeken de heiligen die bij jou passen…"}))
+                 **{"data-laad": "We zoeken de heiligen die bij jou passen…"}), stap=4)
 
     def kaarten(m, keuze=False, eigen=None):
         out = []
@@ -190,25 +207,26 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
             out.append(Div(
                 *([Span("✔ Jouw heilige", cls="badge")] if gekozen else []),
                 Img(src=h["afbeelding"], alt=h["naam"]), Small(f"Foto: {h['credit']}", cls="klein"),
-                H2(h["naam"]), P(h["levensverhaal"]), P(h["uitleg"]),
-                A(f"Meer over {h['naam']}", href=f"/heilige/{h['qid']}", cls="knop"),
-                *([Label(Input(type="radio", name="gekozen", value=h["qid"], required=True), " Deze past bij mij", cls="optie"),
-                   Label("Deze niet, want… (mag leeg)", Input(type="text", name=f"niet_{h['qid']}", maxlength=MAX_OPEN))] if keuze else []),
+                H2(h["naam"]), P(h["levensverhaal"]), Div(P(h["uitleg"]), cls="bubbel"),
+                A(f"Meer over {h['naam']}", href=f"/heilige/{h['qid']}", cls="knop sec"),
+                *([keuzekaart("radio", "gekozen", h["qid"], "Deze past bij mij", required=True),
+                   Details(Summary("Past niet? Zeg waarom (mag leeg)"), Input(type="text", name=f"niet_{h['qid']}", maxlength=MAX_OPEN))] if keuze else []),
                 cls="kaart gekozen" if gekozen else "kaart"))
         return out
 
     def scherm_keuze(sp, inv):
         m = spel.match_van(db, sp["id"])
-        extra = [] if inv["extra_ronde"] else [Button("Er past er geen bij mij", type="submit", formaction="/geen-past", formnovalidate=True,
+        extra = [] if inv["extra_ronde"] else [Button("Er past er geen bij mij", cls="sec", type="submit", formaction="/geen-past", formnovalidate=True,
                                           **{"data-laad": "We zoeken nieuwe vragen en heiligen voor je…"})]
         return pagina("Drie heiligen voor jou", P("Kies de heilige die het best bij je past."),
-            Form(*kaarten(m, keuze=True), Label("Deze past bij mij, want…", Textarea(name="want", maxlength=MAX_OPEN, rows=2)),
-                 Button("Dit is mijn heilige", cls="hoofd", type="submit"), *extra, method="post", action="/keuze"))
+            Form(*kaarten(m, keuze=True), Label("Deze past bij mij, want…", Textarea(name="want", maxlength=MAX_OPEN, rows=2), cls="veld"),
+                 Button("Dit is mijn heilige", cls="hoofd", type="submit"), *extra, method="post", action="/keuze"), stap=5)
 
     def scherm_klaar(sp, inv):
-        return pagina("Bedankt!", H1("Houd je heilige geheim tot de middag!"),
-                      P("Zonder geheimhouding valt het raadspel om."), A("Lees je heilige nog eens terug", href="/mijn", cls="knop"),
-                      A("Naar het raadspel", href="/spel", cls="knop"))
+        return pagina("Bedankt!", Div(Div("🤫", cls="groot"), H2("Houd je heilige geheim tot de middag!"),
+                                      P("Zonder geheimhouding valt het raadspel om."), cls="hero"),
+                      A("Lees je heilige nog eens terug", href="/mijn", cls="knop"), A("Naar het raadspel", href="/spel", cls="knop"),
+                      A("Quiz opnieuw invullen", href="/quiz/opnieuw", cls="knop sec"), stap=5)
 
     SCHERMEN = {"welkom": scherm_welkom, "voorkeur": scherm_voorkeur, "vragen": scherm_vraag, "interesses": scherm_interesses,
                 "open": scherm_open, "vervolg": scherm_vervolg, "keuze": scherm_keuze, "klaar": scherm_klaar}
@@ -238,14 +256,39 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         sp, inv = wie(req)
         return SCHERMEN[inv["stap"]](sp, inv)
 
+    @route("/vraag/terug", methods=["post"])
+    def post_vraag_terug(req):
+        """Undo the last answer, so a mis-tap on a one-tap question can be corrected."""
+        sp, inv = wie(req)
+        if inv["stap"] in ("vragen", "interesses") and inv["antwoorden"]:
+            laatste = max(inv["antwoorden"], key=inv["vraag_ids"].index)
+            spel.bewaar(db, sp["id"], antwoorden={k: v for k, v in inv["antwoorden"].items() if k != laatste}, stap="vragen")
+        return naar()
+
+    @route("/quiz/opnieuw")
+    def opnieuw_vragen(req):
+        wie(req)
+        if spel.spel_status(db):
+            return pagina("Opnieuw invullen", P("Het spel is al begonnen, dus je kunt de quiz niet meer opnieuw doen. Vraag het een begeleider als er iets mis is."),
+                          A("Terug", href="/menu", cls="knop sec"))
+        return pagina("Quiz opnieuw invullen?",
+                      Div(Div("🔄", cls="groot"), P("Je antwoorden en je gekozen heilige worden gewist. Je heilige komt dan weer vrij voor anderen, en je begint helemaal opnieuw. Je bijnaam blijft."), cls="hero"),
+                      knop_formulier("/quiz/opnieuw", tekst="Ja, begin opnieuw"),
+                      A("Nee, terug", href="/quiz", cls="knop sec"))
+
+    @route("/quiz/opnieuw", methods=["post"])
+    def opnieuw_doen(req):
+        sp, _ = wie(req)
+        return naar("/quiz" if spel.reset_invulling(db, sp["id"]) else "/quiz/opnieuw")   # refused once the game runs: that page explains
+
     @route("/menu")
     def hub(req):
         stap = ui.kijker()["profiel"]().get("stap")
         quiz = "Je quiz is af." if stap == "klaar" else "Je hebt de quiz nog niet gestart." if not stap else "Je quiz is nog bezig: ga verder waar je was."
-        kaart = lambda href, titel, uitleg: A(Span(titel, style="font-weight:700;display:block"), Small(uitleg, cls="klein"), href=href, cls="knop")
-        pagina_s = [(h, t, u or quiz, l) for h, t, u, l in ui.PAGINAS if h != "/menu" and ui.mag_zien(h, l)]
-        return pagina("Start", H2("Voor jou"), *[kaart(h, t, u) for h, t, u, l in pagina_s if not l],
-                      *([H2("Voor begeleiders"), *[kaart(h, t, u) for h, t, u, l in pagina_s if l]] if any(l for *_, l in pagina_s) else []))
+        kaart = lambda href, titel, uitleg, *_: A(Div(B(titel), Span(uitleg or quiz, cls="uitleg")), href=href, cls="knop")
+        paginas = [p for p in zichtbaar() if p[0] != "/menu"]
+        voor_jou, voor_leiding = ([kaart(*p) for p in paginas if p[3] == groep] for groep in ("kind", "leiding"))
+        return pagina("Start", H2("Voor jou"), *voor_jou, *([H2("Voor begeleiders"), *voor_leiding] if voor_leiding else []))
 
     @route("/welkom", methods=["post"])
     def post_welkom(req, nickname: str = ""):
@@ -299,7 +342,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         if inv["stap"] != "open":
             return naar()
         spel.bewaar(db, sp["id"], open_antwoorden=[t.strip()[:MAX_OPEN] for t in (a1, a2) if t.strip()])
-        maak_vervolg(sp, spel.invulling(db, sp["id"]))
+        eenmaal(sp["id"], lambda: maak_vervolg(sp, spel.invulling(db, sp["id"])))
         return naar()
 
     @route("/vervolg", methods=["post"])
@@ -310,7 +353,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         form = await req.form()
         antw = {v["id"]: form.get(v["id"]) for v in inv["vervolg"] if form.get(v["id"]) in ("min", "plus")}
         spel.bewaar(db, sp["id"], vervolg_antwoorden=antw)
-        await run_in_threadpool(maak_match, sp, spel.invulling(db, sp["id"]))   # waits for Gemini: not on the event loop
+        await run_in_threadpool(eenmaal, sp["id"], lambda: maak_match(sp, spel.invulling(db, sp["id"])))   # waits for Gemini: not on the event loop
         return naar()
 
     @route("/keuze", methods=["post"])
@@ -331,7 +374,9 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
             # A parallel player confirmed this saint first: quietly offer a fresh top-3.
             await run_in_threadpool(maak_match, sp, inv)
             return naar()
-        spel.bewaar(db, sp["id"], stap="klaar")
+        except spel.GeenMatch:   # the kid restarted the quiz in another tab: nothing to confirm
+            return naar()
+        spel.bewaar(db, sp["id"], stap="klaar", alleen_bij_stap="keuze")
         return naar()
 
     @route("/geen-past", methods=["post"])
@@ -342,8 +387,8 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
             return naar()
         form = await req.form()
         afgewezen = {**m["afgewezen"], **{h["qid"]: str(form.get(f"niet_{h['qid']}") or "").strip()[:MAX_OPEN] for h in m["top3"]}}
-        spel.bewaar_match(db, sp["id"], m["top3"], bool(m["via_llm"]), None, afgewezen)
-        spel.bewaar(db, sp["id"], extra_ronde=1)
+        spel.bewaar_match(db, sp["id"], m["top3"], bool(m["via_llm"]), None, afgewezen, verwacht_stap="keuze")
+        spel.bewaar(db, sp["id"], extra_ronde=1, alleen_bij_stap="keuze")
         await run_in_threadpool(maak_vervolg, sp, spel.invulling(db, sp["id"]), afgewezen)
         return naar()
 
@@ -399,7 +444,7 @@ def main() -> int:
 
     heiligen, vragen = laad_heiligen(), laad_vragen()
     llm = llm_uit_omgeving()
-    print("LLM:", "Gemini" if llm else "geen sleutel, terugval op vaste teksten")
+    print("LLM:", beschrijving(llm))
     app = maak_app(spel.open_db(spel.db_pad()), heiligen, vragen, llm)
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("APP_PORT") or os.environ.get("PORT") or 8000))
     return 0
