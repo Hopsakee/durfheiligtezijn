@@ -102,6 +102,14 @@ def _lan_ip() -> str:
             return "<jouw-ip>"
 
 
+def poort_bezet(poort: int) -> bool:
+    """True when something on this computer already listens on the port (a dev server that is still running, say)."""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sk:
+        sk.settimeout(1)
+        return sk.connect_ex(("127.0.0.1", poort)) == 0
+
+
 def wis_dev_db(pad: Path) -> None:
     """Remove the dev database with its SQLite side files. The -wal and -shm files belong to the database: deleting only the main file leaves
     them behind and the next start fails with "disk I/O error"."""
@@ -126,6 +134,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--lan", action="store_true", help="luister op je netwerk zodat telefoons kunnen meedoen (iedereen op dat netwerk kan dan een persoon kiezen)")
     ap.add_argument("--schoon", action="store_true", help="begin met een lege lokale database (alleen het dev-bestand)")
     a = ap.parse_args(argv)
+    poort = int(os.environ.get("PORT", "8000"))
+    if poort_bezet(poort):   # before anything is touched: wiping a database under a running server ends in "disk I/O error"
+        print(f"Poort {poort} is al in gebruik, waarschijnlijk door een dev-server die nog draait. Er is niets gewijzigd.\n"
+              f"Zoek hem met `ss -ltnp | grep :{poort}` en stop hem met `pkill -f durfheilig.dev`, en start dan opnieuw.")
+        return 1
     if a.schoon:
         wis_dev_db(Path(os.environ.get("DURFHEILIG_DEV_DB", "data/spel-dev.db")))
     gezet = laad_env()
@@ -143,7 +156,6 @@ def main(argv: list[str] | None = None) -> int:
     with db.lock:
         alle = [r[0] for r in db.execute("select gebruikersnaam from speler where gebruikersnaam like 'dummy%'").fetchall()]
     app = maak_dev_app(db=db, llm=llm, dummies=alle)
-    poort = int(os.environ.get("PORT", "8000"))
     sluit = None
     if a.lan:
         ip = _lan_ip()

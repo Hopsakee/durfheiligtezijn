@@ -124,6 +124,7 @@ def test_main_vindt_de_dummies_terug_in_de_database(tmp_path, monkeypatch):
     monkeypatch.setenv("DURFHEILIG_DEV_DB", str(tmp_path / "d.db"))
     gestart = {}
     monkeypatch.setattr("uvicorn.run", lambda app, host, port: gestart.update(host=host, port=port, stem=app.stem))
+    monkeypatch.setattr(dev, "poort_bezet", lambda p: False)      # a real dev server on this port must not break the test
     monkeypatch.setattr(dev, "laad_env", lambda *a, **k: [])
     monkeypatch.setattr(dev, "llm_uit_omgeving", lambda *a, **k: None)
     assert dev.main(["--dummies", "3", "--lan"]) == 0
@@ -161,6 +162,7 @@ def test_lan_toont_de_firewallopdracht_bij_start_en_bij_stoppen(tmp_path, monkey
     monkeypatch.setenv("DURFHEILIG_DEV_DB", str(tmp_path / "d.db"))
     monkeypatch.setenv("PORT", "8123")
     monkeypatch.setattr("uvicorn.run", lambda *a, **k: None)
+    monkeypatch.setattr(dev, "poort_bezet", lambda p: False)      # a real dev server on this port must not break the test
     monkeypatch.setattr(dev, "laad_env", lambda *a, **k: [])
     monkeypatch.setattr(dev, "llm_uit_omgeving", lambda *a, **k: None)
     monkeypatch.setattr(dev, "_lan_ip", lambda: "10.1.2.3")
@@ -182,3 +184,24 @@ def test_schoon_wist_ook_de_sqlite_zijbestanden_en_de_database_start_daarna_weer
     assert list(tmp_path.iterdir()) == []
     dev.wis_dev_db(pad)                                              # nothing there: no error
     spel.open_db(pad)                                                # and a fresh database opens
+
+
+def test_start_weigert_als_de_poort_al_bezet_is_en_wist_dan_niets(tmp_path, monkeypatch, capsys):
+    """A dev server that still runs: --schoon must not delete the database under it (that ended in "disk I/O error")."""
+    import socket
+    import durfheilig.dev as dev
+    db = tmp_path / "spel-dev.db"
+    db.write_bytes(b"van de draaiende server")
+    bezet = socket.socket()
+    bezet.bind(("127.0.0.1", 0))
+    bezet.listen()
+    try:
+        monkeypatch.setenv("PORT", str(bezet.getsockname()[1]))
+        monkeypatch.setenv("DURFHEILIG_DEV_DB", str(db))
+        monkeypatch.setattr("uvicorn.run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("server must not start")))
+        assert dev.main(["--schoon", "--dummies", "3"]) == 1
+    finally:
+        bezet.close()
+    uit = capsys.readouterr().out
+    assert db.read_bytes() == b"van de draaiende server"              # untouched
+    assert "al in gebruik" in uit and "pkill -f durfheilig.dev" in uit
