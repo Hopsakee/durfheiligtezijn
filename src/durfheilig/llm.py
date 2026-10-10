@@ -95,7 +95,7 @@ def _alleen_json(tekst: str) -> str:
 
 
 def openai_compat(base_url: str, api_key: str, model: str, *, timeout: float = 30.0, json_modus: bool = True,
-                  client: httpx.Client | None = None) -> Llm:
+                  naam: str = "openai", client: httpx.Client | None = None) -> Llm:
     """Any provider with an OpenAI-compatible chat API (Scaleway, OVHcloud, Mistral, Hugging Face routers, ...).
 
     The key travels in the Authorization header only. `json_modus` asks for a JSON object; turn it off for a model that rejects it
@@ -122,7 +122,7 @@ def openai_compat(base_url: str, api_key: str, model: str, *, timeout: float = 3
         except Exception as e:
             raise _aanroepfout("LLM", model, begin, e) from e
 
-    roep.beschrijving = f"{urlparse(base_url).hostname}, model {model}"
+    roep.beschrijving = f"{naam} ({urlparse(base_url).hostname}), model {model}"
     return roep
 
 
@@ -133,31 +133,66 @@ def _getal(waarde: str | None, standaard: float) -> float:
         return standaard
 
 
+# Providers with an OpenAI-compatible API and a known address; each has its own key variable, `<NAAM>_API_KEY`, so several keys can sit in one `.env`.
+AANBIEDERS = {"mistral": "https://api.mistral.ai/v1", "scaleway": "https://api.scaleway.ai/v1"}
+
+
+def _https_ok(url: str) -> bool:
+    """The key goes along with every call: only https (or a local test server)."""
+    adres = urlparse(url)
+    return bool(adres.hostname) and (adres.scheme == "https" or adres.hostname in ("localhost", "127.0.0.1"))
+
+
+def _compat_instellingen(aanbieder: str, env: Mapping[str, str]) -> tuple[str, str, str]:
+    """(base url, key, model) for `openai` (all three in LLM_*) or a named provider (its own address and `<NAAM>_API_KEY`, falling back on LLM_*)."""
+    if aanbieder == "openai":
+        return env.get("LLM_BASE_URL", ""), env.get("LLM_API_KEY", ""), env.get("LLM_MODEL", "")
+    return env.get("LLM_BASE_URL") or AANBIEDERS[aanbieder], env.get(f"{aanbieder.upper()}_API_KEY") or env.get("LLM_API_KEY", ""), env.get("LLM_MODEL", "")
+
+
 def llm_uit_omgeving(env: Mapping[str, str] = os.environ) -> Llm | None:
     """None als er geen (volledige) instelling is: de app draait dan op de terugval.
 
-    `LLM_PROVIDER` is `gemini` of `openai` (een OpenAI-compatibele aanbieder zoals Scaleway). Staat hij er niet, dan wint `openai` als
-    `LLM_BASE_URL`, `LLM_API_KEY` en `LLM_MODEL` alle drie ingevuld zijn, en anders `gemini`. Mist er voor de gekozen aanbieder iets,
-    dan staat in de log welke variabele. `LLM_TIMEOUT` (of `GEMINI_TIMEOUT`) is de wachttijd in seconden, standaard 30."""
+    `LLM_PROVIDER` is `gemini`, `mistral`, `scaleway` of `openai` (elke andere OpenAI-compatibele aanbieder, met `LLM_BASE_URL`). Mistral en
+    Scaleway kennen hun adres en zoeken de sleutel in `MISTRAL_API_KEY` of `SCALEWAY_API_KEY`. Staat `LLM_PROVIDER` er niet, dan wint
+    `openai` als `LLM_BASE_URL`, `LLM_API_KEY` en `LLM_MODEL` alle drie ingevuld zijn, en anders `gemini`. Mist er iets voor de gekozen
+    aanbieder, dan staat in de log welke variabele. `LLM_TIMEOUT` (of `GEMINI_TIMEOUT`) is de wachttijd in seconden, standaard 30."""
     wacht = _getal(env.get("LLM_TIMEOUT") or env.get("GEMINI_TIMEOUT"), 30.0)
     aanbieder = (env.get("LLM_PROVIDER") or "").lower() or ("openai" if all(env.get(k) for k in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL")) else "gemini")
-    vereist = {"openai": ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL"), "gemini": ("GEMINI_API_KEY", "GEMINI_MODEL")}.get(aanbieder)
-    if vereist is None:
-        log.error("LLM_PROVIDER=%s is onbekend (kies gemini of openai): de vaste terugval wordt gebruikt", aanbieder)
+    if aanbieder == "gemini":
+        vereist = {"GEMINI_API_KEY": env.get("GEMINI_API_KEY"), "GEMINI_MODEL": env.get("GEMINI_MODEL")}
+    elif aanbieder == "openai" or aanbieder in AANBIEDERS:
+        url, sleutel, model = _compat_instellingen(aanbieder, env)
+        vereist = {"LLM_BASE_URL": url, "LLM_API_KEY": sleutel, "LLM_MODEL": model} if aanbieder == "openai" else \
+                  {f"{aanbieder.upper()}_API_KEY": sleutel, "LLM_MODEL": model}
+    else:
+        log.error("LLM_PROVIDER=%s is onbekend (kies gemini, mistral, scaleway of openai): de vaste terugval wordt gebruikt", aanbieder)
         return None
-    ontbreekt = [k for k in vereist if not env.get(k)]
+    ontbreekt = [k for k, v in vereist.items() if not v]
     if ontbreekt:
         if env.get("LLM_PROVIDER") or aanbieder == "openai":   # an explicit choice with a gap is worth a loud line; nothing set at all is just "no LLM"
             log.error("%s ingesteld maar %s ontbreekt: de vaste terugval wordt gebruikt", aanbieder, ", ".join(ontbreekt))
         return None
-    if aanbieder == "openai":
-        adres = urlparse(env["LLM_BASE_URL"])
-        if not adres.hostname or (adres.scheme != "https" and adres.hostname not in ("localhost", "127.0.0.1")):
-            log.error("LLM_BASE_URL moet een https-adres zijn (de sleutel gaat mee): de vaste terugval wordt gebruikt")
-            return None
-        return openai_compat(env["LLM_BASE_URL"], env["LLM_API_KEY"], env["LLM_MODEL"], timeout=wacht, json_modus=(env.get("LLM_JSON_MODUS", "aan").lower() != "uit"))
-    denk = int(_getal(env.get("GEMINI_THINKING_BUDGET"), 0))
-    return gemini(env["GEMINI_API_KEY"], env["GEMINI_MODEL"], timeout=wacht, denkbudget=None if denk < 0 else denk)
+    if aanbieder == "gemini":
+        denk = int(_getal(env.get("GEMINI_THINKING_BUDGET"), 0))
+        return gemini(env["GEMINI_API_KEY"], env["GEMINI_MODEL"], timeout=wacht, denkbudget=None if denk < 0 else denk)
+    if not _https_ok(url):
+        log.error("LLM_BASE_URL moet een https-adres zijn (de sleutel gaat mee): de vaste terugval wordt gebruikt")
+        return None
+    return openai_compat(url, sleutel, model, timeout=wacht, json_modus=(env.get("LLM_JSON_MODUS", "aan").lower() != "uit"), naam=aanbieder)
+
+
+def lijst_modellen(aanbieder: str, env: Mapping[str, str] = os.environ, *, client: httpx.Client | None = None) -> list[str]:
+    """The model names this provider offers (`GET /models`), so a name never has to be guessed. Needs the provider's key, not a model."""
+    url, sleutel, _ = _compat_instellingen(aanbieder, env)
+    if not sleutel or not _https_ok(url):
+        raise LlmFout(f"geen sleutel of geen https-adres voor {aanbieder}: zet {aanbieder.upper()}_API_KEY in .env")
+    try:
+        r = (client or httpx.Client(timeout=15.0)).get(url.rstrip("/") + "/models", headers={"Authorization": f"Bearer {sleutel}"})
+        r.raise_for_status()
+        return sorted(m["id"] for m in r.json()["data"])
+    except Exception as e:
+        raise _aanroepfout(aanbieder, "(modellenlijst)", time.monotonic(), e) from e
 
 
 def beschrijving(llm: Llm | None) -> str:

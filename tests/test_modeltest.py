@@ -94,3 +94,31 @@ def test_zonder_aanbieder_stopt_het_met_een_duidelijke_melding(monkeypatch):
     monkeypatch.setattr(modeltest, "laad_env", lambda *a, **k: [])
     with pytest.raises(SystemExit, match="Geen aanbieder"):
         modeltest.main(["--model", "x"])
+
+
+def test_een_voorvoegsel_kiest_de_aanbieder_per_model_en_een_kale_naam_houdt_de_aanbieder_uit_env():
+    from durfheilig.modeltest import omgeving_voor
+    basis = {"MISTRAL_API_KEY": "a", "SCALEWAY_API_KEY": "b"}
+    env, naam = omgeving_voor("scaleway:mistral-small-3.2-24b-instruct-2506", basis)
+    assert env["LLM_PROVIDER"] == "scaleway" and env["LLM_MODEL"] == "mistral-small-3.2-24b-instruct-2506" and naam == "mistral-small-3.2-24b-instruct-2506"
+    env, _ = omgeving_voor("mistral:mistral-small-latest", {**basis, "LLM_PROVIDER": "scaleway"})
+    assert env["LLM_PROVIDER"] == "mistral" and env["LLM_MODEL"] == "mistral-small-latest"
+    env, _ = omgeving_voor("gemini:gem-y", basis)
+    assert env["LLM_PROVIDER"] == "gemini" and env["GEMINI_MODEL"] == "gem-y"
+    env, naam = omgeving_voor("llama-3.3-70b", {**basis, "LLM_PROVIDER": "scaleway"})
+    assert env["LLM_MODEL"] == "llama-3.3-70b" and env["LLM_PROVIDER"] == "scaleway" and naam == "llama-3.3-70b"
+    env, _ = omgeving_voor("gem-z", {"GEMINI_API_KEY": "k"})
+    assert env["GEMINI_MODEL"] == "gem-z"
+    env, _ = omgeving_voor("naam:met:dubbele-punten", basis)           # an unknown prefix is part of the model name
+    assert "LLM_PROVIDER" not in env and env["GEMINI_MODEL"] == "naam:met:dubbele-punten"
+
+
+def test_de_modellenlijst_opdracht_toont_alleen_namen(monkeypatch, capsys):
+    from durfheilig import modeltest
+    monkeypatch.setattr(modeltest, "laad_env", lambda *a, **k: [])
+    monkeypatch.setattr(modeltest, "lijst_modellen", lambda aanbieder, env: ["m-1", "m-2"])
+    assert modeltest.main(["--modellen", "scaleway"]) == 0
+    assert capsys.readouterr().out.split() == ["m-1", "m-2"]
+    import pytest
+    with pytest.raises(SystemExit, match="minstens"):
+        modeltest.main([])

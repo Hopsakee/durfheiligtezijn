@@ -1,10 +1,11 @@
 """Probeer een taalmodel uit met de echte prompts van de app, op verzonnen deelnemers.
 
-    uv run python -m durfheilig.modeltest --model mistral-small-3.2-24b-instruct-2506 --model gemma-4-26b-a4b-it
-    uv run python -m durfheilig.modeltest --model X --n 8 --gelijktijdig 12
+    uv run python -m durfheilig.modeltest --modellen scaleway          welke modellen heeft deze aanbieder?
+    uv run python -m durfheilig.modeltest --model scaleway:mistral-small-3.2-24b-instruct-2506 --model mistral:mistral-small-latest
+    uv run python -m durfheilig.modeltest --model scaleway:X --n 8 --gelijktijdig 12
 
-Leest de aanbieder uit `.env` zoals de app (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_PROVIDER`, of de Gemini-variabelen) en vervangt alleen het
-model door elk `--model`. Er gaan alleen verzonnen antwoorden naar het model, nooit gegevens van kinderen. Het rapport komt in `modeltest/`
+`aanbieder:model` kiest de aanbieder per model (mistral, scaleway, openai of gemini), zodat je er in één run meerdere kunt vergelijken; hun
+sleutels staan naast elkaar in `.env` (`MISTRAL_API_KEY`, `SCALEWAY_API_KEY`). Zonder voorvoegsel geldt de aanbieder uit `.env`. Er gaan alleen verzonnen antwoorden naar het model, nooit gegevens van kinderen. Het rapport komt in `modeltest/`
 (genegeerd door git) en bevat de volledige teksten, want of een uitleg warm en kloppend klinkt, beoordeel je door te lezen. De controles ervoor
 zijn grof: ze vangen het ergste (ongeldige JSON, Engels, markdown, verzonnen jaartallen, een uitleg zonder verwijzing naar het kind).
 """
@@ -23,7 +24,7 @@ from pathlib import Path
 
 from .data import Heilige, Vragenbank, laad_heiligen, laad_vragen
 from .dev import laad_env
-from .llm import Llm, Uitslag, Vervolgvraag, beschrijving, finale, llm_uit_omgeving, vervolgvragen
+from .llm import AANBIEDERS, Llm, LlmFout, Uitslag, Vervolgvraag, beschrijving, finale, lijst_modellen, llm_uit_omgeving, vervolgvragen
 from .scoring import kies_vragen, profiel, rangschik
 
 OPEN_ANTWOORDEN = [
@@ -176,9 +177,23 @@ def draai_model(llm: Llm, n: int, seed: int, gelijktijdig: int = 0, heiligen=Non
     return per, ctx, duren
 
 
+def omgeving_voor(spec: str, basis: dict) -> tuple[dict, str]:
+    """The environment for one `--model`: `aanbieder:model` picks that provider, a bare name keeps the one in `.env`."""
+    env = dict(basis)
+    voorvoegsel, _, naam = spec.partition(":")
+    if naam and voorvoegsel in (*AANBIEDERS, "openai", "gemini"):
+        env["LLM_PROVIDER"] = voorvoegsel
+        env["GEMINI_MODEL" if voorvoegsel == "gemini" else "LLM_MODEL"] = naam
+        return env, naam
+    kiest_compat = (env.get("LLM_PROVIDER", "").lower() in (*AANBIEDERS, "openai")) or (not env.get("LLM_PROVIDER") and env.get("LLM_BASE_URL"))
+    env["LLM_MODEL" if kiest_compat else "GEMINI_MODEL"] = spec
+    return env, spec
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--model", action="append", required=True, help="modelnaam bij de aanbieder; mag vaker")
+    ap.add_argument("--model", action="append", default=[], help="modelnaam, of aanbieder:modelnaam; mag vaker")
+    ap.add_argument("--modellen", metavar="AANBIEDER", help="toon de modellen van deze aanbieder (mistral, scaleway, openai) en stop")
     ap.add_argument("--n", type=int, default=6, help="aantal verzonnen deelnemers per model")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--gelijktijdig", type=int, default=0, help="speel daarna zoveel finales tegelijk, om te zien hoe het onder druk gaat")
@@ -186,10 +201,17 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     laad_env()
     logging.basicConfig(level=logging.WARNING, format="%(message)s")
+    if a.modellen:
+        try:
+            print("\n".join(lijst_modellen(a.modellen, os.environ)))
+        except LlmFout as e:
+            raise SystemExit(str(e))
+        return 0
+    if not a.model:
+        raise SystemExit("Geef minstens één --model, of --modellen <aanbieder> om te zien wat er is")
     samenvattingen = []
-    for model in a.model:
-        env = dict(os.environ)
-        env["LLM_MODEL" if env.get("LLM_PROVIDER", "").lower() == "openai" or env.get("LLM_BASE_URL") else "GEMINI_MODEL"] = model
+    for spec in a.model:
+        env, model = omgeving_voor(spec, dict(os.environ))
         llm = llm_uit_omgeving(env)
         if llm is None:
             raise SystemExit("Geen aanbieder ingesteld: zet LLM_BASE_URL, LLM_API_KEY (of de Gemini-variabelen) in .env, zie .env.example")

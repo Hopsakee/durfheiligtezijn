@@ -409,3 +409,36 @@ def test_absurd_diep_geneste_uitvoer_van_het_model_geeft_de_terugval_in_plaats_v
     diep = "[" * 100000 + "]" * 100000
     uit = finale(Fake(diep, diep), p, i, [], top, [], {})
     assert not uit.door_llm and len(uit.keuzes) == 3
+
+
+def test_mistral_en_scaleway_kennen_hun_adres_en_zoeken_hun_eigen_sleutel(caplog):
+    import logging
+    from durfheilig.llm import llm_uit_omgeving
+    sc = {"LLM_PROVIDER": "scaleway", "SCALEWAY_API_KEY": "k1", "LLM_MODEL": "mistral-small-3.2-24b-instruct-2506", "MISTRAL_API_KEY": "k2"}
+    assert "scaleway (api.scaleway.ai)" in llm_uit_omgeving(sc).beschrijving and "mistral-small-3.2" in llm_uit_omgeving(sc).beschrijving
+    mi = {"LLM_PROVIDER": "mistral", "MISTRAL_API_KEY": "k2", "LLM_MODEL": "mistral-small-latest", "SCALEWAY_API_KEY": "k1"}
+    assert "mistral (api.mistral.ai)" in llm_uit_omgeving(mi).beschrijving
+    assert llm_uit_omgeving({**mi, "LLM_BASE_URL": "https://eigen.test/v1", "LLM_PROVIDER": "mistral"}).beschrijving.startswith("mistral (eigen.test)")   # an address can still be overridden
+    assert llm_uit_omgeving({"LLM_PROVIDER": "mistral", "LLM_API_KEY": "algemeen", "LLM_MODEL": "m"}) is not None                                          # falls back on LLM_API_KEY
+    with caplog.at_level(logging.ERROR, logger="durfheilig.llm"):
+        assert llm_uit_omgeving({"LLM_PROVIDER": "mistral", "LLM_MODEL": "m"}) is None
+        assert llm_uit_omgeving({"LLM_PROVIDER": "scaleway", "SCALEWAY_API_KEY": "k"}) is None
+        assert llm_uit_omgeving({"LLM_PROVIDER": "scaleway", "SCALEWAY_API_KEY": "k", "LLM_MODEL": "m", "LLM_BASE_URL": "http://onveilig.test/v1"}) is None
+    assert "MISTRAL_API_KEY" in caplog.text and "LLM_MODEL" in caplog.text and "https-adres" in caplog.text
+
+
+def test_de_modellenlijst_leest_de_namen_van_de_aanbieder_en_noemt_nooit_de_sleutel():
+    from durfheilig.llm import lijst_modellen
+    gezien = {}
+
+    def handler(request):
+        gezien["url"], gezien["kop"] = str(request.url), request.headers.get("authorization")
+        return httpx.Response(200, json={"data": [{"id": "b-model"}, {"id": "a-model"}]})
+    env = {"SCALEWAY_API_KEY": "GEHEIMESLEUTEL"}
+    assert lijst_modellen("scaleway", env, client=httpx.Client(transport=httpx.MockTransport(handler))) == ["a-model", "b-model"]
+    assert gezien["url"] == "https://api.scaleway.ai/v1/models" and gezien["kop"] == "Bearer GEHEIMESLEUTEL"
+    with pytest.raises(LlmFout) as e:
+        lijst_modellen("scaleway", env, client=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(401))))
+    assert "HTTP 401" in str(e.value) and "GEHEIMESLEUTEL" not in str(e.value)
+    with pytest.raises(LlmFout, match="MISTRAL_API_KEY"):
+        lijst_modellen("mistral", {})
