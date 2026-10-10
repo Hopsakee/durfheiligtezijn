@@ -34,14 +34,17 @@ def _pagina(huidig: str | None) -> HTMLResponse:
         "<h1>Lokaal testen</h1><p>Je bent nu: <b>" + (huidig or "niemand") + "</b></p>"
         f"<h2>Kind</h2><ul>{kinderen}</ul>"
         "<h2>Begeleider</h2><ul><li><a href='/dev/als/leiding1'>leiding1 (ziet /beheer)</a></li></ul>"
+        "<h2>Nepdeelnemers</h2><form method=post action='/dev/stem'><button style='font:inherit;padding:.6rem 1rem'>Laat de dummies stemmen</button></form>"
+        "<p>Zo test je het raadspel zonder telefoons: de dummies stemmen in de ronde die nu loopt.</p>"
         "<p><a href='/'>Naar de app</a></p>")
 
 
 class AlsGebruiker:
     """ASGI-laag: zet Remote-User en Remote-Groups uit het cookie `dev_user`. Wie `leiding…` heet is begeleider."""
 
-    def __init__(self, app):
+    def __init__(self, app, stem=None):
         self.app = app
+        self.stem = stem   # called by POST /dev/stem; returns how many dummies voted
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -62,6 +65,12 @@ class AlsGebruiker:
                 r = RedirectResponse("/", status_code=303)
                 r.set_cookie("dev_user", naam, httponly=True, samesite="lax")
                 return await r(scope, receive, send)
+            if pad == "/dev/stem" and self.stem is not None:
+                if scope["method"] != "POST" or kop.get(b"sec-fetch-site", b"same-origin") not in (b"same-origin", b"none"):
+                    return await HTMLResponse("Niet toegestaan.", status_code=403)(scope, receive, send)
+                n = self.stem()
+                return await HTMLResponse(f"<meta charset=utf-8><body style='font:18px system-ui;margin:2rem'>{n} dummies hebben gestemd. "
+                                          "<a href='/dev'>Terug</a>")(scope, receive, send)
             return await _pagina(gebruiker)(scope, receive, send)
         if gebruiker is None:
             return await RedirectResponse("/dev", status_code=303)(scope, receive, send)
@@ -71,10 +80,25 @@ class AlsGebruiker:
         await self.app({**scope, "headers": headers}, receive, send)
 
 
-def maak_dev_app(db=None, llm=None):
-    return AlsGebruiker(maak_app(db or spel.open_db(Path(os.environ.get("DURFHEILIG_DEV_DB", "data/spel-dev.db"))),
-                                 laad_heiligen(), laad_vragen(), llm,
-                                 extra_menu=[("/dev", "Wissel van persoon (alleen lokaal)")]))
+def maak_dev_app(db=None, llm=None, dummies: list[str] | None = None):
+    db = db or spel.open_db(Path(os.environ.get("DURFHEILIG_DEV_DB", "data/spel-dev.db")))
+    app = maak_app(db, laad_heiligen(), laad_vragen(), llm, extra_menu=[("/dev", "Wissel van persoon (alleen lokaal)")])
+    stem = None
+    if dummies:
+        from .dummies import laat_stemmen
+        stem = lambda: laat_stemmen(app, db, dummies)   # noqa: E731
+    return AlsGebruiker(app, stem)
+
+
+def _lan_ip() -> str:
+    """The address of this computer on the local network (the interface a packet to the outside would leave from; nothing is sent)."""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sk:
+        try:
+            sk.connect(("192.0.2.1", 9))    # documentation address: no traffic, it only makes the OS choose an interface
+            return sk.getsockname()[0]
+        except OSError:
+            return "<jouw-ip>"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -83,6 +107,7 @@ def main(argv: list[str] | None = None) -> int:
 
     ap = argparse.ArgumentParser(description="Lokaal proberen zonder Authelia")
     ap.add_argument("--dummies", type=int, default=0, metavar="N", help="maak eerst N nepdeelnemers die de quiz doorlopen en een heilige kiezen")
+    ap.add_argument("--lan", action="store_true", help="luister op je netwerk zodat telefoons kunnen meedoen (iedereen op dat netwerk kan dan een persoon kiezen)")
     ap.add_argument("--schoon", action="store_true", help="begin met een lege lokale database (alleen het dev-bestand)")
     a = ap.parse_args(argv)
     if a.schoon:
@@ -98,10 +123,16 @@ def main(argv: list[str] | None = None) -> int:
         # Their own app on the same database and without an LLM: dummies cost nothing and never touch a provider.
         namen = maak_dummies(maak_app(db, laad_heiligen(), laad_vragen(), None), laad_vragen(), a.dummies)
         print(f"{len(namen)} nepdeelnemers gemaakt ({namen[0]} t/m {namen[-1]}); wissel met /dev/als/<naam>")
-    app = maak_dev_app(db=db, llm=llm)
+    with db.lock:
+        alle = [r[0] for r in db.execute("select gebruikersnaam from speler where gebruikersnaam like 'dummy%'").fetchall()]
+    app = maak_dev_app(db=db, llm=llm, dummies=alle)
     poort = int(os.environ.get("PORT", "8000"))
-    print(f"Open http://127.0.0.1:{poort}/dev")
-    uvicorn.run(app, host="127.0.0.1", port=poort)
+    if a.lan:
+        print("LET OP: iedereen op dit netwerk kan zich nu als elke persoon voordoen, ook als begeleider. Gebruik dit alleen op een netwerk dat je vertrouwt.")
+        print(f"Open op de tv en de telefoons: http://{_lan_ip()}:{poort}/dev   (zelfde wifi, en je firewall moet poort {poort} toelaten)")
+    else:
+        print(f"Open http://127.0.0.1:{poort}/dev")
+    uvicorn.run(app, host="0.0.0.0" if a.lan else "127.0.0.1", port=poort)
     return 0
 
 
