@@ -5,8 +5,9 @@ Staat los van `app.py` en `raadspel.py`, zodat die twee dit allebei kunnen gebru
 
 import contextvars
 from functools import lru_cache
+from urllib.parse import urlparse
 
-from fasthtml.common import A, Details, Div, H1, Header, I, Input, Label, Main, Nav, P, RedirectResponse, Script, Span, Summary, Title
+from fasthtml.common import A, Details, Div, H1, H2, Header, I, Input, Label, Main, Nav, P, RedirectResponse, Script, Span, Summary, Title
 
 from .data import DATA_DIR, Heilige
 
@@ -203,3 +204,32 @@ def pagina(titel: str, *inhoud, toon_menu: bool = True, stap: int | None = None,
         gedaan, totaal = vraag
         boven += [Div(I(style=f"width:{100 * gedaan / totaal:.0f}%"), cls="balk"), P(f"Vraag {gedaan + 1} van {totaal}", cls="voortgang")]
     return Title(f"{titel} · Durf heilig te zijn"), kop, Main(*boven, H1(titel), *([P(fout, cls="fout")] if fout else []), *inhoud, laden, Script(LAADSCRIPT))
+
+
+TOEGESTANE_LINKHOSTS = {"nl.wikipedia.org", "en.wikipedia.org", "commons.wikimedia.org"}
+
+
+def info(h: Heilige) -> list:
+    """Alles wat een jongere over deze heilige erbij mag lezen. Bewust zonder de notities voor de leiding."""
+    r = h.record
+    uit = []
+    if r.get("waarom_voorbeeld"):
+        uit += [H2("Waarom een voorbeeld?"), P(r["waarom_voorbeeld"])]
+    if r.get("waarom_heilig"):
+        uit += [H2("Waarom heilig?"), P(r["waarom_heilig"])]
+    if r.get("haakjes"):
+        uit.append(H2("Verhalen over deze heilige"))
+        for x in r["haakjes"]:
+            soort = x.get("soort") or ""
+            label = [x["kort"], *([Span(f" ({soort})", cls="klein")] if soort else [])]
+            uit.append(Details(Summary(*label), P(x["meer"])) if x.get("meer") else P(*label))
+    if r.get("wat_er_nog_van_over_is"):
+        uit += [H2("Wat er nog van over is"), P(r["wat_er_nog_van_over_is"])]
+    if r.get("begrippen"):
+        uit.append(H2("Woorden uitgelegd"))
+        uit += [Details(Summary(b["term"]), P(b["uitleg"])) for b in r["begrippen"]]
+    links = [x for x in r.get("lees_zelf", []) if urlparse(x.get("url", "")).scheme == "https" and "\\" not in x["url"]
+             and urlparse(x["url"]).hostname in TOEGESTANE_LINKHOSTS]
+    if links:
+        uit += [H2("Zelf verder lezen"), *[P(A(x["titel"], href=x["url"], target="_blank", rel="noopener noreferrer")) for x in links]]
+    return uit

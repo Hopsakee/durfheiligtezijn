@@ -9,11 +9,13 @@ from durfheilig.data import laad_heiligen, laad_vragen
 from durfheilig.raadspel import MIN_SPELERS, meerderheid, punten, trek_bord, volgende_fase, volgorde_rondes
 from test_app import H, V, kind, speel
 
+H_PER_QID = {h.qid: h for h in H}
+
 LEIDING = {"remote-groups": "durfte-leiding"}
 
 
-def spel_met(namen, leiding_namen=(), llm=None):
-    """A database with finished players (each chose a saint) and the app on top of it."""
+def spel_met(namen, leiding_namen=(), llm=None, voorkeuren=None):
+    """A database with finished players (each chose a saint, optionally with a gender preference per name) and the app on top of it."""
     db = spel.open_db()
     app = maak_app(db, H, V, llm, random.Random(7))
     clients = {}
@@ -21,9 +23,14 @@ def spel_met(namen, leiding_namen=(), llm=None):
         c = kind(app, f"acct-{n}")
         if n in leiding_namen:
             c.headers.update(LEIDING)
-        speel(c, f"Nick-{n}")
+        speel(c, f"Nick-{n}", voorkeur=(voorkeuren or {}).get(n, "maakt niet uit"))
         clients[n] = c
     return db, app, clients
+
+
+def een_stemmer(clients):
+    """A client whose page currently offers voting tiles."""
+    return next(c for c in clients.values() if "tegelknop" in frag(c, "/spel/inhoud"))
 
 
 def frag(c, pad):
@@ -352,7 +359,7 @@ def test_voor_de_onthulling_staat_nergens_welke_heilige_juist_is_en_zijn_de_tege
         naar_fase(db, boss, fase)
         for tekst in (frag(tv, "/beheer/tv/inhoud"), frag(clients[stemmers[0]], "/spel/inhoud")):
             assert "tegel juist" not in tekst and "✔ " not in tekst.replace("✔ Jouw", "") and "gekozen" not in tekst.lower().replace("gekozen: ", "")
-            assert set(re.findall(r'class="(tegel[^"]*)"', tekst)) <= {"tegel", "tegel stem", "tegelknop"}
+            assert set(re.findall(r'class="(tegel[^"]*)"', tekst)) <= {"tegel", "tegel stem", "tegelknop", "tegelwrap"}
         if fase in ("overleg1", "overleg2"):
             assert "×" not in frag(tv, "/beheer/tv/inhoud")
         if fase == "uitslag2":
@@ -499,20 +506,90 @@ def test_een_uitleg_openen_via_een_link_van_een_andere_site_telt_niet_als_lezen(
     assert spel.lezers(db, sid) == {"boss"}
 
 
+def test_zichtbaar_bord_filtert_op_geslacht_met_ondergrens_en_zonder_het_antwoord_te_verbergen():
+    from durfheilig.raadspel import MIN_ZICHT, zichtbaar_bord
+    per_qid = {h.qid: h for h in H}
+    man = [h.qid for h in H if h.geslacht == "mannelijk"]
+    vrouw = [h.qid for h in H if h.geslacht == "vrouwelijk"]
+    bord = [{"qid": q} for q in man[:8] + vrouw[:8]]
+    assert [b["qid"] for b in zichtbaar_bord(bord, per_qid, "man", man[0])] == man[:8]
+    assert [b["qid"] for b in zichtbaar_bord(bord, per_qid, "vrouw", vrouw[0])] == vrouw[:8]
+    assert zichtbaar_bord(bord, per_qid, "maakt niet uit", man[0]) == bord and zichtbaar_bord(bord, per_qid, None, man[0]) == bord
+    assert zichtbaar_bord(bord, per_qid, "man", vrouw[0]) == bord                  # the right saint is never hidden
+    klein = [{"qid": q} for q in man[:MIN_ZICHT - 1] + vrouw[:8]]
+    assert zichtbaar_bord(klein, per_qid, "man", man[0]) == klein                  # too few left to guess from: the whole board, not the answer
+
+
+def test_het_bord_van_een_ronde_toont_alleen_heiligen_van_het_gewenste_geslacht():
+    """Phones and tv show only saints of the gender the round's subject asked for; "maakt niet uit" and tiny boards show everything."""
+    from durfheilig.raadspel import MIN_ZICHT
+    namen = [f"p{i}" for i in range(10)]
+    voork = {n: ["man", "vrouw", "maakt niet uit"][i % 3] for i, n in enumerate(namen)}
+    db, app, clients = spel_met(namen, voorkeuren=voork)
+    boss = leider(app)
+    boss.post("/beheer/spel/start", data={"eerste": ""})
+    volgende(boss)
+    toegestaan = {"man": {"mannelijk"}, "vrouw": {"vrouwelijk"}, "maakt niet uit": {"mannelijk", "vrouwelijk"}}
+    gefilterd = set()
+    for _ in range(80):
+        if spel.spel_status(db)["status"] != "ronde":
+            break
+        r = huidige(db)
+        if r["fase"] == "overleg1":
+            v = spel.invulling(db, r["speler_id"])["voorkeur"]
+            bord = [b["qid"] for b in spel.bord_rijen(db)]
+            eigen = [q for q in bord if H_PER_QID[q].geslacht in toegestaan[v]]
+            juist = {s["id"]: s["gekozen"] for s in spel.spelers_klaar(db)}[r["speler_id"]]
+            verwacht = eigen if len(eigen) >= MIN_ZICHT and juist in eigen else bord      # the rule, written out independently of the code
+            tv = boss.get("/beheer/tv/inhoud", headers={"hx-request": "true"}).text
+            telefoon = frag(een_stemmer(clients), "/spel/inhoud")
+            assert telefoon.count("<button") == len(verwacht) == len(re.findall(r'class="tegel[ "]', tv))
+            for q in bord:
+                if q not in verwacht:
+                    assert H_PER_QID[q].naam not in tv and H_PER_QID[q].naam not in telefoon
+                    een_stemmer(clients).post("/spel/stem", data={"qid": q})            # a hidden saint cannot be voted for either
+                    assert spel.stemmen(db, r["id"], 1) == []
+                    assert een_stemmer(clients).get(f"/spel/heilige/{q}").status_code == 404   # nor can its info page be opened
+            if len(verwacht) < len(bord):
+                gefilterd.add(v)
+        volgende(boss)
+    assert gefilterd >= {"man", "vrouw"}                                                  # the filter really cut the board for both kinds
+
+
+def test_info_link_en_detailpagina_voor_heiligen_op_het_bord():
+    db, app, clients = spel_met(["a", "b", "c"])
+    nieuw = kind(app, "acct-buiten")
+    boss = leider(app)
+    assert clients["a"].get("/spel/heilige/x").status_code == 404                # no game yet
+    boss.post("/beheer/spel/start", data={"eerste": ""})
+    volgende(boss)
+    bord = [b["qid"] for b in spel.bord_rijen(db)]
+    stemmer = een_stemmer(clients)
+    html = frag(stemmer, "/spel/inhoud")
+    assert all(f'href="/spel/heilige/{q}"' in html for q in bord)                # an info link on every card, beside the button
+    h = H_PER_QID[bord[0]]
+    r = stemmer.get(f"/spel/heilige/{bord[0]}")
+    assert r.status_code == 200 and h.naam in r.text and h.record["levensverhaal"][:40] in r.text and "Alles over" in r.text
+    assert "waarschuwing_voor_leiding" not in r.text and "gespreksvraag" not in r.text      # nothing meant for leaders
+    assert boss.get(f"/spel/heilige/{bord[0]}").status_code == 200
+    assert stemmer.get("/spel/heilige/onbekend").status_code == 404
+    buiten = next(h.qid for h in H if h.qid not in set(bord))
+    assert stemmer.get(f"/spel/heilige/{buiten}").status_code == 404             # only saints on the board
+    assert nieuw.get(f"/spel/heilige/{bord[0]}").status_code == 404              # someone who is not in the game
+
+
 def test_stemtegel_is_zelf_de_knop_zonder_losse_stemknop_eronder():
     """On a phone a separate "Stem op ..." button under each card overlapped the card: the card itself is the button now."""
     db, app, clients = spel_met(["a", "b", "c"])
     boss = leider(app)
     boss.post("/beheer/spel/start", data={"eerste": ""})
     volgende(boss)
-    stemmer = next(n for n, c in clients.items() if "tegelknop" in frag(c, "/spel/inhoud"))
-    c = clients[stemmer]
+    c = een_stemmer(clients)
     html = frag(c, "/spel/inhoud")
     bord = spel.bord_rijen(db)
     assert html.count("<button") == len(bord)                         # one button per saint, no extra "Stem op" button
     assert "Stem op " not in html
-    assert all(re.search(r'<button[^>]*class="tegel"[^>]*>.*?<img', html, re.S) for _ in [0])   # the card (image and name) sits inside the button
-    qid = bord[0]["qid"]
-    c.post("/spel/stem", data={"qid": qid})
+    assert re.search(r'<button[^>]*class="tegel"[^>]*>.*?<img', html, re.S)   # the card (image and name) sits inside the button
+    c.post("/spel/stem", data={"qid": bord[0]["qid"]})
     html = frag(c, "/spel/inhoud")
     assert html.count('aria-pressed="true"') == 1 and "Jouw keuze" in html

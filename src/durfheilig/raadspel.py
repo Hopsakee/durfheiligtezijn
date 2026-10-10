@@ -13,16 +13,18 @@ import random
 from collections import Counter
 from collections.abc import Iterable, Sequence
 
-from fasthtml.common import A, Button, Div, Form, H1, H2, Img, Input, Label, Option, P, Response, Select, Small, Span
+from fasthtml.common import A, Button, Details, Div, Form, H1, H2, Img, Input, Label, Option, P, Response, Select, Small, Span, Summary
 
 from . import db as spel
 from .data import Heilige
-from .ui import DONKER, afbeelding_url, naar, pagina
+from .scoring import VOORKEUR_GESLACHT
+from .ui import DONKER, afbeelding_url, info, is_leiding, naar, pagina
 
 FASES = ("overleg1", "uitslag1", "vragen", "overleg2", "uitslag2", "onthuld")
 STEMFASEN = {"overleg1": 1, "overleg2": 2}
 UITSLAGRONDE = {"uitslag1": 1, "vragen": 1, "uitslag2": 2, "onthuld": 2}   # whose votes the screens show in each phase
 MIN_SPELERS = 3
+MIN_ZICHT = 6   # a filtered board with fewer saints than this would give the answer away, so the whole board is shown instead
 
 KNOP_TEKST = {
     "bord": "Start ronde 1",
@@ -51,16 +53,33 @@ RAAD_CSS = """
 .tegel.juist{border:6px solid var(--accent);background:var(--accent-zacht)}
 .tegel .aantal{position:absolute;top:.4rem;right:.4rem;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:.1rem .7rem;font-weight:800;font-size:1rem}
 .tegel .van{color:var(--accent);font-weight:800;font-size:.95rem}.tegel.stem{border-color:var(--accent);border-width:4px;background:var(--accent-zacht)}
-form.tegelknop{margin:0;height:100%}
+form.tegelknop{margin:0;height:100%}.tegelwrap{position:relative;height:100%}
+.tegelwrap .info{position:absolute;top:.4rem;right:.4rem;z-index:1;width:2.75rem;height:2.75rem;display:grid;place-items:center;border-radius:999px;background:var(--kaart);border:2px solid var(--rand);color:var(--ink);font-weight:800;font-size:1.2rem;text-decoration:none;box-shadow:var(--schaduw)}
+.heilige-foto{display:block;width:100%;max-height:18rem;object-fit:contain;background:#f1eadb;border-radius:14px}
 button.tegel{width:100%;margin:0;min-height:0;align-items:stretch;justify-content:flex-start;font-weight:400;cursor:pointer}
 button.tegel:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .tv{padding:1.2rem;border-radius:24px;font-size:1.25rem;background:var(--bg);color:var(--ink);""" + DONKER + """}
 .tv h1{font-size:2.4rem}.tv .bord{grid-template-columns:repeat(auto-fill,minmax(11rem,1fr));gap:1rem}.tv .tegel{font-size:1rem}.tv .tegel img{height:9rem}.tv .tegel .naam{font-size:1.15rem}
 body:has(.tv){background:#0b0c13}
+@media (min-aspect-ratio:5/4){
+body:has(.tv) main{max-width:none;padding:.4rem 1.5vw 1rem}
+.tv{padding:.8rem 1.2vw}.tv h1{font-size:clamp(1.6rem,3.6vh,2.4rem);margin:.2rem 0}.tv h2{font-size:clamp(1.1rem,2.6vh,1.6rem);margin:.2rem 0}.tv p{margin:.25rem 0}
+.tv .bord{grid-template-columns:repeat(auto-fit,minmax(min(14rem,14vw),1fr));gap:.6rem}
+.tv .tegel{padding:.45rem}.tv .tegel img{height:clamp(4.5rem,13vh,9rem)}.tv .tegel .naam{font-size:clamp(.95rem,2.1vh,1.2rem)}.tv .tegel small{font-size:clamp(.75rem,1.7vh,.95rem);line-height:1.25}
+}
 """
 
 
 # ---------------------------------------------------------------- de regels, zonder database
+
+def zichtbaar_bord(bord: Sequence[dict], per_qid: dict, voorkeur: str | None, juist: str) -> list[dict]:
+    """The board as shown in one round. A subject who said "only men" or "only women" gets only saints of that gender: the others cannot be
+    theirs. The whole board is shown for "maakt niet uit", when the right saint would be hidden, and when the filtered board is smaller than
+    MIN_ZICHT (too few saints to guess from is the same as showing the answer)."""
+    toegestaan = VOORKEUR_GESLACHT.get(voorkeur, VOORKEUR_GESLACHT["maakt niet uit"])
+    zicht = [b for b in bord if per_qid[b["qid"]].geslacht in toegestaan]
+    return zicht if len(zicht) >= MIN_ZICHT and any(b["qid"] == juist for b in zicht) else list(bord)
+
 
 def trek_bord(gekozen: Sequence[str], alle: Iterable[str], rng: random.Random) -> list[tuple[str, bool]]:
     """De N gekozen heiligen plus N willekeurige andere, in een willekeurige volgorde zodat de gekozen niet opvallen."""
@@ -118,9 +137,12 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
                   Span(h.naam, cls="naam"), Small(h.record.get("wat_voor_mens", "")), *([Span(f"✔ {van}", cls="van")] if van else [])]
         klassen = "tegel" + (" juist" if juist else "") + (" stem" if stem else "")
         if formulier:   # the whole card is the button: one tap on the saint votes, nothing underneath to overlap
-            return Form(Button(*inhoud, *([Span("✔ Jouw keuze", cls="van")] if stem else []), type="submit", cls=klassen,
-                               **{"aria-pressed": "true" if stem else "false"}),
+            knop = Form(Button(*inhoud, *([Span("✔ Jouw keuze", cls="van")] if stem else []), type="submit", cls=klassen,
+                               **{"aria-pressed": str(stem).lower()}),
                         Input(type="hidden", name="qid", value=h.qid), method="post", action="/spel/stem", cls="tegelknop")
+            # The info link sits beside the button, not inside it (a link in a button is invalid), and leads to a page that does not poll.
+            return Div(knop, A("ⓘ", href=f"/spel/heilige/{h.qid}", cls="info", title=f"Meer over {h.naam}", **{"aria-label": f"Meer over {h.naam}"}),
+                       cls="tegelwrap")
         return Div(*inhoud, cls=klassen)
 
     def stand():
@@ -134,7 +156,11 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
         meedoen = {x["speler_id"] for x in r}
         spelers = {s["id"]: s for s in spel.spelers_klaar(db) if s["id"] in meedoen}
         bord = [b for b in spel.bord_rijen(db) if b["qid"] in per_qid]   # a saint removed from the data never breaks a screen
-        return {"status": st["status"], "ronde": huidige, "rondes": r, "bord": bord, "spelers": spelers}
+        zicht = bord
+        if st["status"] == "ronde" and huidige and huidige["speler_id"] in spelers:
+            onderwerp = spelers[huidige["speler_id"]]
+            zicht = zichtbaar_bord(bord, per_qid, onderwerp["voorkeur"], onderwerp["gekozen"])
+        return {"status": st["status"], "ronde": huidige, "rondes": r, "bord": bord, "zicht": zicht, "spelers": spelers}
 
     def stemmers(sd, ronde):
         """Wie mag stemmen: iedereen in het spel, behalve de deelnemer van deze ronde en wie diens uitleg las."""
@@ -183,7 +209,7 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
         mijn = next((x["qid"] for x in spel.stemmen(db, ronde["id"], STEMFASEN[ronde["fase"]]) if x["speler_id"] == sp["id"]), None)
         return blok(H2(f"Bij welke heilige hoort {nick}?"), P("Tik op een heilige om te stemmen. Je mag je keuze nog veranderen."),
                     *([P(f"Jouw stem: {per_qid[mijn].naam}", cls="klein")] if mijn else []),
-                    Div(*[tegel(per_qid[b["qid"]], stem=(b["qid"] == mijn), formulier=True) for b in sd["bord"]], cls="bord"))
+                    Div(*[tegel(per_qid[b["qid"]], stem=(b["qid"] == mijn), formulier=True) for b in sd["zicht"]], cls="bord"))
 
     @route("/spel")
     def spel_pagina(req):
@@ -197,11 +223,25 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
     def spel_stem(req, qid: str = ""):
         sp = spel.speler_voor(db, req.scope["gebruiker"])
         sd = stand()
-        if sd and sd["status"] == "ronde" and sd["ronde"]["fase"] in STEMFASEN and qid in {b["qid"] for b in sd["bord"]}:
+        if sd and sd["status"] == "ronde" and sd["ronde"]["fase"] in STEMFASEN and qid in {b["qid"] for b in sd["zicht"]}:
             ronde = sd["ronde"]
             if sp["id"] in stemmers(sd, ronde):
                 spel.stem_uit(db, ronde["id"], sp["id"], qid, STEMFASEN[ronde["fase"]])
         return naar("/spel")
+
+    @route("/spel/heilige/{qid}")
+    def spel_heilige(req, qid: str):
+        """More about a saint on the board, for players and leaders while a game runs: the same life story a kid read when choosing, and the
+        full text one tap further. A page of its own because the voting screen refreshes every 2 seconds and would close anything opened on it."""
+        sd = stand()
+        sp = spel.speler_voor(db, req.scope["gebruiker"])
+        if not sd or qid not in {b["qid"] for b in sd["zicht"]} or not (sp["id"] in sd["spelers"] or is_leiding(req.headers)):
+            return Response("Niet gevonden.", status_code=404)
+        h = per_qid[qid]
+        foto = h.record.get("afbeelding", {})
+        return pagina(h.naam, Img(src=afbeelding_url(h), alt=h.naam, cls="heilige-foto"), Small(f"Foto: {foto.get('maker', '')}, {foto.get('licentie', '')}", cls="klein"),
+                      P(h.record.get("levensverhaal", "")), Details(Summary(f"Alles over {h.naam}"), *info(h)),
+                      A("← Terug naar het stemmen", href="/spel", cls="knop"))
 
     # -------- tv
 
@@ -236,7 +276,7 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
                                 style="font-size:1.6rem;font-weight:700"))
             regels.append(P(f"Punten tot nu toe: {eindscore(sd)}", cls="klein"))
         tegels = [tegel(per_qid[b["qid"]], aantal=None if aantallen is None else aantallen[b["qid"]], juist=(b["qid"] == juist), van=onthuld.get(b["qid"]))
-                  for b in sd["bord"]]
+                  for b in sd["zicht"]]
         return Div(H1(titel), *regels, Div(*tegels, cls="bord"), id="tv")
 
     @route("/beheer/tv")
