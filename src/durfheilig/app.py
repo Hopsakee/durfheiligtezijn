@@ -23,7 +23,7 @@ from . import raadspel, ui
 from .data import DATA_DIR, Heilige, Vragenbank, laad_heiligen, laad_vragen
 from .llm import Llm, Uitslag, beschrijving, finale, llm_uit_omgeving, vervolgvragen, Vervolgvraag
 from .scoring import VOORKEUR_GESLACHT, kies_vragen, profiel, rangschik
-from .ui import CHIPSSCRIPT, info, KIJKER, afbeelding_url, is_leiding, keuzekaart, naar, pagina, zichtbaar
+from .ui import CHIPSSCRIPT, info, KIJKER, afbeelding_url, is_leiding, kern, keuzekaart, naar, pagina, zichtbaar
 
 MAX_OPEN = 200
 MAX_NICKNAME = 20
@@ -178,7 +178,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
             out.append(Div(
                 *([Span("✔ Jouw heilige", cls="badge")] if gekozen else []),
                 Img(src=h["afbeelding"], alt=h["naam"]), Small(f"Foto: {h['credit']}", cls="klein"),
-                H2(h["naam"]), P(h["levensverhaal"]), Div(P(h["uitleg"]), cls="bubbel"),
+                H2(h["naam"]), *([kern(per_qid[h["qid"]])] if h["qid"] in per_qid else []), P(h["levensverhaal"]), Div(P(h["uitleg"]), cls="bubbel"),
                 A(f"Meer over {h['naam']}", href=f"/heilige/{h['qid']}", cls="knop sec"),
                 *([keuzekaart("radio", "gekozen", h["qid"], "Deze past bij mij", required=True),
                    Details(Summary("Past niet? Zeg waarom (mag leeg)"), Input(type="text", name=f"niet_{h['qid']}", maxlength=MAX_OPEN))] if keuze else []),
@@ -379,7 +379,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         if qid not in per_qid or (qid not in mag and not is_leiding(req.headers)):
             return Response("Niet gevonden.", status_code=404)
         terug = "/mijn" if m and m["gekozen"] else "/quiz"
-        return pagina(per_qid[qid].naam, *info(per_qid[qid]), A("Terug", href=terug, cls="knop"))
+        return pagina(per_qid[qid].naam, kern(per_qid[qid]), *info(per_qid[qid]), A("Terug", href=terug, cls="knop"))
 
     @route("/beheer")
     def beheer(req):

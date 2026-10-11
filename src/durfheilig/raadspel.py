@@ -18,7 +18,7 @@ from fasthtml.common import A, Button, Details, Div, Form, H1, H2, Img, Input, L
 from . import db as spel
 from .data import Heilige
 from .scoring import VOORKEUR_GESLACHT
-from .ui import DONKER, afbeelding_url, info, is_leiding, keuzekaart, naar, pagina
+from .ui import DONKER, afbeelding_url, info, is_leiding, kern, keuzekaart, naar, pagina
 
 FASES = ("overleg1", "uitslag1", "vragen", "overleg2", "uitslag2", "onthuld")
 STEMFASEN = {"overleg1": 1, "overleg2": 2}
@@ -317,7 +317,7 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
         h = per_qid[qid]
         foto = h.record.get("afbeelding", {})
         return pagina(h.naam, Img(src=afbeelding_url(h), alt=h.naam, cls="heilige-foto"), Small(f"Foto: {foto.get('maker', '')}, {foto.get('licentie', '')}", cls="klein"),
-                      P(h.record.get("levensverhaal", "")), Details(Summary(f"Alles over {h.naam}"), *info(h)),
+                      kern(h), P(h.record.get("levensverhaal", "")), Details(Summary(f"Alles over {h.naam}"), *info(h)),
                       A("← Terug naar het stemmen", href="/spel", cls="knop"))
 
     # -------- tv
@@ -329,7 +329,8 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
         onthuld = {juist_van(sd, r): r["nickname"] for r in sd["rondes"] if r["fase"] == "onthuld" and r["speler_id"] in sd["spelers"]}
         if sd["status"] == "plaat":
             return Div(H1("De groepsplaat"), P("Dit zijn onze heiligen naast elkaar. Wat zegt dit over ons als groep?"),
-                       Div(*[Div(tegel(per_qid[s["gekozen"]]), Span(s["nickname"], cls="van")) for s in sd["spelers"].values()], cls="bord"), id="tv")
+                       # The name goes inside the card (like "✔ naam" at a reveal): a span after a full-height card lands on top of the row below.
+                       Div(*[tegel(per_qid[s["gekozen"]], van=s["nickname"]) for s in sd["spelers"].values()], cls="bord"), id="tv")
         if sd["status"] == "einde":
             return Div(H1("Eindscore"), eindbord(sd), P("Bedankt voor het spelen! In juni doen we het opnieuw en kijken we wat er veranderd is."), id="tv")
         titel, regels, aantallen, juist = "Het bord", [], None, None
