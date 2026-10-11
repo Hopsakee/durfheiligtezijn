@@ -3,7 +3,7 @@
 De regels staan in `docs/design/plan-heiligen-welkomstspel.md` (Draaiboek van de middag):
 - het bord heeft 2 x N heiligen: de N gekozen plus N willekeurige andere, één keer getrokken;
 - per deelnemer een ronde: stemmen, uitslag (alleen aantallen), vragenronde, nog een keer stemmen, onthulling;
-- nooit wie op wat stemde; punten zijn groepspunten: meer dan de helft goed na ronde 1 geeft 2, na ronde 2 geeft 1.
+- nooit wie op wat stemde; punten tellen per stem en vormen samen één groepsscore: wie in één stemronde goed zat krijgt 1 punt, wie in beide goed zat 3 punten.
 
 Alles wat de tv, de telefoons en de begeleider zien, komt uit de database; de pagina's vragen elke 2 seconden om een update.
 """
@@ -13,12 +13,12 @@ import random
 from collections import Counter
 from collections.abc import Iterable, Sequence
 
-from fasthtml.common import A, Button, Details, Div, Form, H1, H2, Img, Input, Label, Option, P, Response, Select, Small, Span, Summary
+from fasthtml.common import A, Button, Details, Div, Form, H1, H2, Img, Input, Label, Li, Ol, Option, P, Response, Select, Small, Span, Summary, Table, Td, Th, Tr
 
 from . import db as spel
 from .data import Heilige
 from .scoring import VOORKEUR_GESLACHT
-from .ui import DONKER, afbeelding_url, info, is_leiding, naar, pagina
+from .ui import DONKER, afbeelding_url, info, is_leiding, keuzekaart, naar, pagina
 
 FASES = ("overleg1", "uitslag1", "vragen", "overleg2", "uitslag2", "onthuld")
 STEMFASEN = {"overleg1": 1, "overleg2": 2}
@@ -53,6 +53,8 @@ RAAD_CSS = """
 .tegel.juist{border:6px solid var(--accent);background:var(--accent-zacht)}
 .tegel .aantal{position:absolute;top:.4rem;right:.4rem;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:.1rem .7rem;font-weight:800;font-size:1rem}
 .tegel .van{color:var(--accent);font-weight:800;font-size:.95rem}.tegel.stem{border-color:var(--accent);border-width:4px;background:var(--accent-zacht)}
+.uitleg{text-align:left;margin:.4rem 0}.uitleg h2{margin:.2rem 0}.uitleg ol{margin:.3rem 0 .5rem 1.2rem;padding:0}
+table.eindbord{width:100%;border-collapse:collapse;margin:.6rem 0}.eindbord th,.eindbord td{padding:.35rem .6rem;text-align:left;border-bottom:1px solid var(--rand)}.eindbord td.goed{color:var(--accent);font-weight:800}.eindbord tr.totaal td{font-weight:800;border-top:2px solid var(--accent)}
 form.tegelknop{margin:0;height:100%}.tegelwrap{position:relative;height:100%}
 .tegelwrap .info{position:absolute;top:.4rem;right:.4rem;z-index:1;width:2.75rem;height:2.75rem;display:grid;place-items:center;border-radius:999px;background:var(--kaart);border:2px solid var(--rand);color:var(--ink);font-weight:800;font-size:1.2rem;text-decoration:none;box-shadow:var(--schaduw)}
 .heilige-foto{display:block;width:100%;max-height:18rem;object-fit:contain;background:#f1eadb;border-radius:14px}
@@ -98,11 +100,47 @@ def meerderheid(juist: str, qids: Iterable[str]) -> bool:
     return bool(qids) and 2 * Counter(qids)[juist] > len(qids)
 
 
-def punten(juist: str, ronde1: Iterable[str], ronde2: Iterable[str]) -> int:
-    """2 punten als de groep het na stemronde 1 goed had, 1 als pas na ronde 2, anders 0."""
-    if meerderheid(juist, ronde1):
-        return 2
-    return 1 if meerderheid(juist, ronde2) else 0
+def punten_voor(goed: int) -> int:
+    """Points of one voter in one round, by how many of the two votes were right: none 0, one 1, both 3 (2 per right vote, minus 1)."""
+    return 2 * goed - 1 if goed else 0
+
+
+MAX_PER_STEMMER = punten_voor(len(STEMFASEN))
+
+
+def score_ronde(juist: str, stemmers: Sequence[int], stemmen1: dict[int, str], stemmen2: dict[int, str]) -> dict:
+    """The result of one round. `stemmers` are the players who may vote; `stemmenN` map player id to the saint voted in stemronde N. Someone who
+    did not vote counts as wrong. No majority is needed, so there is no tie to settle: everybody's own votes count."""
+    goed1 = sum(stemmen1.get(x) == juist for x in stemmers)
+    goed2 = sum(stemmen2.get(x) == juist for x in stemmers)
+    punten = sum(punten_voor((stemmen1.get(x) == juist) + (stemmen2.get(x) == juist)) for x in stemmers)
+    return {"stemmers": len(stemmers), "goed1": goed1, "goed2": goed2, "punten": punten, "max": MAX_PER_STEMMER * len(stemmers)}
+
+
+def toeval_punten(tegels: int, stemmers: int) -> float:
+    """Expected points if every voter guessed at random among `tegels` saints in both stemrondes (p = 1/tegels: 1 right 2p(1-p), both right p^2)."""
+    p = 1 / max(tegels, 1)
+    return stemmers * (2 * p * (1 - p) * punten_voor(1) + p * p * punten_voor(2))
+
+
+UITLEG_STAPPEN = [
+    "Elke ronde gaat over één van jullie. Wie aan de beurt is, stemt zelf niet mee en houdt de heilige geheim.",
+    "Stemronde 1: overleg kort en stem op je telefoon bij welke heilige jij denkt dat deze persoon hoort.",
+    "Vragenronde: ieder mag één vraag stellen over de persoon, maar niet naar de heilige zelf.",
+    "Stemronde 2: je mag je keuze veranderen. Daarna wordt de heilige onthuld.",
+]
+UITLEG_PUNTEN = ("Elke goede stem telt. Zat je in één stemronde goed, dan levert dat 1 punt op; zat je in allebei de stemrondes goed, dan 3 punten. "
+                 "Alle punten van iedereen tellen op tot één groepsscore. Niemand ziet wie wat stemde. Hebben twee heiligen evenveel stemmen? "
+                 "Dat maakt niet uit: elke stem telt apart mee.")
+
+
+def _is_id(x: str) -> bool:
+    """A plain positive whole number of a sane length (str.isdigit alone accepts characters like '²' that int() refuses)."""
+    return x.isascii() and x.isdigit() and len(x) < 10
+
+
+def uitleg_blok() -> Div:
+    return Div(H2("Zo werkt het"), Ol(*[Li(x) for x in UITLEG_STAPPEN]), P(UITLEG_PUNTEN), cls="uitleg")
 
 
 def volgende_fase(fase: str) -> str | None:
@@ -179,8 +217,47 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
         r = sd["ronde"]
         return f"{sd['status']}:{r['id'] if r else 0}:{r['fase'] if r else ''}"
 
+    def stemmen_van(r, n) -> dict[int, str]:
+        return {x["speler_id"]: x["qid"] for x in spel.stemmen(db, r["id"], n)}
+
+    def score_van(sd, r) -> dict:
+        """Counted from the votes: used once, at the reveal, to be stored with the round."""
+        return score_ronde(juist_van(sd, r), stemmers(sd, r), stemmen_van(r, 1), stemmen_van(r, 2))
+
+    def uitslag_van(r) -> dict:
+        """The stored result of a revealed round."""
+        return {"stemmers": r["stemmers"], "goed1": r["goed1"], "goed2": r["goed2"], "punten": r["punten"], "max": r["max_punten"]}
+
+    def onthulde(sd) -> list[dict]:
+        return [r for r in sd["rondes"] if r["fase"] == "onthuld" and r["max_punten"] is not None]
+
     def eindscore(sd) -> int:
-        return sum(x["punten"] or 0 for x in sd["rondes"])
+        return sum(r["punten"] or 0 for r in onthulde(sd))
+
+    def maxscore(sd) -> int:
+        """The most points the revealed rounds could have given."""
+        return sum(r["max_punten"] for r in onthulde(sd))
+
+    def naam_van(qid: str) -> str:
+        return per_qid[qid].naam if qid in per_qid else "?"
+
+    def eindbord(sd) -> Div:
+        """Who the group guessed in which round, and the points that gave: all from what was stored at each reveal."""
+        rijen, totaal, maximum, toeval = [], 0, 0, 0.0
+        for r in onthulde(sd):
+            if r["speler_id"] not in sd["spelers"]:
+                continue
+            onderwerp, u = sd["spelers"][r["speler_id"]], uitslag_van(r)
+            tegels = len(zichtbaar_bord(sd["bord"], per_qid, onderwerp["voorkeur"], onderwerp["gekozen"]))
+            totaal, maximum, toeval = totaal + u["punten"], maximum + u["max"], toeval + toeval_punten(tegels, u["stemmers"])
+            cel = lambda goed, v=u["stemmers"]: Td(f"{goed} van {v}" + (" ✔" if 2 * goed > v else ""), cls="goed" if 2 * goed > v else "")
+            rijen.append(Tr(Td(r["nickname"]), Td(naam_van(onderwerp["gekozen"])), cel(u["goed1"]), cel(u["goed2"]), Td(f"{u['punten']} van {u['max']}")))
+        procent = lambda x: f"{round(100 * x / maximum)}%" if maximum else "–"
+        kop = Tr(Th("Deelnemer"), Th("Heilige"), Th("Stemronde 1 goed"), Th("Stemronde 2 goed"), Th("Punten"))
+        return Div(
+            P(f"{totaal} van de {maximum} punten ({procent(totaal)})", style="font-size:2.2rem;font-weight:700"),
+            Table(kop, *rijen, Tr(Td("Samen", colspan="4"), Td(f"{totaal} van {maximum}"), cls="totaal"), cls="eindbord"),
+            P(f"Ter vergelijking: door puur te gokken haal je ongeveer {procent(toeval)}. ✔ betekent dat meer dan de helft het goed had.", cls="klein"))
 
     # -------- telefoon van de deelnemer
 
@@ -191,9 +268,9 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
         if not sd:
             return blok(P("Het spel begint straks. Wacht tot de begeleider het start."))
         if sp["id"] not in sd["spelers"]:
-            return blok(P("Je doet niet mee aan het spel, want je quiz was nog niet klaar. Kijk gerust mee op de tv."))
+            return blok(P("Je doet niet mee aan dit spel. Kijk gerust mee op de tv."))
         if sd["status"] == "bord":
-            return blok(H2("Het bord"), P("Kijk naar de tv: de heiligen op het bord. Zo meteen begint de eerste ronde."))
+            return blok(H2("Het bord"), P("Kijk naar de tv: de heiligen op het bord. Zo meteen begint de eerste ronde."), uitleg_blok())
         if sd["status"] == "plaat":
             return blok(H2("De groepsplaat"), P("Kijk naar de tv."))
         if sd["status"] == "einde":
@@ -254,13 +331,12 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
             return Div(H1("De groepsplaat"), P("Dit zijn onze heiligen naast elkaar. Wat zegt dit over ons als groep?"),
                        Div(*[Div(tegel(per_qid[s["gekozen"]]), Span(s["nickname"], cls="van")) for s in sd["spelers"].values()], cls="bord"), id="tv")
         if sd["status"] == "einde":
-            return Div(H1("Groepsscore"), P(f"{eindscore(sd)} van de {2 * len(sd['rondes'])} punten", style="font-size:2.4rem;font-weight:700"),
-                       P("Bedankt voor het spelen! In juni doen we het opnieuw en kijken we wat er veranderd is."), id="tv")
+            return Div(H1("Eindscore"), eindbord(sd), P("Bedankt voor het spelen! In juni doen we het opnieuw en kijken we wat er veranderd is."), id="tv")
         titel, regels, aantallen, juist = "Het bord", [], None, None
         if sd["status"] == "bord":
             host = req.headers.get("x-forwarded-host") or req.headers.get("host") or ""
             link = f"{'http' if host.startswith(('127.0.0.1', 'localhost')) else 'https'}://{host}/spel"
-            regels = [P(f"Doe mee op je telefoon: {link}", style="font-size:1.6rem;font-weight:700"), P("Kijk alvast naar de heiligen. Hun beschrijvingen staan erbij.")]
+            regels = [P(f"Doe mee op je telefoon: {link}", style="font-size:1.6rem;font-weight:700"), uitleg_blok(), P("Kijk alvast naar de heiligen. Hun beschrijvingen staan erbij.")]
         else:
             r = sd["ronde"]
             titel = f"Ronde {r['volgorde'] + 1} van {len(sd['rondes'])}: wie hoort bij {r['nickname']}?"
@@ -270,11 +346,12 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
                 regels.append(P(f"{gedaan} van {kan} hebben gestemd"))
             else:
                 aantallen = Counter(x["qid"] for x in spel.stemmen(db, r["id"], UITSLAGRONDE[r["fase"]]))
-            if r["fase"] == "onthuld":
+            if r["fase"] == "onthuld" and r["max_punten"] is not None:
+                u = uitslag_van(r)
+                regels.append(P(f"{r['nickname']} had {naam_van(juist_van(sd, r))}. Stemronde 1: {u['goed1']} van {u['stemmers']} goed, stemronde 2: {u['goed2']} van {u['stemmers']}. "
+                                f"Samen {u['punten']} van maximaal {u['max']} punten.", style="font-size:1.6rem;font-weight:700"))
                 juist = juist_van(sd, r)
-                regels.append(P(f"{r['nickname']} had {per_qid[juist].naam}. De groep krijgt {r['punten'] or 0} punt{'en' if (r['punten'] or 0) != 1 else ''}.",
-                                style="font-size:1.6rem;font-weight:700"))
-            regels.append(P(f"Punten tot nu toe: {eindscore(sd)}", cls="klein"))
+            regels.append(P(f"Punten tot nu toe: {eindscore(sd)} van {maxscore(sd)}", cls="klein"))
         tegels = [tegel(per_qid[b["qid"]], aantal=None if aantallen is None else aantallen[b["qid"]], juist=(b["qid"] == juist), van=onthuld.get(b["qid"]))
                   for b in sd["zicht"]]
         return Div(H1(titel), *regels, Div(*tegels, cls="bord"), id="tv")
@@ -289,16 +366,26 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
 
     # -------- bediening door de begeleider
 
+    def start_formulier():
+        """Before the game: who takes part. Everyone who finished the quiz is ticked; untick whoever cannot be there. Not live (no polling):
+        a refresh every 2 seconds would undo the ticks."""
+        klaar = spel.spelers_klaar(db)
+        bezig = [x for x in spel.overzicht(db) if x["stap"] != "klaar"]
+        opties = [Option(x["nickname"], value=str(x["id"])) for x in klaar if x["nickname"]]
+        return Div(
+            H2("Spel starten"), P("Haal het vinkje weg bij wie er niet bij is. Alleen wie meedoet krijgt een ronde en mag stemmen."),
+            *([P(f"Minstens {MIN_SPELERS} deelnemers nodig.", style="color:#b00")] if len(klaar) < MIN_SPELERS else []),
+            Form(Input(type="hidden", name="lijst", value="1"),
+                 *[keuzekaart("checkbox", "meedoen", str(x["id"]), x["nickname"] or x["gebruikersnaam"], checked=True) for x in klaar],
+                 Label("Eerste ronde (kies iemand met een makkelijk te raden heilige)", Select(Option("Willekeurig", value=""), *opties, name="eerste")),
+                 Button("Trek het bord en start", type="submit", cls="hoofd"), method="post", action="/beheer/spel/start"),
+            *([P("Nog niet klaar met de quiz: " + ", ".join(f"{x['nickname'] or x['gebruikersnaam']} ({x['stap']})" for x in bezig), cls="klein")] if bezig else []),
+            A("Lijst verversen", href="/beheer/spel", cls="knop sec"), id="bediening")
+
     def bediening(req):
         sd = stand()
         if not sd:
-            klaar = spel.spelers_klaar(db)
-            opties = [Option(s["nickname"], value=str(s["id"])) for s in klaar if s["nickname"]]
-            return Div(
-                H2("Spel starten"), P(f"{len(klaar)} deelnemers hebben hun quiz af."),
-                *([P(f"Minstens {MIN_SPELERS} deelnemers nodig.", style="color:#b00")] if len(klaar) < MIN_SPELERS else []),
-                Form(Label("Eerste ronde (kies iemand met een makkelijk te raden heilige)", Select(Option("Willekeurig", value=""), *opties, name="eerste")),
-                     Button("Trek het bord en start", type="submit", cls="hoofd"), method="post", action="/beheer/spel/start"), id="bediening")
+            return Div(P("Het spel is nog niet gestart."), A("Ververs deze pagina", href="/beheer/spel", cls="knop sec"), id="bediening")
         extra, label = [], KNOP_TEKST.get(sd["status"])
         if sd["status"] == "ronde":
             r = sd["ronde"]
@@ -309,14 +396,16 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
             laatste = r["fase"] == "onthuld" and r["volgorde"] + 1 >= len(sd["rondes"])
             label = "Naar de groepsplaat" if laatste else KNOP_TEKST[r["fase"]]
         elif sd["status"] == "einde":
-            extra = [H2("Het spel is afgelopen"), P(f"Groepsscore: {eindscore(sd)} van {2 * len(sd['rondes'])}")]
+            extra = [H2("Het spel is afgelopen"), P(f"Groepsscore: {eindscore(sd)} van {maxscore(sd)}")]
         knop = Form(Input(type="hidden", name="van", value=token(sd)), Button(label, type="submit", cls="hoofd"),
                     method="post", action="/beheer/spel/volgende") if label else ""
-        return Div(*extra, knop, P(f"Punten tot nu toe: {eindscore(sd)}", cls="klein"), id="bediening")
+        return Div(*extra, knop, P(f"Punten tot nu toe: {eindscore(sd)} van {maxscore(sd)}", cls="klein"), id="bediening")
 
     @route("/beheer/spel")
     def bediening_pagina(req):
-        return pagina("Spel bedienen", live("/beheer/spel/inhoud", bediening(req)),
+        loopt = stand() is not None
+        return pagina("Spel bedienen", live("/beheer/spel/inhoud", bediening(req)) if loopt else start_formulier(),
+                      Details(Summary("Uitleg voor de deelnemers (lees voor)"), uitleg_blok()),
                       A("Tv-scherm openen", href="/beheer/tv", cls="knop"), A("Printversie van het bord", href="/beheer/print", cls="knop"),
                       A("Terug naar het overzicht", href="/beheer", cls="knop"),
                       Form(Label("Typ OPNIEUW om het spel te wissen en opnieuw te beginnen (de antwoorden blijven)", Input(type="text", name="bevestig")),
@@ -327,13 +416,17 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
         return bediening(req)
 
     @route("/beheer/spel/start", methods=["post"])
-    def spel_start(req, eerste: str = ""):
+    def spel_start(req, eerste: str = "", lijst: str = "", meedoen: list[str] = None):
+        """Start with the ticked players. A form without the list (`lijst`) means everyone who finished; an empty list means nobody and is refused."""
         with db.lock, db.conn:   # read, draw and write in one go: a kid restarting the quiz (or a second tap) cannot slip in between
             klaar = spel.spelers_klaar(db)
+            if lijst == "1":
+                gekozen = {int(x) for x in (meedoen or []) if _is_id(x)}
+                klaar = [x for x in klaar if x["id"] in gekozen]
             if spel.spel_status(db) or len(klaar) < MIN_SPELERS:
                 return naar("/beheer/spel")
-            bord = trek_bord([s["gekozen"] for s in klaar], per_qid, rng)
-            volgorde = volgorde_rondes([s["id"] for s in klaar], int(eerste) if eerste.isdigit() else None, rng)
+            bord = trek_bord([x["gekozen"] for x in klaar], per_qid, rng)
+            volgorde = volgorde_rondes([x["id"] for x in klaar], int(eerste) if _is_id(eerste) else None, rng)
             spel.start_spel(db, bord, volgorde)
         return naar("/beheer/spel")
 
@@ -348,10 +441,8 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
             r = sd["ronde"]
             nieuw = volgende_fase(r["fase"])
             if nieuw:
-                score = None
-                if nieuw == "onthuld":
-                    score = punten(juist_van(sd, r), *[[x["qid"] for x in spel.stemmen(db, r["id"], n)] for n in (1, 2)])
-                spel.zet_fase(db, r["id"], nieuw, score)
+                uitslag = score_van(sd, r) if nieuw == "onthuld" else None
+                spel.zet_fase(db, r["id"], nieuw, uitslag)
             elif r["volgorde"] + 1 < len(sd["rondes"]):
                 spel.zet_spelstatus(db, "ronde", sd["rondes"][r["volgorde"] + 1]["id"])
             else:
@@ -364,7 +455,7 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
     def spel_reset(req, bevestig: str = ""):
         if bevestig.strip() == "OPNIEUW":
             spel.reset_spel(db)
-        return naar("/beheer/spel")
+            return naar("/beheer/spel")
 
     # -------- printversie als terugval zonder app
 

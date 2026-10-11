@@ -102,6 +102,7 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 
 - Local testing uses `python -m durfheilig.dev`: an ASGI layer that turns a chosen cookie into `Remote-User`/`Remote-Groups`, bound to 127.0.0.1. The production entry and the Docker image never start or import it (tested).
 - Decided 2026-10-10 (Jelle): in a game round the board shows only saints of the gender the round's subject asked for, so the group can see that preference; no warning on the preference screen. Safety: the whole board is shown when the filtered one would hide the right saint or has fewer than `MIN_ZICHT` (6) saints, because a small board gives the answer away (3 players: 5.8% chance of a 1-card board).
+- Decided 2026-10-11 (Jelle, after a RedTeam pass): game points are per voter and not per group majority. A voter earns 1 point for being right in one stemronde and 3 for both (2 per right vote, minus 1); the maximum is 3 per voter per round, the group score is points over maximum. The proposed third vote round was not added: it gives no new information between rounds 2 and 3, costs about 25 minutes at 12 players, and invites copying the visible counts. "Last vote final" was dropped as incoherent (it made rounds before the last free). The leader chooses who takes part before the start. The tv end scoreboard shows what random guessing would score next to the percentage, because a ratio of the maximum alone is not comparable between sessions with a different board or group size.
 
 ## Verification
 

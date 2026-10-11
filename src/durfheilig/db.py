@@ -63,7 +63,11 @@ create table if not exists spelronde (
     speler_id integer not null unique references speler(id),
     volgorde integer not null,
     fase text not null default 'overleg1',
-    punten integer
+    punten integer,
+    stemmers integer,
+    goed1 integer,
+    goed2 integer,
+    max_punten integer
 );
 create table if not exists stem (
     id integer primary key,
@@ -120,6 +124,11 @@ def open_db(pad: str | Path = ":memory:"):
     for stuk in SCHEMA.split(";"):
         if stuk.strip():
             db.execute(stuk)
+    # A database made before the round result was stored at the reveal lacks these columns: add them (once; `create table if not exists` does not).
+    bestaand = {r["name"] for r in db.q("pragma table_info(spelronde)")}
+    for kolom in ("stemmers", "goed1", "goed2", "max_punten"):
+        if kolom not in bestaand:
+            db.execute(f"alter table spelronde add column {kolom} integer")
     return db
 
 
@@ -332,9 +341,13 @@ def zet_spelstatus(db, status: str, huidige_ronde: int | None = None) -> None:
     db.execute("update spel set status = ?, huidige_ronde = ? where id = 1", [status, huidige_ronde])
 
 
-def zet_fase(db, ronde_id: int, fase: str, punten: int | None = None) -> None:
-    """Move a round to its next phase; the points (at the reveal) go in the same write, so no screen sees one without the other."""
-    db.execute("update spelronde set fase = ?, punten = coalesce(?, punten) where id = ?", [fase, punten, ronde_id])
+def zet_fase(db, ronde_id: int, fase: str, uitslag: dict | None = None) -> None:
+    """Move a round to its next phase. The result of the round (at the reveal) goes in the same write, so no screen sees the phase without it and
+    later changes (a leader opening someone's explanation) cannot alter what was scored."""
+    u = uitslag or {}
+    db.execute("update spelronde set fase = ?, punten = coalesce(?, punten), stemmers = coalesce(?, stemmers), goed1 = coalesce(?, goed1), "
+               "goed2 = coalesce(?, goed2), max_punten = coalesce(?, max_punten) where id = ?",
+               [fase, u.get("punten"), u.get("stemmers"), u.get("goed1"), u.get("goed2"), u.get("max"), ronde_id])
 
 
 def stem_uit(db, ronde_id: int, speler_id: int, qid: str, stemronde: int) -> None:

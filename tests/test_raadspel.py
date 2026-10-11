@@ -6,7 +6,7 @@ import pytest
 from durfheilig import db as spel
 from durfheilig.app import maak_app
 from durfheilig.data import laad_heiligen, laad_vragen
-from durfheilig.raadspel import MIN_SPELERS, meerderheid, punten, trek_bord, volgende_fase, volgorde_rondes
+from durfheilig.raadspel import MIN_SPELERS, meerderheid, punten_voor, score_ronde, toeval_punten, trek_bord, volgende_fase, volgorde_rondes
 from test_app import H, V, kind, speel
 
 H_PER_QID = {h.qid: h for h in H}
@@ -94,11 +94,22 @@ def test_meerderheid_is_meer_dan_de_helft_en_precies_de_helft_telt_niet():
     assert not meerderheid("a", ["a", "b", "c", "d"])
 
 
-def test_punten_twee_na_ronde_een_een_na_ronde_twee_anders_nul():
-    assert punten("a", ["a", "a", "b"], ["b"]) == 2
-    assert punten("a", ["b", "b", "a"], ["a", "a", "b"]) == 1
-    assert punten("a", ["b", "c"], ["c", "b"]) == 0
-    assert punten("a", [], []) == 0
+def test_punten_per_stemmer_een_of_twee_goede_stemmen():
+    assert [punten_voor(k) for k in (0, 1, 2)] == [0, 1, 3]
+
+
+def test_score_ronde_telt_elke_stem_en_kent_geen_gelijkspel():
+    """Points are per voter, so a tie between saints needs no ruling; a voter who did not vote counts as wrong."""
+    s = score_ronde("a", [1, 2, 3, 4], {1: "a", 2: "a", 3: "b", 4: "b"}, {1: "a", 2: "b", 3: "a", 4: "b"})   # 2-2 tie in both rounds
+    assert s == {"stemmers": 4, "goed1": 2, "goed2": 2, "punten": 3 + 1 + 1 + 0, "max": 12}
+    assert score_ronde("a", [1, 2], {1: "a"}, {})["punten"] == 1 and score_ronde("a", [], {}, {}) == {"stemmers": 0, "goed1": 0, "goed2": 0, "punten": 0, "max": 0}
+    assert score_ronde("a", [1], {1: "b"}, {1: "a"})["punten"] == 1      # only the later vote right: still a point, the group may learn from the questions
+    assert score_ronde("a", [1], {2: "a"}, {2: "a"})["punten"] == 0      # a vote of someone who may not vote does not count
+
+
+def test_toeval_punten_is_de_verwachting_bij_gokken_op_een_bord():
+    assert toeval_punten(10, 5) == pytest.approx(5 * (2 * 0.1 * 0.9 + 3 * 0.01))
+    assert toeval_punten(1, 3) == 9                                          # one saint on the board: everybody is right twice
 
 
 def test_fasen_volgen_elkaar_op_en_eindigen_na_onthulling():
@@ -159,17 +170,19 @@ def test_een_heel_spel_van_start_tot_groepsscore():
         assert "3×" in frag(tv, "/beheer/tv/inhoud")
         volgende(boss); volgende(boss)         # vragen, overleg2
         volgende(boss); volgende(boss)         # uitslag2, onthuld
-        assert huidige(db)["fase"] == "onthuld" and huidige(db)["punten"] == 2
+        assert huidige(db)["fase"] == "onthuld" and huidige(db)["punten"] == 3
         tvtekst = frag(tv, "/beheer/tv/inhoud")
-        assert f"✔ {nick}" in tvtekst and "tegel juist" in tvtekst and "2 punten" in tvtekst
-        totaal += 2
+        assert f"✔ {nick}" in tvtekst and "tegel juist" in tvtekst and "Stemronde 1: 3 van 3 goed, stemronde 2: 0 van 3" in tvtekst and "Samen 3 van maximaal 9 punten" in tvtekst
+        totaal += 3
         volgende(boss)
     assert spel.spel_status(db)["status"] == "plaat"
     plaat = frag(tv, "/beheer/tv/inhoud")
     assert all(nick in plaat for nick in uit.values())
     volgende(boss)
     einde = frag(tv, "/beheer/tv/inhoud")
-    assert f"{totaal} van de 8 punten" in einde and spel.spel_status(db)["status"] == "einde"
+    assert f"{totaal} van de 36 punten" in einde and spel.spel_status(db)["status"] == "einde"
+    assert "Eindscore" in einde and "Stemronde 1 goed" in einde and "Ter vergelijking" in einde
+    assert all(nick in einde for nick in uit.values()) and "3 van 3 ✔" in einde and "0 van 3" in einde      # who was guessed, in which round
     assert "Bedankt voor het spelen" in frag(clients["a"], "/spel/inhoud")
 
 
@@ -208,7 +221,7 @@ def test_stemmen_mag_alleen_in_een_stemfase_op_een_heilige_van_het_bord_en_opnie
     assert [x["qid"] for x in spel.stemmen(db, r["id"], 1)] == [q2]
 
 
-def test_punten_een_na_ronde_twee_en_nul_als_de_groep_het_mist():
+def test_punten_per_stem_over_de_twee_stemrondes():
     db, app, clients = spel_met(["a", "b", "c"])
     boss = leider(app)
     juist = juist_van(db)
@@ -228,7 +241,7 @@ def test_punten_een_na_ronde_twee_en_nul_als_de_groep_het_mist():
         volgende(boss); volgende(boss)
         scores.append(huidige(db)["punten"])
         volgende(boss)
-    assert scores == [1, 0, 2]
+    assert scores == [2, 0, 6]               # 2 voters: one right vote each = 1 point, none = 0, both right = 3 points
 
 
 def test_nooit_te_zien_wie_op_wat_stemde():
@@ -269,7 +282,7 @@ def test_wie_nog_geen_heilige_koos_doet_niet_mee():
     laat = kind(app, "acct-laat")
     laat.post("/welkom", data={"nickname": "Laat"})
     leider(app).post("/beheer/spel/start", data={"eerste": ""})
-    assert "doe je niet mee" in frag(laat, "/spel/inhoud").replace("Je doet niet mee", "doe je niet mee")
+    assert "Je doet niet mee aan dit spel" in frag(laat, "/spel/inhoud")
     assert "Het spel begint straks" not in frag(laat, "/spel/inhoud")
 
 
@@ -314,7 +327,7 @@ def test_printversie_toont_het_genummerde_bord_pas_na_de_start():
 def test_bediening_toont_voortgang_en_de_juiste_knoptekst_per_fase():
     db, app, clients = spel_met(["a", "b", "c"])
     boss = leider(app)
-    assert "3 deelnemers hebben hun quiz af" in frag(boss, "/beheer/spel/inhoud")
+    assert "Haal het vinkje weg bij wie er niet bij is" in boss.get("/beheer/spel").text      # the start form is part of the page itself
     boss.post("/beheer/spel/start", data={"eerste": ""})
     assert "Start ronde 1" in frag(boss, "/beheer/spel/inhoud")
     volgende(boss)
@@ -326,6 +339,8 @@ def test_leiding_ziet_het_raadspel_in_het_overzicht_en_de_pagina_polt_elke_twee_
     db, app, clients = spel_met(["a", "b", "c"])
     boss = leider(app)
     assert 'href="/beheer/spel"' in boss.get("/beheer").text and 'href="/beheer/speler/' in boss.get("/beheer").text
+    assert 'hx-trigger="every 2s"' not in boss.get("/beheer/spel").text       # before the start the form must not refresh under the leader
+    boss.post("/beheer/spel/start", data={"eerste": ""})
     for pad, c in (("/spel", clients["a"]), ("/beheer/tv", boss), ("/beheer/spel", boss)):
         assert 'hx-trigger="every 2s"' in c.get(pad).text, pad
 
@@ -363,7 +378,7 @@ def test_voor_de_onthulling_staat_nergens_welke_heilige_juist_is_en_zijn_de_tege
         if fase in ("overleg1", "overleg2"):
             assert "×" not in frag(tv, "/beheer/tv/inhoud")
         if fase == "uitslag2":
-            assert "Punten tot nu toe: 0" in frag(tv, "/beheer/tv/inhoud")
+            assert "Punten tot nu toe: 0 van 0" in frag(tv, "/beheer/tv/inhoud")
         elif fase in ("uitslag1", "vragen", "uitslag2"):
             assert "×" in frag(tv, "/beheer/tv/inhoud")
     assert huidige(db)["punten"] is None
@@ -392,7 +407,7 @@ def test_wie_halverwege_klaar_komt_doet_niet_mee_en_telt_niet_mee_in_de_noemer()
     voor = frag(tv, "/beheer/tv/inhoud")
     laat = kind(app, "acct-laat")
     speel(laat, "Nick-laat")
-    assert "Je doet niet mee aan het spel" in frag(laat, "/spel/inhoud")
+    assert "Je doet niet mee aan dit spel" in frag(laat, "/spel/inhoud")
     laat.post("/spel/stem", data={"qid": spel.bord_rijen(db)[0]["qid"]})
     assert spel.stemmen(db, huidige(db)["id"], 1) == []
     assert "0 van 2 hebben gestemd" in frag(tv, "/beheer/tv/inhoud") and "Nick-laat" not in frag(tv, "/beheer/tv/inhoud")
@@ -593,3 +608,109 @@ def test_stemtegel_is_zelf_de_knop_zonder_losse_stemknop_eronder():
     c.post("/spel/stem", data={"qid": bord[0]["qid"]})
     html = frag(c, "/spel/inhoud")
     assert html.count('aria-pressed="true"') == 1 and "Jouw keuze" in html
+
+
+def test_begeleider_kiest_wie_meedoet_voor_het_spel_start():
+    db, app, clients = spel_met(["a", "b", "c", "d", "e"])
+    boss = leider(app)
+    ids = {n: spel.speler_voor(db, f"acct-{n}")["id"] for n in clients}
+    pagina = boss.get("/beheer/spel").text
+    assert pagina.count('name="meedoen"') == 5 and pagina.count("checked") >= 5 and "every 2s" not in pagina      # all ticked, and not refreshing under the leader
+    boss.post("/beheer/spel/start", data={"lijst": "1"})                                                        # nobody ticked: refused
+    assert spel.spel_status(db) is None
+    boss.post("/beheer/spel/start", data={"lijst": "1", "meedoen": [str(ids[n]) for n in "abcd"], "eerste": str(ids["e"])})   # e is not coming
+    assert spel.spel_status(db) is not None and len(spel.bord_rijen(db)) == 8        # 4 players: 4 chosen saints plus 4 decoys
+    assert {r["speler_id"] for r in spel.rondes(db)} == {ids[n] for n in "abcd"}
+    assert huidige_ronde_onderwerp(db) != ids["e"]                                 # the absent one was also not picked as first
+    afwezig = frag(clients["e"], "/spel/inhoud")
+    assert "Je doet niet mee aan dit spel" in afwezig and "tegelknop" not in afwezig
+    assert "Nick-e" not in "".join(frag(c, "/spel/inhoud") for c in clients.values())
+
+
+def huidige_ronde_onderwerp(db):
+    return spel.rondes(db)[0]["speler_id"]
+
+
+def test_een_formulier_zonder_lijst_neemt_iedereen_mee():
+    db, app, clients = spel_met(["a", "b", "c"])
+    leider(app).post("/beheer/spel/start", data={"eerste": ""})
+    assert len(spel.rondes(db)) == 3
+
+
+def test_uitleg_over_rondes_en_punten_staat_op_tv_telefoon_en_bediening():
+    db, app, clients = spel_met(["a", "b", "c"])
+    boss = leider(app)
+    assert "Zo werkt het" in boss.get("/beheer/spel").text and "3 punten" in boss.get("/beheer/spel").text
+    boss.post("/beheer/spel/start", data={"eerste": ""})
+    tv, tel = frag(boss, "/beheer/tv/inhoud"), frag(clients["a"], "/spel/inhoud")
+    for tekst in (tv, tel, boss.get("/beheer/spel").text):
+        assert "Zo werkt het" in tekst and "Stemronde 1" in tekst and "Vragenronde" in tekst and "Stemronde 2" in tekst and "1 punt" in tekst and "3 punten" in tekst
+
+
+def speel_uit(boss, db):
+    for _ in range(200):
+        if spel.spel_status(db)["status"] == "einde":
+            return
+        volgende(boss)
+    raise AssertionError("het spel kwam niet aan het einde")
+
+
+def test_eindbord_en_maximum_horen_bij_het_huidige_spel_ook_na_opnieuw_beginnen():
+    db, app, clients = spel_met(["a", "b", "c", "d"])
+    boss = leider(app)
+    ids = {n: spel.speler_voor(db, f"acct-{n}")["id"] for n in clients}
+    boss.post("/beheer/spel/start", data={"lijst": "1", "meedoen": [str(ids[n]) for n in "abc"]})
+    speel_uit(boss, db)
+    assert "0 van de 18 punten" in frag(boss, "/beheer/tv/inhoud")          # 3 rounds x 2 voters x 3 points
+    boss.post("/beheer/spel/reset", data={"bevestig": "OPNIEUW"})
+    boss.post("/beheer/spel/start", data={"lijst": "1", "meedoen": [str(ids[n]) for n in "abcd"]})
+    speel_uit(boss, db)
+    assert "0 van de 36 punten" in frag(boss, "/beheer/tv/inhoud")          # 4 rounds x 3 voters x 3 points, not the cached old board
+
+
+def test_startformulier_toont_geen_heiligen_en_markeert_niemand_als_lezer():
+    """A leader who also plays must not learn everybody's saint from the start form (that would be reading all explanations without being excluded)."""
+    db, app, clients = spel_met(["a", "b", "c"])
+    boss = leider(app)
+    pagina = boss.get("/beheer/spel").text
+    namen = [H_PER_QID[s["gekozen"]].naam for s in spel.spelers_klaar(db)]
+    assert namen and not any(naam in pagina for naam in namen) and "Nick-a" in pagina
+    assert spel.lezers(db, spel.speler_voor(db, "acct-a")["id"]) == set()
+
+
+def test_uitslag_van_een_ronde_ligt_vast_ook_als_een_leider_daarna_een_uitleg_opent():
+    db, app, clients = spel_met(["a", "b", "c", "d"])
+    boss = leider(app)
+    boss.post("/beheer/spel/start", data={"eerste": ""})
+    speel_uit(boss, db)
+    voor = frag(boss, "/beheer/tv/inhoud")
+    assert "0 van de 36 punten" in voor
+    for r in spel.rondes(db):
+        boss.get(f"/beheer/speler/{r['speler_id']}")                    # opening an explanation marks the opener as reader
+    na = frag(boss, "/beheer/tv/inhoud")
+    assert na == voor and "0 van de 36 punten" in na
+    assert all(r["stemmers"] == 3 and r["max_punten"] == 9 for r in spel.rondes(db))      # stored with the round at the reveal
+
+
+def test_vreemde_id_s_in_de_startlijst_geven_geen_500_en_starten_niets():
+    db, app, clients = spel_met(["a", "b", "c"])
+    boss = leider(app)
+    for slecht in (["²"], ["9" * 5000], ["-1"], ["abc", ""], [" 3"]):
+        r = boss.post("/beheer/spel/start", data={"lijst": "1", "meedoen": slecht, "eerste": "²"})
+        assert r.status_code == 200
+        assert spel.spel_status(db) is None
+    ids = [spel.speler_voor(db, f"acct-{n}")["id"] for n in "abc"]
+    assert boss.post("/beheer/spel/start", data={"lijst": "1", "meedoen": [str(i) for i in ids], "eerste": "9" * 5000}).status_code == 200
+    assert spel.spel_status(db) is not None                                      # a bad `eerste` is ignored, the rest starts
+
+
+def test_oude_database_zonder_uitslagkolommen_krijgt_ze_bij_het_openen(tmp_path):
+    import apsw
+    pad = tmp_path / "oud.db"
+    c = apsw.Connection(str(pad))
+    c.execute("create table spelronde (id integer primary key, speler_id integer not null unique, volgorde integer not null, "
+              "fase text not null default 'overleg1', punten integer)")
+    c.close()
+    db = spel.open_db(pad)
+    assert {"stemmers", "goed1", "goed2", "max_punten"} <= {r["name"] for r in db.q("pragma table_info(spelronde)")}
+    spel.open_db(pad)                                                              # a second open changes nothing and does not fail

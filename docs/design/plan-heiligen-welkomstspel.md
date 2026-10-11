@@ -59,7 +59,9 @@ Het spel duurt circa 25 + 5 × N minuten, met N het aantal deelnemers: 65 minute
 4. **Overleg 2.** Na 1 minuut opnieuw stemmen; iedereen mag zijn keus veranderen. De tv toont weer alleen aantallen.
 5. **Onthulling.** De heilige van Kind A wordt getoond. Kind A mag één ding vertellen ("wat klopte er wel en wat niet?"), maar het hoeft niet.
 
-**Punten** zijn alleen groepspunten. Heeft na stemronde 1 meer dan de helft van de stemmen de juiste heilige, dan krijgt de groep 2 punten. Lukt dat pas na stemronde 2, dan 1 punt. Anders 0. Zo beloont de score het overleg, en ziet niemand wie het fout had.
+**Punten** tellen per stem en vormen samen één groepsscore. Wie van de twee stemrondes in één ronde goed zat krijgt 1 punt, wie in beide goed zat 3 punten (2 per goede stem, min 1). Het maximum is 3 punten per stemmer per ronde. Er is geen meerderheid nodig, dus ook geen gelijkspel om op te lossen: elke stem telt apart. Niemand ziet wie wat stemde. Het eindbord op de tv toont per deelnemer hoeveel stemmers het in stemronde 1 en 2 goed hadden en hoeveel punten dat opleverde, met de score als percentage van het maximum en daarnaast wat puur gokken zou opleveren. Vergelijken met een volgende keer kan alleen met die vergelijking in de hand: een kleiner bord of een kleinere groep maakt gokken makkelijker, dus een hoger percentage hoeft niet beter raden te betekenen.
+
+**Wie meedoet** bepaalt de begeleider vlak voor de start: iedereen die de quiz af heeft staat aangevinkt, en wie er niet bij kan haalt het vinkje weg. Alleen wie meedoet krijgt een ronde, stemt en telt mee in het bord en de score.
 
 De begeleider bedient het scherm (stemming sluiten, uitslag tonen, onthullen, volgende ronde) vanaf zijn telefoon of laptop. Volgorde van de rondes is willekeurig, maar de eerste ronde is een jongere met een duidelijke, makkelijk te raden heilige, om erin te komen.
 
@@ -187,7 +189,7 @@ Voeg in de repo een `CLAUDE.md` toe met de ontwerpregels uit de eerste sectie. D
 - **Rubric**: zes karakterassen en tien interesses, zie `rubric.md`.
 - **Stack**: FastHTML met fastlite. De app bestaat vooral uit pagina's en formulieren op telefoons die op slot gaan of even geen bereik hebben, en gewone paginaverzoeken overleven dat. Voor het live bord op de tv vraagt de pagina elke 2 seconden om een update. De bestaande HTML van de heiligenprofielen kan bijna ongewijzigd mee. NiceGUI viel af omdat elke pagina een vaste verbinding met de server houdt, wat op slapende telefoons tot verloren invoer kan leiden.
 - **Data**: heiligen en vragen alleen als JSON in git, in het geheugen ingelezen; SQLite alleen voor wat er tijdens het spel gebeurt (zie Datamodel). Teksten verbeteren gaat via git en een nieuwe deploy. Een aparte app om verhalen en scores te bewerken is voor later.
-- **Spel**: 4 tot circa 15 deelnemers, begeleiders mogen meedoen; bord van 2 × N heiligen (de gekozen plus evenveel willekeurige), elke heilige maar één keer gekozen, het kind blijft in de kamer, groepspunten bij meerderheid, geprinte versie als terugval (zie Draaiboek en `redteam-2026-10-06.md`).
+- **Spel**: 4 tot circa 15 deelnemers, begeleiders mogen meedoen; bord van 2 × N heiligen (de gekozen plus evenveel willekeurige), elke heilige maar één keer gekozen, het kind blijft in de kamer, punten per stem (1 of 3 per stemmer per ronde), geprinte versie als terugval (zie Draaiboek en `redteam-2026-10-06.md`).
 
 ## Open punten
 
