@@ -17,14 +17,12 @@ from fasthtml.common import A, Button, Details, Div, Form, H1, H2, Img, Input, L
 
 from . import db as spel
 from .data import Heilige
-from .scoring import VOORKEUR_GESLACHT
 from .ui import DONKER, afbeelding_url, info, is_leiding, keuzekaart, naar, pagina
 
 FASES = ("overleg1", "uitslag1", "vragen", "overleg2", "uitslag2", "onthuld")
 STEMFASEN = {"overleg1": 1, "overleg2": 2}
 UITSLAGRONDE = {"uitslag1": 1, "vragen": 1, "uitslag2": 2, "onthuld": 2}   # whose votes the screens show in each phase
 MIN_SPELERS = 3
-MIN_ZICHT = 6   # a filtered board with fewer saints than this would give the answer away, so the whole board is shown instead
 
 KNOP_TEKST = {
     "bord": "Start ronde 1",
@@ -73,15 +71,6 @@ body:has(.tv) main{max-width:none;padding:.4rem 1.5vw 1rem}
 
 
 # ---------------------------------------------------------------- de regels, zonder database
-
-def zichtbaar_bord(bord: Sequence[dict], per_qid: dict, voorkeur: str | None, juist: str) -> list[dict]:
-    """The board as shown in one round. A subject who said "only men" or "only women" gets only saints of that gender: the others cannot be
-    theirs. The whole board is shown for "maakt niet uit", when the right saint would be hidden, and when the filtered board is smaller than
-    MIN_ZICHT (too few saints to guess from is the same as showing the answer)."""
-    toegestaan = VOORKEUR_GESLACHT.get(voorkeur, VOORKEUR_GESLACHT["maakt niet uit"])
-    zicht = [b for b in bord if per_qid[b["qid"]].geslacht in toegestaan]
-    return zicht if len(zicht) >= MIN_ZICHT and any(b["qid"] == juist for b in zicht) else list(bord)
-
 
 def trek_bord(gekozen: Sequence[str], alle: Iterable[str], rng: random.Random) -> list[tuple[str, bool]]:
     """De N gekozen heiligen plus N willekeurige andere, in een willekeurige volgorde zodat de gekozen niet opvallen."""
@@ -194,11 +183,7 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
         meedoen = {x["speler_id"] for x in r}
         spelers = {s["id"]: s for s in spel.spelers_klaar(db) if s["id"] in meedoen}
         bord = [b for b in spel.bord_rijen(db) if b["qid"] in per_qid]   # a saint removed from the data never breaks a screen
-        zicht = bord
-        if st["status"] == "ronde" and huidige and huidige["speler_id"] in spelers:
-            onderwerp = spelers[huidige["speler_id"]]
-            zicht = zichtbaar_bord(bord, per_qid, onderwerp["voorkeur"], onderwerp["gekozen"])
-        return {"status": st["status"], "ronde": huidige, "rondes": r, "bord": bord, "zicht": zicht, "spelers": spelers}
+        return {"status": st["status"], "ronde": huidige, "rondes": r, "bord": bord, "spelers": spelers}
 
     def stemmers(sd, ronde):
         """Wie mag stemmen: iedereen in het spel, behalve de deelnemer van deze ronde en wie diens uitleg las."""
@@ -248,8 +233,7 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
             if r["speler_id"] not in sd["spelers"]:
                 continue
             onderwerp, u = sd["spelers"][r["speler_id"]], uitslag_van(r)
-            tegels = len(zichtbaar_bord(sd["bord"], per_qid, onderwerp["voorkeur"], onderwerp["gekozen"]))
-            totaal, maximum, toeval = totaal + u["punten"], maximum + u["max"], toeval + toeval_punten(tegels, u["stemmers"])
+            totaal, maximum, toeval = totaal + u["punten"], maximum + u["max"], toeval + toeval_punten(len(sd["bord"]), u["stemmers"])
             cel = lambda goed, v=u["stemmers"]: Td(f"{goed} van {v}" + (" ✔" if 2 * goed > v else ""), cls="goed" if 2 * goed > v else "")
             rijen.append(Tr(Td(r["nickname"]), Td(naam_van(onderwerp["gekozen"])), cel(u["goed1"]), cel(u["goed2"]), Td(f"{u['punten']} van {u['max']}")))
         procent = lambda x: f"{round(100 * x / maximum)}%" if maximum else "–"
@@ -286,7 +270,7 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
         mijn = next((x["qid"] for x in spel.stemmen(db, ronde["id"], STEMFASEN[ronde["fase"]]) if x["speler_id"] == sp["id"]), None)
         return blok(H2(f"Bij welke heilige hoort {nick}?"), P("Tik op een heilige om te stemmen. Je mag je keuze nog veranderen."),
                     *([P(f"Jouw stem: {per_qid[mijn].naam}", cls="klein")] if mijn else []),
-                    Div(*[tegel(per_qid[b["qid"]], stem=(b["qid"] == mijn), formulier=True) for b in sd["zicht"]], cls="bord"))
+                    Div(*[tegel(per_qid[b["qid"]], stem=(b["qid"] == mijn), formulier=True) for b in sd["bord"]], cls="bord"))
 
     @route("/spel")
     def spel_pagina(req):
@@ -300,7 +284,7 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
     def spel_stem(req, qid: str = ""):
         sp = spel.speler_voor(db, req.scope["gebruiker"])
         sd = stand()
-        if sd and sd["status"] == "ronde" and sd["ronde"]["fase"] in STEMFASEN and qid in {b["qid"] for b in sd["zicht"]}:
+        if sd and sd["status"] == "ronde" and sd["ronde"]["fase"] in STEMFASEN and qid in {b["qid"] for b in sd["bord"]}:
             ronde = sd["ronde"]
             if sp["id"] in stemmers(sd, ronde):
                 spel.stem_uit(db, ronde["id"], sp["id"], qid, STEMFASEN[ronde["fase"]])
@@ -312,7 +296,7 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
         full text one tap further. A page of its own because the voting screen refreshes every 2 seconds and would close anything opened on it."""
         sd = stand()
         sp = spel.speler_voor(db, req.scope["gebruiker"])
-        if not sd or qid not in {b["qid"] for b in sd["zicht"]} or not (sp["id"] in sd["spelers"] or is_leiding(req.headers)):
+        if not sd or qid not in {b["qid"] for b in sd["bord"]} or not (sp["id"] in sd["spelers"] or is_leiding(req.headers)):
             return Response("Niet gevonden.", status_code=404)
         h = per_qid[qid]
         foto = h.record.get("afbeelding", {})
@@ -353,7 +337,7 @@ def registreer(app, db, per_qid: dict[str, Heilige], *, wie, rng=None) -> None:
                 juist = juist_van(sd, r)
             regels.append(P(f"Punten tot nu toe: {eindscore(sd)} van {maxscore(sd)}", cls="klein"))
         tegels = [tegel(per_qid[b["qid"]], aantal=None if aantallen is None else aantallen[b["qid"]], juist=(b["qid"] == juist), van=onthuld.get(b["qid"]))
-                  for b in sd["zicht"]]
+                  for b in sd["bord"]]
         return Div(H1(titel), *regels, Div(*tegels, cls="bord"), id="tv")
 
     @route("/beheer/tv")

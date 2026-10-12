@@ -521,54 +521,36 @@ def test_een_uitleg_openen_via_een_link_van_een_andere_site_telt_niet_als_lezen(
     assert spel.lezers(db, sid) == {"boss"}
 
 
-def test_zichtbaar_bord_filtert_op_geslacht_met_ondergrens_en_zonder_het_antwoord_te_verbergen():
-    from durfheilig.raadspel import MIN_ZICHT, zichtbaar_bord
-    per_qid = {h.qid: h for h in H}
-    man = [h.qid for h in H if h.geslacht == "mannelijk"]
-    vrouw = [h.qid for h in H if h.geslacht == "vrouwelijk"]
-    bord = [{"qid": q} for q in man[:8] + vrouw[:8]]
-    assert [b["qid"] for b in zichtbaar_bord(bord, per_qid, "man", man[0])] == man[:8]
-    assert [b["qid"] for b in zichtbaar_bord(bord, per_qid, "vrouw", vrouw[0])] == vrouw[:8]
-    assert zichtbaar_bord(bord, per_qid, "maakt niet uit", man[0]) == bord and zichtbaar_bord(bord, per_qid, None, man[0]) == bord
-    assert zichtbaar_bord(bord, per_qid, "man", vrouw[0]) == bord                  # the right saint is never hidden
-    klein = [{"qid": q} for q in man[:MIN_ZICHT - 1] + vrouw[:8]]
-    assert zichtbaar_bord(klein, per_qid, "man", man[0]) == klein                  # too few left to guess from: the whole board, not the answer
-
-
-def test_het_bord_van_een_ronde_toont_alleen_heiligen_van_het_gewenste_geslacht():
-    """Phones and tv show only saints of the gender the round's subject asked for; "maakt niet uit" and tiny boards show everything."""
-    from durfheilig.raadspel import MIN_ZICHT
+def test_het_bord_van_een_ronde_is_voor_elke_geslachtsvoorkeur_het_hele_bord():
+    """The group must not learn what the subject asked for: phones and tv show every saint of the board in every round, the same
+    number whether the subject said man, vrouw or maakt niet uit, and any of them can be voted for and opened."""
     namen = [f"p{i}" for i in range(10)]
     voork = {n: ["man", "vrouw", "maakt niet uit"][i % 3] for i, n in enumerate(namen)}
     db, app, clients = spel_met(namen, voorkeuren=voork)
     boss = leider(app)
     boss.post("/beheer/spel/start", data={"eerste": ""})
     volgende(boss)
-    toegestaan = {"man": {"mannelijk"}, "vrouw": {"vrouwelijk"}, "maakt niet uit": {"mannelijk", "vrouwelijk"}}
-    gefilterd = set()
+    bord = [b["qid"] for b in spel.bord_rijen(db)]
+    gezien = set()
     for _ in range(80):
         if spel.spel_status(db)["status"] != "ronde":
             break
         r = huidige(db)
         if r["fase"] == "overleg1":
             v = spel.invulling(db, r["speler_id"])["voorkeur"]
-            bord = [b["qid"] for b in spel.bord_rijen(db)]
-            eigen = [q for q in bord if H_PER_QID[q].geslacht in toegestaan[v]]
-            juist = {s["id"]: s["gekozen"] for s in spel.spelers_klaar(db)}[r["speler_id"]]
-            verwacht = eigen if len(eigen) >= MIN_ZICHT and juist in eigen else bord      # the rule, written out independently of the code
+            gezien.add(v)
             tv = boss.get("/beheer/tv/inhoud", headers={"hx-request": "true"}).text
             telefoon = frag(een_stemmer(clients), "/spel/inhoud")
-            assert telefoon.count("<button") == len(verwacht) == len(re.findall(r'class="tegel[ "]', tv))
+            assert telefoon.count("<button") == len(bord) == len(re.findall(r'class="tegel[ "]', tv))
             for q in bord:
-                if q not in verwacht:
-                    assert H_PER_QID[q].naam not in tv and H_PER_QID[q].naam not in telefoon
-                    een_stemmer(clients).post("/spel/stem", data={"qid": q})            # a hidden saint cannot be voted for either
-                    assert spel.stemmen(db, r["id"], 1) == []
-                    assert een_stemmer(clients).get(f"/spel/heilige/{q}").status_code == 404   # nor can its info page be opened
-            if len(verwacht) < len(bord):
-                gefilterd.add(v)
+                assert H_PER_QID[q].naam in tv and H_PER_QID[q].naam in telefoon
+            if v != "maakt niet uit":                                                  # a saint of the other gender: votable and openable
+                anders = next(q for q in bord if H_PER_QID[q].geslacht not in {"man": {"mannelijk"}, "vrouw": {"vrouwelijk"}}[v])
+                assert een_stemmer(clients).get(f"/spel/heilige/{anders}").status_code == 200
+                een_stemmer(clients).post("/spel/stem", data={"qid": anders})
+                assert anders in [x["qid"] for x in spel.stemmen(db, r["id"], 1)]
         volgende(boss)
-    assert gefilterd >= {"man", "vrouw"}                                                  # the filter really cut the board for both kinds
+    assert gezien >= {"man", "vrouw", "maakt niet uit"}
 
 
 def test_info_link_en_detailpagina_voor_heiligen_op_het_bord():
