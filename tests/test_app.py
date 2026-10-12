@@ -928,3 +928,17 @@ def test_dubbel_indrukken_van_vervolg_betaalt_de_llm_niet_twee_keer():
     ids = list(dict.fromkeys(re.findall(r'name="(v\d)"', r.text)))
     c.post("/vervolg", data={i: "min" for i in ids})
     assert stand["tijdens"] == 0 and stand["aantal"] >= 1
+
+
+def test_kaart_en_heiligepagina_tonen_de_kernzin_van_het_bord():
+    """What a kid reads when choosing is the one line the voting tile shows later ("wat_voor_mens"), so the saint is recognized on the board."""
+    _, app = maak()
+    c = kind(app)
+    _, gekozen, qids = speel(c, "Vos")
+    per_qid = {h.qid: h for h in H}
+    mijn = c.get("/mijn").text.replace("&#x27;", "'")
+    for q in qids:
+        assert per_qid[q].record["wat_voor_mens"][:40] in mijn
+    assert len(re.findall(r'<h2>[^<]*</h2>\s*<p class="kern">', mijn)) == 3     # on every card right under the name, before the life story
+    pagina = c.get(f"/heilige/{gekozen}").text.replace("&#x27;", "'")
+    assert per_qid[gekozen].record["wat_voor_mens"][:40] in pagina

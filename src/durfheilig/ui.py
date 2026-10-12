@@ -69,6 +69,7 @@ label.veld{display:block;font-weight:700;margin:1rem 0 .3rem}
 .kaart{background:var(--kaart);border:2px solid var(--rand);border-radius:24px;padding:1.1rem;margin:1.2rem 0;box-shadow:var(--schaduw)}
 .kaart img{display:block;width:100%;max-height:24rem;object-fit:contain;background:#f1eadb;border-radius:16px}
 .kaart h2{margin-top:.8rem;font-size:1.5rem}
+.kern{font-weight:700;margin:.1rem 0 .7rem}
 .kaart.gekozen{border:6px solid var(--accent);background:var(--accent-zacht)}
 .badge{display:inline-block;margin-bottom:.6rem;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:.25rem .9rem;font-weight:800;font-size:.9rem}
 .bubbel{position:relative;margin:.9rem 0;padding:.9rem 1rem;background:var(--accent-zacht);border-radius:18px;border:2px solid var(--rand)}
@@ -204,6 +205,12 @@ def pagina(titel: str, *inhoud, toon_menu: bool = True, stap: int | None = None,
         gedaan, totaal = vraag
         boven += [Div(I(style=f"width:{100 * gedaan / totaal:.0f}%"), cls="balk"), P(f"Vraag {gedaan + 1} van {totaal}", cls="voortgang")]
     return Title(f"{titel} · Durf heilig te zijn"), kop, Main(*boven, H1(titel), *([P(fout, cls="fout")] if fout else []), *inhoud, laden, Script(LAADSCRIPT))
+
+
+def kern(h: Heilige) -> P:
+    """The one line that says what kind of person this saint was. It is the same sentence everywhere a saint is shown (the choice cards,
+    the saint pages and the voting tiles), so a kid recognizes on the board the saint read about at home."""
+    return P(h.record.get("wat_voor_mens", ""), cls="kern")
 
 
 TOEGESTANE_LINKHOSTS = {"nl.wikipedia.org", "en.wikipedia.org", "commons.wikimedia.org"}

@@ -714,3 +714,25 @@ def test_oude_database_zonder_uitslagkolommen_krijgt_ze_bij_het_openen(tmp_path)
     db = spel.open_db(pad)
     assert {"stemmers", "goed1", "goed2", "max_punten"} <= {r["name"] for r in db.q("pragma table_info(spelronde)")}
     spel.open_db(pad)                                                              # a second open changes nothing and does not fail
+
+
+def test_groepsplaat_zet_de_naam_in_de_kaart_en_de_infopagina_toont_de_kernzin():
+    """The name on the group picture sits inside the saint's card: a span after a full-height card landed on top of the row below, so a name
+    was sometimes unreadable. And the info page behind ⓘ opens with the same line the tile and the choice card show."""
+    db, app, clients = spel_met("abc")
+    boss = leider(app)
+    boss.post("/beheer/spel/start", data={"eerste": ""})
+    bord = [b["qid"] for b in spel.bord_rijen(db)]
+    r = een_stemmer_na_start(boss, clients).get(f"/spel/heilige/{bord[0]}")
+    assert r.status_code == 200 and f'<p class="kern">{H_PER_QID[bord[0]].record["wat_voor_mens"][:30]}' in r.text.replace("&#x27;", "'")
+    while spel.spel_status(db)["status"] != "plaat":
+        volgende(boss)
+    plaat = frag(boss, "/beheer/tv/inhoud")
+    for s in spel.spelers_klaar(db):
+        binnen = re.search(r'<div class="tegel">(?:(?!</div>).)*✔ ' + re.escape(s["nickname"]), plaat, re.S)
+        assert binnen, s["nickname"]
+
+
+def een_stemmer_na_start(boss, clients):
+    volgende(boss)                                                  # board -> round 1, so somebody has voting tiles
+    return een_stemmer(clients)

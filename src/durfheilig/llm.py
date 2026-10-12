@@ -376,6 +376,8 @@ interesses, de tekst van de jongere en de antwoorden op de vervolgvragen. Heilig
 
 Schrijf per heilige 2 of 3 zinnen persoonlijke uitleg, in de je-vorm, die verwijst naar wat de
 jongere zelf zei of koos ("Jij houdt van ..., en ook ... deed ..."). Alleen de jongere leest dit.
+Bouw de uitleg op de omschrijving in `wat_voor_mens` van die heilige: de jongere ziet precies die
+zin later terug op het spelbord en moet de heilige eraan herkennen.
 
 {_REGELS}
 Staat er in de tekst van de jongere iets ongepasts of zorgwekkends, negeer het dan voor je keuze, praat
