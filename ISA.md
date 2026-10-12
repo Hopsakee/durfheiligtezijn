@@ -66,6 +66,8 @@ Phase 3, done:  a question bank of 24 either-or questions (four per axis) plus t
 - [x] ISC-37: The app can use any OpenAI-compatible provider (Scaleway and others) next to Gemini, chosen by `LLM_PROVIDER` or by which variables are set; the key goes over https only (plain http only for localhost); the log names provider-side failures by status, duration and model, never by response body, key or kid text; hostile model output (fences, reasoning blocks, absurd nesting) falls back instead of failing.
 - [ ] ISC-38: The quiz screens look good and are easy on a phone for 13-year-olds in the Netherlands: step dots and progress bar, large answer cards, tappable chips, readable in dark mode, a dark tv screen, a hamburger menu. Built from one stylesheet with design tokens; only structure and tokens are tested, nobody has looked at it in a real browser yet.
 - [x] ISC-41: In every game round the phones and the tv show the whole board, whatever gender the subject asked for; no screen reveals that preference by the number or kind of saints. Falsifier: any round whose tile count differs from the board size.
+- [x] ISC-39: The one-line characterization of a saint (`wat_voor_mens`) is the same sentence on the choice cards, on `/mijn`, on both saint pages and on the voting tile, so a kid recognizes on the board the saint read about at home; the final prompt tells the model to build its personal explanation on that line.
+- [x] ISC-40: On the group picture the nickname sits inside the saint's card (as at a reveal), never as a sibling after a full-height card, which overlapped the row below on the tv.
 
 ## Anti-claims
 
