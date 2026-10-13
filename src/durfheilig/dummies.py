@@ -51,10 +51,8 @@ def laat_stemmen(app, db, namen: list[str], kans_juist: float = 0.7, seed: int |
     onderwerp = next((x for x in spel.spelers_klaar(db) if x["id"] == ronde["speler_id"]), None)
     if not onderwerp:
         return 0
-    from .data import laad_heiligen
-    from .raadspel import zichtbaar_bord
     juist = onderwerp["gekozen"]
-    bord = [b["qid"] for b in zichtbaar_bord(spel.bord_rijen(db), {h.qid: h for h in laad_heiligen()}, onderwerp["voorkeur"], juist)]
+    bord = [b["qid"] for b in spel.bord_rijen(db)]
     gedaan = 0
     for naam in namen:
         vorig = len(spel.stemmen(db, ronde["id"], 1)) + len(spel.stemmen(db, ronde["id"], 2))
