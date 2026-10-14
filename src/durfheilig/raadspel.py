@@ -17,7 +17,7 @@ from fasthtml.common import A, Button, Details, Div, Form, H1, H2, Img, Input, L
 
 from . import db as spel
 from .data import Heilige
-from .ui import DONKER, afbeelding_url, info, is_leiding, keuzekaart, naar, pagina
+from .ui import DONKER, afbeelding_url, info, is_leiding, kern, keuzekaart, naar, pagina
 
 FASES = ("overleg1", "uitslag1", "vragen", "overleg2", "uitslag2", "onthuld")
 STEMFASEN = {"overleg1": 1, "overleg2": 2}

@@ -219,13 +219,13 @@ def test_http_fout_noemt_de_statuscode_maar_nooit_de_sleutel():
 def test_wat_gemini_teruggeeft_komt_nooit_in_de_log(situatie, caplog):
     import logging
     p, i, _, top = situatie
-    echo = "ik ben Jorik de Jong uit Windesheim"
+    echo = "ik ben Pieter Vermeer uit Nergenshuizen"
     slecht_vervolg = json.dumps({"vragen": [{"vraag": "x", "min": "a", "plus": "b", "stijgt_bij_min": [echo], "stijgt_bij_plus": []}] * 3})
     slechte_finale = json.dumps({"keuzes": [{"qid": echo, "uitleg": "x"}] * 3})
     with caplog.at_level(logging.INFO, logger="durfheilig.llm"):
         vervolgvragen(Fake(slecht_vervolg, slecht_vervolg), p, i, [echo], top, laad_vragen(), set())
         finale(Fake(slechte_finale, slechte_finale), p, i, [echo], top, [], {})
-    assert "mislukt" in caplog.text and "Jorik" not in caplog.text and echo not in caplog.text
+    assert "mislukt" in caplog.text and "Pieter" not in caplog.text and echo not in caplog.text
 
 
 def _traag_gemini(wat, **kw):
