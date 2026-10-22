@@ -163,6 +163,9 @@ PAGINAS = [
     ("/beheer", "Overzicht en uitleg lezen", "Wie is klaar, welke uitleg is gemarkeerd. Een uitleg openen telt als lezen.", "leiding", _leiding),
     ("/beheer/spel", "Het raadspel bedienen", "Het spel starten en de rondes doorlopen, vanaf je eigen scherm.", "leiding", _leiding),
     ("/beheer/tv", "Tv-scherm", "Open dit op de tv; het ververst zichzelf.", "leiding", _leiding),
+    ("/escape", "Teamtelefoon escaperoom", "Wat de teamtelefoons zien: een eigen account per team, door jou ingedeeld op de bediening.", "leiding", _leiding),
+    ("/beheer/escape", "Escaperoom bedienen", "Teamaccounts indelen, klokken starten en pauzeren, minuten geven, een antwoord terugdraaien.", "leiding", _leiding),
+    ("/beheer/escape/tv", "Tv-scherm escaperoom", "Beide teams naast elkaar; met ?team=A of ?team=B het prikbord voor de laptop in één kamer.", "leiding", _leiding),
     ("/beheer/print", "Printversie van het bord", "Een genummerd bord op papier, voor als de app uitvalt.", "leiding", _leiding),
     ("/beheer/export", "Alles downloaden", "Alle antwoorden en het spel als JSON.", "leiding", _leiding),
 ]

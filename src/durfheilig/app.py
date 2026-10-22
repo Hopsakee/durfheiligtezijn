@@ -19,7 +19,7 @@ from fasthtml.common import (A, Beforeware, Button, Details, Div, FastHTML, File
                              B, Script, Small, Span, Ul, Style, Summary, Table, Td, Th, Tr, Textarea)
 
 from . import db as spel
-from . import raadspel, ui
+from . import escape, raadspel, ui
 from .data import DATA_DIR, Heilige, Vragenbank, laad_heiligen, laad_vragen
 from .llm import Llm, Uitslag, beschrijving, finale, llm_uit_omgeving, vervolgvragen, Vervolgvraag
 from .scoring import VOORKEUR_GESLACHT, kies_vragen, profiel, rangschik
@@ -30,7 +30,7 @@ MAX_NICKNAME = 20
 VOORKEUR_LABEL = {"man": ("👨", "Een man"), "vrouw": ("👩", "Een vrouw"), "maakt niet uit": ("🤷", "Maakt niet uit")}
 STAPPEN = ("welkom", "voorkeur", "vragen", "interesses", "open", "vervolg", "keuze", "klaar")
 
-CSS = ui.CSS + raadspel.RAAD_CSS
+CSS = ui.CSS + raadspel.RAAD_CSS + escape.ESCAPE_CSS
 
 
 def knop_formulier(actie: str, *velden, tekst: str = "Verder", laad: str | None = None, knopcls: str = "hoofd", **hidden):
@@ -40,8 +40,9 @@ def knop_formulier(actie: str, *velden, tekst: str = "Verder", laad: str | None 
 
 
 def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, rng: random.Random | None = None,
-             extra_menu: list[tuple[str, str]] = ()) -> FastHTML:
-    """`extra_menu` is for the local launcher only: extra (href, title) entries in the menu."""
+             extra_menu: list[tuple[str, str]] = (), escaperoom: "escape.Escape | None" = None, tijd=None) -> FastHTML:
+    """`extra_menu` is for the local launcher only: extra (href, title) entries in the menu. `escaperoom` defaults to data/escape.json;
+    `tijd` (a function giving epoch seconds) lets tests set the escape room's clock."""
     rng = rng or random.Random()
     per_qid = {h.qid: h for h in heiligen}
     per_vraag = {v.id: v for v in vragen.vragen}
@@ -407,6 +408,7 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         return naar("/beheer")
 
     raadspel.registreer(app, db, per_qid, wie=wie, rng=rng)
+    escape.registreer(app, db, escaperoom or escape.laad_escape(), **({"tijd": tijd} if tijd else {}))
     return app
 
 
