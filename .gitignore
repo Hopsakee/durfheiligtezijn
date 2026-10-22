@@ -43,3 +43,4 @@ docker-compose.override.yml
 
 # Output of the model tests (full model texts, local only)
 modeltest/
+e2e/screenshots/

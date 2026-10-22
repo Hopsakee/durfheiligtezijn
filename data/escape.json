@@ -1,0 +1,104 @@
+{
+  "titel": "X-ploitation",
+  "uitleg": "Escaperoom X-ploitation (Micha Zondag, Youth for Christ en Verbuilding, 2020). Twee teams zoeken in twee kamers vijf bewijzen van uitbuiting. Antwoorden worden vergeleken na normaliseren: kleine letters, zonder spaties, leestekens en accenten; cijfers tellen mee. 'naam' en 'icoon' staan altijd op het scherm (verraadt niets), 'bewijs', 'dossier' en 'cijfer' pas als het bewijs gevonden is. Het slot van elk team heeft 4 cijfers: puzzel 1 tot 4 geven elk een 'cijfer' (0-9), puzzel 5 geeft de 'volgorde' waarin je ze leest (puzzelnummers). De cijfers hieronder zijn NEPCIJFERS: zet de echte code zodra de sloten er zijn. Hint 1 duwt, hint 3 geeft bijna het antwoord. Concept: Jelle herziet de hints.",
+  "speeltijd_minuten": 45,
+  "hintstraf_minuten": 3,
+  "puzzels": [
+    {
+      "nr": 1,
+      "naam": "Collectie",
+      "icoon": "👕",
+      "bewijs": "Gemaakt door kinderen",
+      "dossier": "De kleding van X-ploitation wordt gemaakt door kinderen.",
+      "cijfer": 7,
+      "antwoorden": [
+        "made by kids"
+      ],
+      "hints": [
+        "Kijk goed naar de nieuwe collectie. Valt je iets op aan de kleuren?",
+        "Vijf kledingstukken hebben een andere kleur. Zoek die vijf op de keukenrol.",
+        "Draai de stroken op de keukenrol tot de vijf gekleurde kledingstukken op één rij staan. Lees de letters eronder."
+      ]
+    },
+    {
+      "nr": 2,
+      "naam": "Fabrieken",
+      "icoon": "🗺️",
+      "bewijs": "12 uur per dag",
+      "dossier": "De arbeiders werken minimaal twaalf uur per dag.",
+      "cijfer": 2,
+      "antwoorden": [
+        "minimaal twaalf uur per dag",
+        "minimaal 12 uur per dag",
+        "twaalf uur per dag",
+        "12 uur per dag",
+        "12"
+      ],
+      "hints": [
+        "Op de landkaart staan codes. Ergens in de kamer ligt uitleg over die codes.",
+        "Zoek de legenda: die zegt in welke volgorde je de plekken leest. De tabel maakt van elke code een woord.",
+        "De volgorde is 3B, 2A, 1C, 2E, 5A. Zoek elke code op in de tabel."
+      ]
+    },
+    {
+      "nr": 3,
+      "naam": "Reclame",
+      "icoon": "📰",
+      "bewijs": "Slechte kwaliteit",
+      "dossier": "Intern noemt X-ploitation de eigen kleding van slechte kwaliteit.",
+      "cijfer": 9,
+      "antwoorden": [
+        "slechte kwaliteit"
+      ],
+      "hints": [
+        "De poster aan de muur is niet zomaar een poster.",
+        "Zoek alle puzzelstukjes en maak de legpuzzel. Zie je de gaatjes?",
+        "Leg de puzzel precies op de poster. Lees de letters die je door de gaatjes ziet."
+      ]
+    },
+    {
+      "nr": 4,
+      "naam": "Prijzen",
+      "icoon": "🏷️",
+      "bewijs": "Prijsafspraken",
+      "dossier": "X-ploitation spreekt in het geheim prijzen af met andere merken.",
+      "cijfer": 4,
+      "antwoorden": [
+        "alleen samen houden we de prijzen hoog"
+      ],
+      "hints": [
+        "Bekijk de prijskaartjes aan de kleding. Er loopt een lijn overheen.",
+        "Leg de kaartjes zo dat de lijn doorloopt van begin tot eind. Zoek ook de codetaal.",
+        "Elke letter is verschoven: waar een K staat hoort een A, een L wordt een B, enzovoort."
+      ]
+    },
+    {
+      "nr": 5,
+      "naam": "Milieu",
+      "icoon": "💧",
+      "bewijs": "7500 liter water",
+      "dossier": "Voor één spijkerbroek is 7500 liter water nodig, niet 3000.",
+      "volgorde": [
+        3,
+        1,
+        4,
+        2
+      ],
+      "antwoorden": [
+        "vijfenzeventighonderd liter water nodig",
+        "vijfenzeventighonderd liter water",
+        "vijfenzeventighonderd liter",
+        "vijfenzeventighonderd",
+        "7500 liter water nodig",
+        "7500 liter water",
+        "7500 liter",
+        "7500"
+      ],
+      "hints": [
+        "Zoek alle zes posts van X-ploitation. Welke hoort eerst?",
+        "In elke post staan letters met een cirkel erom. Schrijf ze per post op, in de goede volgorde van de posts.",
+        "Zet elk groepje letters in een kolom van het rooster en lees dan rij voor rij, van links naar rechts."
+      ]
+    }
+  ]
+}

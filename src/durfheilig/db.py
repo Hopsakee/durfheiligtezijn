@@ -82,6 +82,45 @@ create table if not exists gelezen (
     lezer text not null,
     primary key (speler_id, lezer)
 );
+create table if not exists escape_klok (
+    id integer primary key check (id = 1),
+    duur integer not null,
+    gestart real not null,
+    gepauzeerd_op real,
+    pauze_totaal real not null default 0
+);
+create table if not exists escape_team (
+    team text primary key,
+    extra integer not null default 0,
+    klaar_speeltijd real
+);
+create table if not exists escape_account (
+    gebruikersnaam text primary key,
+    team text,
+    aangemaakt real not null,
+    laatst_gezien real
+);
+create table if not exists escape_opgelost (
+    team text not null,
+    puzzel integer not null,
+    speeltijd real not null,
+    primary key (team, puzzel)
+);
+create table if not exists escape_hint (
+    team text not null,
+    puzzel integer not null,
+    nummer integer not null,
+    speeltijd real not null,
+    primary key (team, puzzel, nummer)
+);
+create table if not exists escape_gebeurtenis (
+    id integer primary key autoincrement,
+    team text not null,
+    soort text not null,
+    puzzel integer,
+    nummer integer,
+    tijd real not null
+);
 """
 
 JSON_VELDEN = {"vraag_ids", "antwoorden", "interesses", "open_antwoorden", "kandidaten", "vervolg",
@@ -282,11 +321,12 @@ def exporteer(db) -> dict:
         # who voted what stays in the database (a vote is replaced per voter) but never leaves it, not even in the export
         "stemmen": db.q("select spelronde_id, qid, stemronde from stem order by id"),
         "gelezen": db.q("select * from gelezen"),
+        "escape": {t: db.q(f"select * from {t}") for t in (*ESCAPE_TABELLEN, "escape_account")},
     }
 
 
 def verwijder_alles(db) -> None:
-    for tabel in ("stem", "spelronde", "bord", "spel", "gelezen", "match", "invulling", "speler"):
+    for tabel in ("stem", "spelronde", "bord", "spel", "gelezen", "match", "invulling", "speler", *ESCAPE_TABELLEN, "escape_account"):
         db.execute(f"delete from {tabel}")
     # delete alone leaves the answers in free pages and in the write-ahead log: rewrite the file, then empty the log.
     db.execute("vacuum")
@@ -368,3 +408,139 @@ def markeer_gelezen(db, speler_id: int, lezer: str) -> None:
 
 def lezers(db, speler_id: int) -> set[str]:
     return {r["lezer"] for r in db.q("select lezer from gelezen where speler_id = ?", [speler_id])}
+
+
+# ---------------------------------------------------------------- de escaperoom (escape.py)
+# Times are epoch seconds from the server (`time.time()`), passed in by the caller so tests can fix them. `speeltijd` is the game's running
+# time at that moment (pauses not counted), computed by escape.py.
+
+ESCAPE_TABELLEN = ("escape_gebeurtenis", "escape_hint", "escape_opgelost", "escape_team", "escape_klok")   # a reset keeps escape_account (who is in which team)
+
+
+def escape_klok(db) -> dict | None:
+    rij = db.q("select * from escape_klok")
+    return rij[0] if rij else None
+
+
+def escape_start(db, duur: int, nu: float, teams) -> bool:
+    """Start both clocks at once. Only once: a second tap (or a second leader) changes nothing. Returns whether it started now."""
+    with db.lock, db.conn:
+        if escape_klok(db):
+            return False
+        db.execute("insert into escape_klok(id, duur, gestart) values (1, ?, ?)", [duur, nu])
+        for t in teams:
+            db.execute("insert or ignore into escape_team(team) values (?)", [t])
+        return True
+
+
+def escape_pauze(db, pauze: bool, nu: float) -> None:
+    """Pause or resume both clocks. Idempotent: pausing a paused game or resuming a running one does nothing."""
+    with db.lock, db.conn:
+        k = escape_klok(db)
+        if not k:
+            return
+        if pauze and k["gepauzeerd_op"] is None:
+            db.execute("update escape_klok set gepauzeerd_op = ? where id = 1", [nu])
+        elif not pauze and k["gepauzeerd_op"] is not None:
+            db.execute("update escape_klok set pauze_totaal = pauze_totaal + ?, gepauzeerd_op = null where id = 1", [max(0.0, nu - k["gepauzeerd_op"])])
+
+
+def escape_teams(db) -> dict[str, dict]:
+    return {r["team"]: r for r in db.q("select * from escape_team")}
+
+
+def escape_zet_extra(db, team: str, extra: int) -> None:
+    db.execute("update escape_team set extra = ? where team = ?", [extra, team])
+
+
+def escape_account(db, gebruikersnaam: str) -> dict | None:
+    rij = db.q("select * from escape_account where gebruikersnaam = ?", [gebruikersnaam])
+    return rij[0] if rij else None
+
+
+def escape_meld(db, gebruikersnaam: str, nu: float) -> None:
+    """An account opened /escape: it now waits in the leader's list until the leader puts it in a team."""
+    db.execute("insert or ignore into escape_account(gebruikersnaam, team, aangemaakt) values (?, null, ?)", [gebruikersnaam, nu])
+
+
+def escape_accounts(db) -> list[dict]:
+    """Every account that opened /escape, with its nickname from the saint quiz when it has one."""
+    return db.q("select a.*, s.nickname from escape_account a left join speler s on s.gebruikersnaam = a.gebruikersnaam "
+                "order by a.team is null, a.team, a.gebruikersnaam")
+
+
+def escape_zet_account(db, gebruikersnaam: str, team: str | None) -> None:
+    """Put a known account in a team, or take it out (None). An account that never opened /escape is left alone."""
+    db.execute("update escape_account set team = ? where gebruikersnaam = ?", [team, gebruikersnaam])
+
+
+def escape_gezien(db, gebruikersnaam: str, nu: float) -> None:
+    """Note that the phone is alive; written at most every 10 seconds, though the phone polls every 2."""
+    db.execute("update escape_account set laatst_gezien = ? where gebruikersnaam = ? and (laatst_gezien is null or laatst_gezien < ?)",
+               [nu, gebruikersnaam, nu - 10])
+
+
+def escape_opgelost(db) -> dict[str, dict[int, float]]:
+    uit: dict[str, dict[int, float]] = {}
+    for r in db.q("select * from escape_opgelost"):
+        uit.setdefault(r["team"], {})[r["puzzel"]] = r["speeltijd"]
+    return uit
+
+
+def escape_hints(db) -> dict[str, dict[int, int]]:
+    uit: dict[str, dict[int, int]] = {}
+    for r in db.q("select team, puzzel, count(*) as n from escape_hint group by team, puzzel"):
+        uit.setdefault(r["team"], {})[r["puzzel"]] = r["n"]
+    return uit
+
+
+def _gebeurtenis(db, team: str, soort: str, puzzel: int | None, nu: float, nummer: int | None = None) -> None:
+    db.execute("insert into escape_gebeurtenis(team, soort, puzzel, nummer, tijd) values (?, ?, ?, ?, ?)", [team, soort, puzzel, nummer, nu])
+
+
+def escape_los_op(db, team: str, puzzel: int, speeltijd: float, alle: set[int], nu: float) -> bool:
+    """Record a right answer. In one transaction: the solve (once per team and puzzle, so two phones at once count once), the event for the
+    screens, and the finish time when this was the last one missing. Returns whether it was new."""
+    with db.lock, db.conn:
+        db.execute("insert or ignore into escape_opgelost(team, puzzel, speeltijd) values (?, ?, ?)", [team, puzzel, speeltijd])
+        if db.conn.changes() == 0:
+            return False
+        _gebeurtenis(db, team, "goed", puzzel, nu)
+        klaar = {r["puzzel"] for r in db.q("select puzzel from escape_opgelost where team = ?", [team])}
+        if alle <= klaar:
+            db.execute("update escape_team set klaar_speeltijd = ? where team = ? and klaar_speeltijd is null", [speeltijd, team])
+            _gebeurtenis(db, team, "klaar", None, nu)
+        return True
+
+
+def escape_fout(db, team: str, puzzel: int, nu: float) -> None:
+    _gebeurtenis(db, team, "fout", puzzel, nu)
+
+
+def escape_neem_hint(db, team: str, puzzel: int, maximum: int, speeltijd: float, nu: float) -> bool:
+    """The team's next hint for this puzzle, if there is one left. Returns whether one was taken."""
+    with db.lock, db.conn:
+        n = db.q("select count(*) as n from escape_hint where team = ? and puzzel = ?", [team, puzzel])[0]["n"]
+        if n >= maximum:
+            return False
+        db.execute("insert into escape_hint(team, puzzel, nummer, speeltijd) values (?, ?, ?, ?)", [team, puzzel, n + 1, speeltijd])
+        _gebeurtenis(db, team, "hint", puzzel, nu, n + 1)
+        return True
+
+
+def escape_terug(db, team: str, puzzel: int) -> None:
+    """Undo a wrongly accepted answer: the box goes grey again and the team is no longer finished."""
+    with db.lock, db.conn:
+        db.execute("delete from escape_opgelost where team = ? and puzzel = ?", [team, puzzel])
+        db.execute("update escape_team set klaar_speeltijd = null where team = ?", [team])
+
+
+def escape_gebeurtenissen(db, n: int = 20) -> list[dict]:
+    return list(reversed(db.q("select id, team, soort, puzzel, nummer from escape_gebeurtenis order by id desc limit ?", [n])))
+
+
+def escape_reset(db) -> None:
+    """Back to before the start. The team accounts keep their team."""
+    with db.lock, db.conn:
+        for tabel in ESCAPE_TABELLEN:
+            db.execute(f"delete from {tabel}")
