@@ -143,6 +143,11 @@ def _leiding(k) -> bool:
     return bool(k.get("leiding"))
 
 
+def _teamaccount(k) -> bool:
+    """An escape-room team account (a non-leader that opened /escape once); looked up only when a menu or the start page is built."""
+    return bool(k.get("teamaccount") and k["teamaccount"]())
+
+
 def _heeft_match(k) -> bool:
     return bool(k["profiel"]().get("heeft_match"))
 
@@ -155,6 +160,8 @@ def _mag_opnieuw(k) -> bool:
 
 # (href, title, explanation for the start page, group on the start page, who sees it). The menu and the start page both come from this list.
 PAGINAS = [
+    ("/escape", "📱 Teamtelefoon", None, "team", _teamaccount),
+    ("/escape/bord", "🖥️ Recherchebord", None, "team", _teamaccount),
     ("/menu", "Alle pagina's", None, "kind", _iedereen),
     ("/quiz", "Mijn quiz", None, "kind", _iedereen),
     ("/mijn", "Mijn heilige", "Lees je drie heiligen en je keuze nog eens terug.", "kind", _heeft_match),

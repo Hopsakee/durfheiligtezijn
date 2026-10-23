@@ -327,6 +327,10 @@ input.antwoord{font:inherit;font-size:1.3rem;padding:1rem;text-align:center;lett
 #esc-zend[hidden]{display:none}#esc-zend .r{opacity:.12;transition:opacity .2s}#esc-zend .r.aan{opacity:1}
 #esc-zend .code{font-size:.95rem;color:#7aa892;word-break:break-all;min-height:2.6em}
 #esc-zend .zbalk{height:.5rem;background:#123222;border-radius:999px;overflow:hidden}#esc-zend .zbalk i{display:block;height:100%;width:0;background:#38e07b}
+/* the two buttons on the start page of a team account */
+.teamknoppen{display:grid;grid-template-columns:minmax(0,1fr);gap:.8rem;margin:.4rem 0 1rem}
+@media (min-width:34rem){.teamknoppen{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.knop.teamknop{min-height:5.5rem;overflow-wrap:break-word;margin:0;justify-content:center;text-align:center;font-size:1.35rem;font-weight:800;border-width:3px;border-color:var(--accent);background:var(--accent-zacht)}
 /* leader page */
 .esc-start input[type=number]{width:7rem;padding:.7rem .9rem;font:inherit;color:var(--ink);background:var(--kaart);border:2px solid var(--rand);border-radius:14px;margin-left:.6rem}
 .knoprij{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}.knoprij form{margin:0}
