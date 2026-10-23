@@ -61,8 +61,11 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
             return Response("Alleen voor begeleiders.", status_code=403)
         if req.method not in ("GET", "HEAD") and req.headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none"):
             return Response("Niet toegestaan.", status_code=403)
-        KIJKER.set({"leiding": is_leiding(req.headers), "extra": extra_menu,
-                    "profiel": functools.cache(lambda: spel.profiel_van(db, gebruiker) or {})})   # only looked up when a menu is built
+        leiding = is_leiding(req.headers)
+        KIJKER.set({"leiding": leiding, "extra": extra_menu,
+                    "profiel": functools.cache(lambda: spel.profiel_van(db, gebruiker) or {}),   # only looked up when a menu is built
+                    # an escape-room team account: a non-leader that opened /escape once (it then gets the two team buttons)
+                    "teamaccount": functools.cache(lambda: not leiding and spel.escape_account(db, gebruiker) is not None)})
 
     app = FastHTML(before=Beforeware(auth, skip=[r"/health", r"/img/.*"]), hdrs=(Style(CSS),), secret_key=os.urandom(16).hex(),
                    pico=False)
@@ -218,8 +221,9 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
 
     @route("/")
     def get(req):
-        # Leaders land on the menu page; kids land straight in their quiz, which is what the link in the group app is for.
-        if is_leiding(req.headers):
+        # Leaders land on the menu page; kids land straight in their quiz, which is what the link in the group app is for. An escape-room
+        # team account lands on the start page too, with its two buttons on top, so nobody has to remember /escape and /escape/bord.
+        if is_leiding(req.headers) or ui.kijker()["teamaccount"]():
             return hub(req)
         return quiz(req)
 
@@ -260,7 +264,9 @@ def maak_app(db, heiligen: list[Heilige], vragen: Vragenbank, llm: Llm | None, r
         kaart = lambda href, titel, uitleg, *_: A(Div(B(titel), Span(uitleg or quiz, cls="uitleg")), href=href, cls="knop")
         paginas = [p for p in zichtbaar() if p[0] != "/menu"]
         voor_jou, voor_leiding = ([kaart(*p) for p in paginas if p[3] == groep] for groep in ("kind", "leiding"))
-        return pagina("Start", H2("Voor jou"), *voor_jou, *([H2("Voor begeleiders"), *voor_leiding] if voor_leiding else []))
+        voor_team = [A(titel, href=href, cls="knop teamknop") for href, titel, _, groep, _ in paginas if groep == "team"]
+        return pagina("Start", *([Div(*voor_team, cls="teamknoppen")] if voor_team else []), H2("Voor jou"), *voor_jou,
+                      *([H2("Voor begeleiders"), *voor_leiding] if voor_leiding else []))
 
     @route("/welkom", methods=["post"])
     def post_welkom(req, nickname: str = ""):

@@ -432,3 +432,53 @@ def test_de_teamtelefoon_en_de_laptop_delen_een_account_tegelijk():
     assert bord.count('class="postit"') == 1 and "TEAM A" in frag(tel, "/escape/inhoud")
     assert "/escape/bord" not in tel.get("/escape").text                                     # no link on the phone to wander off
     assert "/escape/bord" in boss.get("/beheer/escape").text                                 # the leader page names the laptop address
+
+
+# ------------------------------------------------------------------ de knoppen voor een teamaccount
+
+TEAMKNOPPEN = ('href="/escape"', 'href="/escape/bord"')
+
+
+def lijf(r):
+    """The page without its head (the inline stylesheet names the button classes on every page)."""
+    return r.text.split("</head>", 1)[1]
+
+
+def test_een_teamaccount_landt_op_de_startpagina_met_de_twee_knoppen_bovenaan_en_in_het_menu():
+    from test_app import menu_hrefs
+    db, app, tijd, boss = opzet()
+    for team in ("A", None):                                                               # assigned or still waiting: both get them
+        naam = f"tel-{team or 'wacht'}"
+        c = teamaccount(app, boss, naam, team) if team else kind(app, naam)
+        if not team:
+            c.get("/escape")
+        for pad in ("/", "/menu"):
+            r = c.get(pad)
+            assert r.url.path == pad and "📱 Teamtelefoon" in lijf(r) and "🖥️ Recherchebord" in lijf(r), (naam, pad)
+            boven = lijf(r).split("<h2>Voor jou</h2>")[0]                                    # on top, before the rest of the start page
+            assert all(k in boven.split("</header>")[-1] for k in TEAMKNOPPEN), (naam, pad)
+            assert menu_hrefs(r.text)[:2] == ["/escape", "/escape/bord"], (naam, pad)
+        for pad in ("/escape", "/escape/bord"):
+            assert menu_hrefs(c.get(pad).text) is None, pad                               # the escape pages stay without a menu
+
+
+def test_een_gewoon_kind_merkt_niets_van_de_teamknoppen():
+    from test_app import menu_hrefs
+    db, app, tijd, boss = opzet()
+    k = kind(app, "gewoon-kind")
+    r = k.get("/")
+    assert "Welkom" in lijf(r) and "Teamtelefoon" not in lijf(r) and "Recherchebord" not in lijf(r) and "teamknop" not in lijf(r)   # still straight into the quiz
+    assert menu_hrefs(r.text) == ["/menu", "/quiz", "/spel"]
+    m = lijf(k.get("/menu"))
+    assert not any(knop in m for knop in TEAMKNOPPEN) and "Recherchebord" not in m and "teamknop" not in m
+    assert spel.escape_account(db, "gewoon-kind") is None
+
+
+def test_de_leiding_houdt_haar_eigen_startpagina():
+    from test_app import menu_hrefs
+    db, app, tijd, boss = opzet()
+    spel.escape_meld(db, "boss", 0.0)                                                       # even a leader in escape_account
+    r = boss.get("/")
+    assert "Voor begeleiders" in lijf(r) and "Recherchebord" not in lijf(r) and "teamknop" not in lijf(r)
+    links = menu_hrefs(r.text)
+    assert "/escape/bord" not in links and "/beheer/escape" in links and links.count("/escape") == 1   # only its own explanation page

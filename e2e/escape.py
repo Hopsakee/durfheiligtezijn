@@ -135,6 +135,16 @@ def main() -> int:
             expect(kamer_a.locator("#team-A.prikbord")).to_be_visible(timeout=8000)   # the laptops switch by themselves
             expect(kamer_b.locator("#team-B.prikbord")).to_be_visible(timeout=8000)
             expect(kamer_a.locator("#team-B")).to_have_count(0)
+
+            # A team account that lands on / gets its two buttons on top; they lead to the phone and the board.
+            tel_a.goto(f"{basis}/")
+            expect(tel_a.locator(".teamknoppen a")).to_have_count(2)
+            tel_a.screenshot(path=uit / "team-start.png")
+            tel_a.get_by_role("link", name="🖥️ Recherchebord").first.click()
+            expect(tel_a.locator("#team-A.prikbord")).to_be_visible()
+            tel_a.goto(f"{basis}/")
+            tel_a.locator(".teamknoppen").get_by_role("link", name="📱 Teamtelefoon").click()
+            expect(tel_a.locator(".lijnkop")).to_contain_text("Team A")
             expect(leiding.locator("section.team-a").get_by_text("teamtelefoon-a")).to_be_visible()
 
             leiding.get_by_role("button", name="▶ Start beide klokken").click()
