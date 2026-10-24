@@ -38,10 +38,25 @@ def antwoord_van(nr):
 
 # ------------------------------------------------------------------ de inhoud
 
-def test_de_escaperoom_laadt_met_vijf_bewijzen_elk_met_drie_hints_en_een_slot_van_vier_cijfers():
+def test_de_escaperoom_laadt_met_vijf_bewijzen_elk_met_drie_hints_en_een_slot_van_drie_cijfers():
     assert [p.nr for p in ESC.puzzels] == [1, 2, 3, 4, 5]
-    assert all(isinstance(p.cijfer, int) for p in ESC.puzzels[:4]) and sorted(ESC.per_nr[5].volgorde) == [1, 2, 3, 4]
-    assert slotcode(ESC) == "".join(str(ESC.per_nr[n].cijfer) for n in ESC.per_nr[5].volgorde) and len(slotcode(ESC)) == 4
+    v = ESC.per_nr[5].volgorde
+    assert all(isinstance(p.cijfer_van(t), int) for p in ESC.puzzels[:4] for t in "AB") and len(v) == 3 == len(set(v)) and set(v) <= {1, 2, 3, 4}
+    assert (slotcode(ESC, "A"), slotcode(ESC, "B")) == ("581", "374")   # the black lock (team A) and the green one (team B)
+
+
+def test_de_slotcode_leest_drie_cijfers_in_de_volgorde_van_puzzel_5(tmp_path):
+    esc = laad_escape(kapotte_kopie(tmp_path, lambda d: ([d["puzzels"][i].update(cijfer=c) for i, c in enumerate([7, 2, 9, 4])],
+                                                         d["puzzels"][4].update(volgorde=[3, 1, 4]))))
+    assert slotcode(esc, "A") == slotcode(esc, "B") == "974"                                   # puzzle 2's digit is left over
+    esc = laad_escape(kapotte_kopie(tmp_path, lambda d: d["puzzels"][4].update(volgorde=[2, 4, 1])))
+    assert slotcode(esc, "B") == "".join(str(esc.per_nr[n].cijfer_van("B")) for n in (2, 4, 1))
+
+
+def test_elk_team_kan_een_eigen_slotcode_hebben(tmp_path):
+    esc = laad_escape(kapotte_kopie(tmp_path, lambda d: ([d["puzzels"][i].update(cijfer={"A": a, "B": b}) for i, (a, b) in
+                                                          enumerate([(1, 2), (3, 4), (5, 6), (7, 8)])], d["puzzels"][4].update(volgorde=[3, 1, 4]))))
+    assert (slotcode(esc, "A"), slotcode(esc, "B")) == ("517", "628")
     assert all(len(p.hints) == HINTS_PER_PUZZEL and p.antwoorden and p.dossier for p in ESC.puzzels)
     assert ESC.speeltijd_minuten == 45 and ESC.hintstraf_minuten == 3
 
@@ -76,9 +91,13 @@ def kapotte_kopie(tmp_path, wijzig):
     (lambda d: d["puzzels"][0].update(cijfer=10), "puzzel 1: cijfer 10"),
     (lambda d: d["puzzels"][0].update(cijfer=True), "puzzel 1: cijfer True"),
     (lambda d: d["puzzels"][0].update(cijfer="7"), "puzzel 1: cijfer '7'"),
-    (lambda d: d["puzzels"][4].update(volgorde=[3, 1, 1, 2]), "precies één keer"),
-    (lambda d: d["puzzels"][4].update(volgorde=[3, 1, 4]), "precies één keer"),
-    (lambda d: d["puzzels"][4].update(volgorde=[3, 1, 4, 2, 5]), "precies één keer"),
+    (lambda d: d["puzzels"][0].update(cijfer={"A": 5}), "één per team"),                              # team B missing
+    (lambda d: d["puzzels"][0].update(cijfer={"A": 5, "B": 10}), "cijfer van 0 tot 9"),
+    (lambda d: d["puzzels"][4].update(volgorde=[3, 1]), "precies 3 verschillende"),                 # too short
+    (lambda d: d["puzzels"][4].update(volgorde=[3, 1, 4, 2]), "precies 3 verschillende"),           # the old four-dial order
+    (lambda d: d["puzzels"][4].update(volgorde=[3, 3, 1]), "precies 3 verschillende"),              # a puzzle twice
+    (lambda d: d["puzzels"][4].update(volgorde=[3, 1, 5]), "elk van een puzzel met een cijfer"),    # puzzle 5 has no digit
+    (lambda d: d["puzzels"][4].update(volgorde=[3, 1, 9]), "elk van een puzzel met een cijfer"),    # no such puzzle
     (lambda d: d["puzzels"][4].update(volgorde="3142"), "lijst puzzelnummers"),
     (lambda d: d["puzzels"][0].update(volgorde=[1, 2, 3, 4]), "niet allebei"),
     (lambda d: d["puzzels"][3].pop("cijfer") and d["puzzels"][3].update(volgorde=[1, 2, 3]), "alleen één puzzel"),
@@ -164,7 +183,8 @@ def klokken(html_tekst):
 
 
 def events(html_tekst):
-    return json.loads(html.unescape(re.search(r"data-events='([^']*)'", html_tekst).group(1)))
+    m = re.search(r"""data-events=(?:'([^']*)'|"([^"]*)")""", html_tekst)                # FastHTML quotes with ' when the value holds "
+    return json.loads(html.unescape(m.group(1) if m.group(1) is not None else m.group(2)))
 
 
 def team_a(tv):
@@ -263,7 +283,7 @@ def test_een_heel_spel_fout_goed_hint_pauze_en_klaar():
     r = a.post("/escape/antwoord", data={"nr": "1", "antwoord": "made by adults"})
     assert "Afgewezen" in r.text and spel.escape_opgelost(db) == {}
     r = a.post("/escape/antwoord", data={"nr": "1", "antwoord": "  MADE by kids!"})
-    assert "Ontvangen" in r.text and f"<b>{ESC.per_nr[1].cijfer}</b>" in r.text and spel.escape_opgelost(db) == {"A": {1: 60.0}}
+    assert "Ontvangen" in r.text and f"<b>{ESC.per_nr[1].cijfer_van('A')}</b>" in r.text and spel.escape_opgelost(db) == {"A": {1: 60.0}}
     a.post("/escape/antwoord", data={"nr": "1", "antwoord": "made by kids"})           # twice counts once
     assert [e["soort"] for e in spel.escape_gebeurtenissen(db)] == ["fout", "goed"]
 
@@ -284,12 +304,17 @@ def test_een_heel_spel_fout_goed_hint_pauze_en_klaar():
     # Team A's room: its own board with the post-it and its digit; team B small in the corner.
     b.post("/escape/antwoord", data={"nr": "5", "antwoord": "7500"})
     kamer = frag(boss, "/beheer/escape/tv/inhoud?team=A")
-    assert kamer.count('class="postit"') == 1 and f'<div class="pc">{ESC.per_nr[1].cijfer}</div>' in kamer
+    assert kamer.count('class="postit"') == 1 and f'<div class="pc">{ESC.per_nr[1].cijfer_van("A")}</div>' in kamer
     assert kamer.count('class="postit leeg"') == 4 and kamer.count("<line") == 1
     hoek = re.search(r'<div class="hoek">.*', kamer, re.S).group(0)
     assert "Team B" in hoek and hoek.count('<i class=""></i>') == 1 and 'data-klok="B"' in hoek
     kamer_b = frag(boss, "/beheer/escape/tv/inhoud?team=B")
     assert 'class="pv"' in kamer_b and "→" in kamer_b                                       # puzzle 5's post-it gives the order
+    b.post("/escape/antwoord", data={"nr": "1", "antwoord": antwoord_van(1)})
+    kamer_b = frag(boss, "/beheer/escape/tv/inhoud?team=B")
+    assert f'<div class="pc">{ESC.per_nr[1].cijfer_van("B")}</div>' in kamer_b                # team B's own digit, not team A's
+    assert f'<div class="pc">{ESC.per_nr[1].cijfer_van("A")}</div>' not in kamer_b
+    assert "Slotcodes: team A 581 · team B 374" in boss.get("/beheer/escape").text
 
     boss.post("/beheer/escape/pauze", data={"actie": "pauze"})
     tijd.t += 600
@@ -482,3 +507,24 @@ def test_de_leiding_houdt_haar_eigen_startpagina():
     assert "Voor begeleiders" in lijf(r) and "Recherchebord" not in lijf(r) and "teamknop" not in lijf(r)
     links = menu_hrefs(r.text)
     assert "/escape/bord" not in links and "/beheer/escape" in links and links.count("/escape") == 1   # only its own explanation page
+
+
+# ------------------------------------------------------------------ het alarm
+
+def test_alleen_de_leiding_zet_het_alarm_af_en_alleen_bij_dat_team():
+    db, app, tijd, boss = opzet()
+    a, b = teamaccount(app, boss, "tel-a", "A"), teamaccount(app, boss, "tel-b", "B")
+    for c in (a, b, kind(app, "gewoon-kind")):
+        assert c.post("/beheer/escape/alarm", data={"team": "A"}).status_code == 403
+    assert boss.get("/beheer/escape/alarm").status_code == 405                              # a change is a POST
+    assert boss.post("/beheer/escape/alarm", data={"team": "A"}, headers={"sec-fetch-site": "cross-site"}).status_code == 403
+    assert spel.escape_gebeurtenissen(db) == []
+
+    boss.post("/beheer/escape/alarm", data={"team": "A"})
+    boss.post("/beheer/escape/alarm", data={"team": "C"})                                   # no such team: nothing
+    assert [(e["team"], e["soort"]) for e in spel.escape_gebeurtenissen(db)] == [("A", "alarm")]
+    assert any(e["soort"] == "alarm" for e in events(frag(a, "/escape/bord/inhoud")))
+    assert any(e["soort"] == "alarm" for e in events(frag(boss, "/beheer/escape/tv/inhoud?team=A")))
+    for tekst in (frag(b, "/escape/bord/inhoud"), b.get("/escape/bord").text, frag(boss, "/beheer/escape/tv/inhoud?team=B")):
+        assert not any(e["team"] == "A" for e in events(tekst)) and "Alarm bij team" not in html.unescape(tekst)   # team B sees nothing
+    assert "🚨 Alarm" in boss.get("/beheer/escape").text and 'id="esc-alarm"' in a.get("/escape/bord").text
