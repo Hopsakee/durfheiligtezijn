@@ -216,7 +216,7 @@ def main() -> int:
 
             expect(kamer_a.locator(".postit:not(.leeg)")).to_have_count(3, timeout=8000)
             expect(kamer_a.locator(".prikbord line")).to_have_count(3)
-            expect(kamer_a.locator(".postit .pv .chip")).to_have_count(4)
+            expect(kamer_a.locator(".postit .pv .chip")).to_have_count(3)     # the lock has three dials
             expect(kamer_a.locator(".hoek .briefjes i:not(.uit)")).to_have_count(1)
             expect(kamer_b.locator(".postit:not(.leeg)")).to_have_count(1)
             expect(kamer_b.locator(".hoek .briefjes i:not(.uit)")).to_have_count(3)
@@ -225,6 +225,31 @@ def main() -> int:
             kamer_a.screenshot(path=uit / "laptop-a-3-prikbord.png")
             expect(kamer_b.locator("#esc-melding")).to_be_hidden(timeout=15000)
             kamer_b.screenshot(path=uit / "laptop-b-1-prikbord.png")
+
+            # The alarm. Two slow presses of Q do nothing; two quick ones set it off on that board only.
+            kamer_a.keyboard.press("q")
+            kamer_a.wait_for_timeout(900)
+            kamer_a.keyboard.press("q")
+            kamer_a.wait_for_timeout(300)
+            expect(kamer_a.locator("#esc-alarm")).to_be_hidden()
+            sirene = kamer_a.evaluate("window.__tonen")
+            kamer_a.keyboard.press("q")
+            kamer_a.keyboard.press("q")
+            expect(kamer_a.locator("#esc-alarm")).to_be_visible()
+            kamer_a.wait_for_timeout(600)
+            kamer_a.screenshot(path=uit / "laptop-a-alarm.png")
+            assert kamer_a.evaluate("window.__tonen") >= sirene + 12, "geen sirene"
+            expect(kamer_b.locator("#esc-alarm")).to_be_hidden()
+            expect(kamer_a.locator("#esc-alarm")).to_be_hidden(timeout=7000)                  # about five seconds, then back to the board
+            expect(kamer_a.locator(".zij [data-klok=A]")).to_be_visible()
+
+            # The leader's button reaches team A's laptop within a poll, and not team B's.
+            leiding.goto(f"{basis}/beheer/escape")
+            leiding.locator("section.team-a").get_by_role("button", name="🚨 Alarm").click()
+            expect(kamer_a.locator("#esc-alarm")).to_be_visible(timeout=5000)
+            kamer_b.wait_for_timeout(3000)
+            expect(kamer_b.locator("#esc-alarm")).to_be_hidden()
+            expect(kamer_a.locator("#esc-alarm")).to_be_hidden(timeout=7000)
 
             expect(tv.locator("#esc-melding")).to_be_hidden(timeout=30000)
             expect(tv.locator("#team-A .vak.goed")).to_have_count(3)
@@ -236,7 +261,7 @@ def main() -> int:
             tel_a.screenshot(path=uit / "telefoon-7-bewijzen.png", full_page=True)
 
             leiding.goto(f"{basis}/beheer/escape")
-            expect(leiding.get_by_text("Slotcode voor beide kistjes")).to_be_visible()
+            expect(leiding.get_by_text("Slotcodes: team A")).to_be_visible()
             expect(leiding.get_by_text(f"{basis}/escape/bord")).to_be_visible()
             leiding.screenshot(path=uit / "beheer-1-bediening.png", full_page=True)
 

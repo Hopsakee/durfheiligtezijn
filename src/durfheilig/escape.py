@@ -27,6 +27,7 @@ from .ui import is_leiding, naar, pagina
 
 TEAMS = ("A", "B")
 HINTS_PER_PUZZEL = 3
+SLOT_CIJFERS = 3   # the padlocks have three dials: the order-puzzle names three of the digit-bearing puzzles
 MAX_ANTWOORD = 80
 
 
@@ -41,8 +42,11 @@ class Puzzel:
     dossier: str       # one line, shown big on the tv once found
     antwoorden: tuple[str, ...]
     hints: tuple[str, ...]
-    cijfer: int | None = None                  # one digit of the team's lock, written on the post-it
+    cijfer: dict[str, int] | None = None       # per team one digit of its lock, written on the post-it (the locks differ)
     volgorde: tuple[int, ...] | None = None    # the order in which to read the digits (puzzle numbers)
+
+    def cijfer_van(self, team: str) -> int | None:
+        return self.cijfer[team] if self.cijfer else None
 
     @functools.cached_property
     def geaccepteerd(self) -> frozenset[str]:
@@ -86,8 +90,14 @@ def laad_escape(pad: Path | None = None) -> Escape:
         if not isinstance(hints, list) or len(hints) != HINTS_PER_PUZZEL or not all(isinstance(h, str) and h.strip() for h in hints):
             raise fout(f"precies {HINTS_PER_PUZZEL} hints nodig, elk een tekst")
         cijfer = r.get("cijfer")
-        if cijfer is not None and (not isinstance(cijfer, int) or isinstance(cijfer, bool) or not 0 <= cijfer <= 9):
-            raise fout(f"cijfer {cijfer!r} moet een cijfer van 0 tot 9 zijn")
+        if cijfer is not None:   # one digit for both teams, or {"A": 5, "B": 3} when the locks differ
+            per_team = cijfer if isinstance(cijfer, dict) else dict.fromkeys(TEAMS, cijfer)
+            if sorted(per_team) != sorted(TEAMS):
+                raise fout(f"cijfer {cijfer!r} moet één cijfer zijn of één per team: {list(TEAMS)}")
+            for c in per_team.values():
+                if not isinstance(c, int) or isinstance(c, bool) or not 0 <= c <= 9:
+                    raise fout(f"cijfer {cijfer!r} moet een cijfer van 0 tot 9 zijn")
+            cijfer = per_team
         volgorde = r.get("volgorde")
         if volgorde is not None and (not isinstance(volgorde, list) or not all(isinstance(x, int) and not isinstance(x, bool) for x in volgorde)):
             raise fout(f"volgorde {volgorde!r} moet een lijst puzzelnummers zijn")
@@ -101,9 +111,11 @@ def laad_escape(pad: Path | None = None) -> Escape:
     met_volgorde = [p for p in puzzels if p.volgorde is not None]
     if len(met_volgorde) > 1:
         raise DataFout(f"escape: alleen één puzzel geeft de volgorde, nu {[p.nr for p in met_volgorde]}")
-    if met_volgorde and sorted(met_volgorde[0].volgorde) != met_cijfer:
-        raise DataFout(f"escape puzzel {met_volgorde[0].nr}: volgorde {list(met_volgorde[0].volgorde)} moet elk puzzelnummer met een cijfer "
-                       f"precies één keer noemen: {met_cijfer}")
+    if met_volgorde:
+        v = met_volgorde[0].volgorde
+        if len(v) != SLOT_CIJFERS or len(set(v)) != len(v) or not set(v) <= set(met_cijfer):
+            raise DataFout(f"escape puzzel {met_volgorde[0].nr}: volgorde {list(v)} moet precies {SLOT_CIJFERS} verschillende puzzelnummers "
+                           f"noemen, elk van een puzzel met een cijfer: {met_cijfer}")
     return Escape(doc.get("titel") or "Escaperoom", doc["speeltijd_minuten"], doc["hintstraf_minuten"], tuple(puzzels))
 
 
@@ -194,11 +206,12 @@ def winnaar(standen: dict[str, TeamStand]) -> str | None:
     return klaar[0][1]
 
 
-def slotcode(esc: Escape) -> str | None:
-    """The lock code: the digits read in the order the order-puzzle gives (or by puzzle number if there is none). None without digits."""
+def slotcode(esc: Escape, team: str) -> str | None:
+    """The team's lock code: its digits of the puzzles the order-puzzle names, in that order (without an order-puzzle: every digit by
+    puzzle number). None without digits."""
     per_nr = esc.per_nr
     volgorde = next((p.volgorde for p in esc.puzzels if p.volgorde), None) or tuple(p.nr for p in esc.puzzels if p.cijfer is not None)
-    return "".join(str(per_nr[n].cijfer) for n in volgorde) or None
+    return "".join(str(per_nr[n].cijfer_van(team)) for n in volgorde) or None
 
 
 def mmss(seconden: float) -> str:
@@ -273,6 +286,7 @@ body:has(.esc-kamer){background:#0b0c13}body:has(.esc-kamer) main{max-width:none
 .postit .pt{font-size:1.25em;font-weight:700}
 .postit .pc{font-size:4.6em;font-weight:900;line-height:.9}
 .postit .pv{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.15em;font-size:1.5em;font-weight:900}
+.postit .pv .slot{flex-basis:100%;font-size:.8em;line-height:1}
 .postit .chip{display:inline-grid;place-items:center;width:1.35em;height:1.35em;border-radius:.25em;border:2px solid rgba(0,0,0,.35)}
 .postit.leeg{background:transparent;border:3px dashed rgba(255,240,220,.35);box-shadow:none;color:rgba(255,240,220,.45);justify-content:center}.postit.leeg::before{display:none}.postit.leeg span{font-size:4em}
 .postit.land{animation:land 1.2s cubic-bezier(.2,.9,.3,1.15) both}
@@ -331,6 +345,12 @@ input.antwoord{font:inherit;font-size:1.3rem;padding:1rem;text-align:center;lett
 .teamknoppen{display:grid;grid-template-columns:minmax(0,1fr);gap:.8rem;margin:.4rem 0 1rem}
 @media (min-width:34rem){.teamknoppen{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .knop.teamknop{min-height:5.5rem;overflow-wrap:break-word;margin:0;justify-content:center;text-align:center;font-size:1.35rem;font-weight:800;border-width:3px;border-color:var(--accent);background:var(--accent-zacht)}
+/* the alarm on a room board: red flashing for five seconds */
+.alarm{position:fixed;inset:0;z-index:45;display:grid;place-items:center;color:#fff;font:900 clamp(5rem,26vh,16rem) system-ui,sans-serif;letter-spacing:.12em;animation:alarm .5s steps(1) infinite}
+.alarm[hidden]{display:none}
+@keyframes alarm{0%{background:rgba(220,0,0,.92)}50%{background:rgba(70,0,0,.85)}}
+@media (prefers-reduced-motion:reduce){.alarm{animation:none!important;background:rgba(220,0,0,.9)}}
+button.alarmknop{border-color:#c62828;color:#c62828}
 /* leader page */
 .esc-start input[type=number]{width:7rem;padding:.7rem .9rem;font:inherit;color:var(--ink);background:var(--kaart);border:2px solid var(--rand);border-radius:14px;margin-left:.6rem}
 .knoprij{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}.knoprij form{margin:0}
@@ -362,7 +382,10 @@ ESCAPESCRIPT = """
     fout: function () { toon(98, 0, 0.8, 'sawtooth', 0.35); toon(104, 0, 0.8, 'square', 0.18); },
     hint: function () { toon(880, 0, 0.3, 'sine', 0.3); toon(660, 0.25, 0.5, 'sine', 0.3); },
     op: function () { toon(220, 0, 1.2, 'sawtooth', 0.3); toon(147, 0.7, 1.8, 'sawtooth', 0.3); },
-    ander: function () { toon(1318, 0, 0.18, 'sine', 0.25); toon(1760, 0.12, 0.25, 'sine', 0.2); }
+    ander: function () { toon(1318, 0, 0.18, 'sine', 0.25); toon(1760, 0.12, 0.25, 'sine', 0.2); },
+    alarm: function () {   // a police siren: two tones, high-low, for about five seconds
+      for (var i = 0; i < 12; i++) { var f = i % 2 ? 660 : 880; toon(f, i * 0.42, 0.4, 'square', 0.3); toon(f / 2, i * 0.42, 0.4, 'sawtooth', 0.2); }
+    }
   };
   function speel(naam) { if (ctx && GELUID[naam]) { try { GELUID[naam](); } catch (e) {} } }
   function mmss(s) { s = Math.max(0, Math.ceil(s)); var m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
@@ -414,7 +437,25 @@ ESCAPESCRIPT = """
     m.hidden = false;
     setTimeout(function () { m.hidden = true; bezig = false; volgende(); }, e.soort === 'hint' ? 15000 : e.soort === 'klaar' ? 8000 : 6000);
   }
+  var alarmTot = 0;
+  function alarm() {   // red flashing over the whole screen for five seconds, then back to normal
+    var a = document.getElementById('esc-alarm');
+    if (!a || Date.now() < alarmTot) return;
+    alarmTot = Date.now() + 5000;
+    speel('alarm'); a.hidden = false;
+    setTimeout(function () { a.hidden = true; }, 5000);
+  }
+  if (focus) {   // on a room board a leader sets it off by pressing Q twice quickly, unless typing in a field
+    var vorigeQ = 0;
+    document.addEventListener('keydown', function (e) {
+      var t = e.target, veld = t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
+      if (veld || e.repeat || e.ctrlKey || e.metaKey || e.altKey || (e.key !== 'q' && e.key !== 'Q')) return;
+      var nu = Date.now();
+      if (nu - vorigeQ < 600) { vorigeQ = 0; alarm(); } else { vorigeQ = nu; }
+    });
+  }
   function nieuws(e) {
+    if (e.soort === 'alarm') { if (focus && e.team === focus) alarm(); else if (!focus) toast(e); return; }
     var eigen = !focus || e.team === focus;
     if (eigen && (e.soort === 'goed' || e.soort === 'klaar' || (e.soort === 'hint' && focus))) { wachtrij.push(e); volgende(); }
     else if (eigen && e.soort === 'hint') { speel('hint'); toast(e); flits(e.team, 'hint'); }
@@ -492,7 +533,7 @@ def registreer(app, db, esc: Escape, *, tijd=time.time) -> None:
     route = functools.partial(app.route, methods=["get"])   # a route that changes something says methods=["post"]
     per_nr = esc.per_nr
     straf_per_hint = esc.hintstraf_minuten * 60
-    code = slotcode(esc)
+    codes = {t: slotcode(esc, t) for t in TEAMS}
 
     def klok_nu() -> Klok | None:
         k = spel.escape_klok(db)
@@ -549,17 +590,17 @@ def registreer(app, db, esc: Escape, *, tijd=time.time) -> None:
     def live(url: str, inhoud, *, team: str = "", cls: str = "esc"):
         return Div(inhoud, id="esc-live", cls=cls, **{"data-poll": url, "data-team": team})
 
-    def slot_tekst(p: Puzzel) -> str | None:
+    def slot_tekst(p: Puzzel, team: str) -> str | None:
         if p.cijfer is not None:
-            return f"🔒 {p.cijfer}"
+            return f"🔒 {p.cijfer_van(team)}"
         if p.volgorde:
             return "🔒 " + "→".join(map(str, p.volgorde))
         return None
 
-    def vak(p: Puzzel, goed: bool, href: str | None = None, extra=()):
+    def vak(p: Puzzel, team: str, goed: bool, href: str | None = None, extra=()):
         inhoud = [Span(p.icoon, cls="vi"), Span(str(p.nr), cls="vnr"), Span(f"✔ {p.bewijs}" if goed else p.naam, cls="vt")]
-        if goed and slot_tekst(p):
-            inhoud.append(Span(slot_tekst(p), cls="vc"))
+        if goed and slot_tekst(p, team):
+            inhoud.append(Span(slot_tekst(p, team), cls="vc"))
         inhoud += list(extra)
         cls = "vak goed" if goed else "vak"
         return A(*inhoud, href=href, cls=cls) if href else Div(*inhoud, cls=cls)
@@ -567,7 +608,7 @@ def registreer(app, db, esc: Escape, *, tijd=time.time) -> None:
     def team_paneel(st: dict, t: str):
         s = st["teams"][t]
         return Section(Div(Span(f"TEAM {t}", cls="tnaam"), Span(status_tekst(st, t), cls="status"), cls="kop"),
-                       klok_el(t, hoofd=True), Div(*[vak(p, p.nr in st["opgelost"][t]) for p in esc.puzzels], cls="vakken"),
+                       klok_el(t, hoofd=True), Div(*[vak(p, t, p.nr in st["opgelost"][t]) for p in esc.puzzels], cls="vakken"),
                        P(strafregel(st, t), cls="straf"), cls=f"team team-{t.lower()}{toestand(s)}", id=f"team-{t}")
 
     def gebeurtenissen(kamer: str = "") -> str:
@@ -586,6 +627,8 @@ def registreer(app, db, esc: Escape, *, tijd=time.time) -> None:
                 kop, tekst, icoon = f"Team {e['team']} · bewijs {p.nr}: {p.bewijs}", p.dossier, p.icoon
             elif e["soort"] == "klaar":
                 kop, tekst, icoon = f"Team {e['team']}: alle bewijzen!", "De zaak tegen X-ploitation is rond.", "🏆"
+            elif e["soort"] == "alarm":
+                kop, icoon = f"🚨 Alarm bij team {e['team']}", "🚨"
             elif e["soort"] == "hint" and p and e["nummer"] and e["nummer"] <= len(p.hints):
                 kop, tekst, icoon = f"Team {e['team']} · hint voor bewijs {p.nr}", p.hints[e["nummer"] - 1], "💡"
             uit.append({"id": e["id"], "team": e["team"], "soort": e["soort"], "kop": kop, "tekst": tekst, "icoon": icoon})
@@ -594,7 +637,7 @@ def registreer(app, db, esc: Escape, *, tijd=time.time) -> None:
     # -------- het prikbord in de kamer van een team
 
     def volgorde_chips(volgorde) -> list:
-        uit = [Span("🔒")]
+        uit = [Span("🔒", cls="slot")]   # on a line of its own, so the three chips stay on one row
         for i, n in enumerate(volgorde):
             uit += [*([Span("→")] if i else []), Span(str(n), cls="chip", style=f"background:{kleur(n)}")]
         return uit
@@ -603,7 +646,7 @@ def registreer(app, db, esc: Escape, *, tijd=time.time) -> None:
         x, y, r = plek(p.nr)
         inhoud = [Div(f"Bewijs {p.nr}", cls="pk"), Div(p.bewijs, cls="pt")]
         if p.cijfer is not None:
-            inhoud.append(Div(str(p.cijfer), cls="pc"))
+            inhoud.append(Div(str(p.cijfer_van(team)), cls="pc"))
         if p.volgorde:
             inhoud.append(Div(*volgorde_chips(p.volgorde), cls="pv"))
         return Div(*inhoud, cls="postit", style=f"--x:{x}%;--y:{y}%;--r:{r}deg;--kleur:{kleur(p.nr)}", **{"data-land": f"{team}{p.nr}"})
@@ -651,6 +694,7 @@ def registreer(app, db, esc: Escape, *, tijd=time.time) -> None:
                       live(url, tv_inhoud(focus), team=focus, cls="esc esc-tv " + ("esc-kamer" if focus else "tv")),
                       Div(Div(cls="m-icoon"), Div(cls="m-kop"), Div(cls="m-tekst"), id="esc-melding", cls="melding", hidden=True),
                       Div(id="esc-toast", cls="toast", hidden=True),
+                      Div("ALARM", id="esc-alarm", cls="alarm", hidden=True, role="alert"),
                       Button(Span("🔊"), "Klik om te beginnen (geluid aan)", id="esc-geluid", type="button"),
                       Script(ESCAPESCRIPT), toon_menu=False)
 
@@ -709,7 +753,7 @@ def registreer(app, db, esc: Escape, *, tijd=time.time) -> None:
         st = stand()
         s = st["teams"][team]
         return blok(Section(Div(Span(f"TEAM {team}", cls="tnaam"), Span(status_tekst(st, team), cls="status"), cls="kop"), klok_el(team),
-                            Div(*[vak(p, p.nr in st["opgelost"][team], href=f"/escape/puzzel/{p.nr}") for p in esc.puzzels], cls="vakken"),
+                            Div(*[vak(p, team, p.nr in st["opgelost"][team], href=f"/escape/puzzel/{p.nr}") for p in esc.puzzels], cls="vakken"),
                             P(strafregel(st, team), cls="straf"), cls=f"team team-{team.lower()}{toestand(s)}", id=f"team-{team}"), st=st)
 
     @route("/escape")
@@ -727,12 +771,12 @@ def registreer(app, db, esc: Escape, *, tijd=time.time) -> None:
         melding = []
         p = puzzel_van(goed)
         if p:
-            melding = [Div(Div("✅", cls="groot"), "Ontvangen", P(p.bewijs, style="font-size:1.1rem"), *mini_postit(p), cls="uitslag goed")]
+            melding = [Div(Div("✅", cls="groot"), "Ontvangen", P(p.bewijs, style="font-size:1.1rem"), *mini_postit(p, team), cls="uitslag goed")]
         return lijnpagina("Bewijzen", *melding, live("/escape/inhoud", tel_inhoud(team), cls="esc esc-tel"), Script(ESCAPESCRIPT), team=team)
 
-    def mini_postit(p: Puzzel) -> list:
+    def mini_postit(p: Puzzel, team: str) -> list:
         if p.cijfer is not None:
-            return [Div(Span("cijfer"), B(str(p.cijfer)), cls="mini-postit", style=f"background:{kleur(p.nr)}")]
+            return [Div(Span("cijfer"), B(str(p.cijfer_van(team))), cls="mini-postit", style=f"background:{kleur(p.nr)}")]
         if p.volgorde:
             return [Div(Span("lees het slot zo"), B(" → ".join(map(str, p.volgorde)), style="font-size:1.8rem"), cls="mini-postit",
                         style=f"background:{kleur(p.nr)}")]
@@ -762,7 +806,7 @@ def registreer(app, db, esc: Escape, *, tijd=time.time) -> None:
         titel = f"{p.icoon} Bewijs {p.nr}: {p.naam}"
         hints = [Ul(*[Li(f"💡 {h}") for h in p.hints[:genomen]], cls="hintlijst")] if genomen else []
         if p.nr in st["opgelost"][team]:
-            return lijnpagina(titel, Div(Div("✅", cls="groot"), p.bewijs, *mini_postit(p), cls="uitslag goed"), terug, team=team)
+            return lijnpagina(titel, Div(Div("✅", cls="groot"), p.bewijs, *mini_postit(p, team), cls="uitslag goed"), terug, team=team)
         if not s.loopt:
             return lijnpagina(titel, Div(status_tekst(st, team), cls="uitslag info"), *hints, terug, team=team)
         fout = [Div(Div("❌", cls="groot"), "Afgewezen", P("Probeer opnieuw.", style="font-size:1rem"), cls="uitslag fout"), Script(TRILSCRIPT)] \
@@ -850,17 +894,18 @@ def registreer(app, db, esc: Escape, *, tijd=time.time) -> None:
             regel, spelknop = P("⏸ Gepauzeerd: beide klokken staan stil."), knop("/beheer/escape/pauze", "▶ Hervat beide klokken", "hoofd", actie="hervat")
         else:
             regel, spelknop = P(f"De klokken lopen ({klok.duur // 60} minuten)."), knop("/beheer/escape/pauze", "⏸ Pauzeer beide klokken", "", actie="pauze")
-        slot = P(f"🔒 Slotcode voor beide kistjes: {code}", style="font-weight:800") if code else ""
+        slot = P("🔒 Slotcodes: " + " · ".join(f"team {t} {c}" for t, c in codes.items()), style="font-weight:800") if any(codes.values()) else ""
         panelen = []
         for t in TEAMS:
             s = st["teams"][t]
-            vakken = [vak(p, p.nr in st["opgelost"][t],
+            vakken = [vak(p, t, p.nr in st["opgelost"][t],
                           extra=[knop("/beheer/escape/terug", "↩ terug", bevestig=f"Bewijs {p.nr} van team {t} weer op grijs zetten?", team=t, nr=p.nr)]
                           if p.nr in st["opgelost"][t] else []) for p in esc.puzzels]
             panelen.append(Section(
                 Div(Span(f"TEAM {t}", cls="tnaam"), Span(status_tekst(st, t), cls="status"), cls="kop"), klok_el(t),
                 Div(*vakken, cls="vakken"), P(strafregel(st, t), cls="straf"),
-                Div(*[knop("/beheer/escape/tijd", f"{m:+d} min".replace("-", "−"), team=t, minuten=m) for m in (-1, 1, 5)], cls="knoprij"),
+                Div(*[knop("/beheer/escape/tijd", f"{m:+d} min".replace("-", "−"), team=t, minuten=m) for m in (-1, 1, 5)],
+                    knop("/beheer/escape/alarm", "🚨 Alarm", "klein alarmknop", team=t), cls="knoprij"),
                 H2("Teamtelefoon"), team_accounts(t, accounts, st["nu"]),
                 cls=f"team team-{t.lower()}{toestand(s)}"))
         wachtend = [x for x in accounts if not x["team"]]
@@ -913,6 +958,13 @@ def registreer(app, db, esc: Escape, *, tijd=time.time) -> None:
         if team in TEAMS and st["klok"] is not None and m and abs(m) <= 30:
             s = st["teams"][team]
             spel.escape_zet_extra(db, team, nieuwe_extra(s.extra, s.rest_ruw, m * 60))
+        return naar("/beheer/escape")
+
+    @route("/beheer/escape/alarm", methods=["post"])
+    def beheer_alarm(team: str = ""):
+        """Set off the alarm on this team's room board(s) only (they pick it up within one poll)."""
+        if team in TEAMS:
+            spel.escape_alarm(db, team, tijd())
         return naar("/beheer/escape")
 
     @route("/beheer/escape/terug", methods=["post"])

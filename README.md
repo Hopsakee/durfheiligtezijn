@@ -72,9 +72,13 @@ Elk team heeft één teamtelefoon en één laptop in de eigen kamer; de leiding 
    groot op de laptop in de kamer.
 
 Puzzels, geaccepteerde antwoorden, hints, dossierregels en het slot staan in `data/escape.json`. Antwoorden worden vergeleken zonder
-hoofdletters, spaties, leestekens en accenten, dus `7.500` is `7500`. Puzzel 1 tot 4 geven elk een `cijfer` van het slot, puzzel 5 de
-`volgorde` waarin je ze leest; de cijfers die er nu staan zijn nepcijfers. Een fout in dat bestand stopt de app bij het starten, met het
-puzzelnummer erbij.
+hoofdletters, spaties, leestekens en accenten, dus `7.500` is `7500`. Het slot heeft 3 cijfers: puzzel 1 tot 4 geven elk een `cijfer`,
+puzzel 5 de `volgorde`: welke drie je leest en in welke volgorde (één cijfer blijft over). De cijfers die er nu staan zijn nepcijfers;
+de bediening toont de slotcode. Een fout in dat bestand stopt de app bij het starten, met het puzzelnummer erbij.
+
+Alarm (theater, geen straf; regel: maximaal 3 pogingen op het slot): op een prikbord in de kamer twee keer snel op Q drukken, of op de
+bediening de knop "🚨 Alarm" bij een team. Dan loeit een sirene en knippert het prikbord van dat team 5 seconden rood; het andere team
+merkt er niets van.
 
 Testen in een echte browser (Playwright, met de Chromium van je systeem):
 

@@ -517,6 +517,11 @@ def escape_fout(db, team: str, puzzel: int, nu: float) -> None:
     _gebeurtenis(db, team, "fout", puzzel, nu)
 
 
+def escape_alarm(db, team: str, nu: float) -> None:
+    """The leader sets off the alarm in this team's room (theatre for too many tries on the lock; no penalty)."""
+    _gebeurtenis(db, team, "alarm", None, nu)
+
+
 def escape_neem_hint(db, team: str, puzzel: int, maximum: int, speeltijd: float, nu: float) -> bool:
     """The team's next hint for this puzzle, if there is one left. Returns whether one was taken."""
     with db.lock, db.conn:
